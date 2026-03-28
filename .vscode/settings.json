@@ -1,7 +1,15 @@
 {
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/bin": true,
+    "**/obj": true
+  },
   "cSpell.words": [
     "direnv",
-    "Direnv",
     "dotnet",
     "github",
     "netcoredbg",
@@ -11,5 +19,6 @@
     "omnisharp",
     "pkgs",
     "roslyn"
-  ]
+  ],
+  "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix"
 }
