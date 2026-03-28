@@ -5,9 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="TUnit" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\DotNetQuery.Extensions.DependencyInjection\DotNetQuery.Extensions.DependencyInjection.csproj" />
   </ItemGroup>

@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/DotNetQuery.Blazor/DotNetQuery.Blazor.csproj" />
     <Project Path="src/DotNetQuery.Core/DotNetQuery.Core.csproj" />
     <Project Path="src/DotNetQuery.Extensions.DependencyInjection/DotNetQuery.Extensions.DependencyInjection.csproj" />
   </Folder>

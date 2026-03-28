@@ -5,10 +5,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Reactive.Testing" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\DotNetQuery.Core\DotNetQuery.Core.csproj" />
   </ItemGroup>

@@ -1,0 +1,49 @@
+@typeparam TArgs
+@typeparam TData
+@implements IDisposable
+
+@if (_state.IsSuccess && _state.CurrentData is { } data)
+{
+    @Content(data)
+}
+else if (_state.IsFailure && _state.Error is { } error)
+{
+    @Failure?.Invoke(error)
+}
+else
+{
+    @Loading
+}
+
+@code
+{
+    private QueryState<TData> _state = QueryState<TData>.CreateIdle();
+    private IDisposable? _subscription;
+
+    [Parameter, EditorRequired]
+    public IQuery<TArgs, TData> Query { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public RenderFragment<TData> Content { get; set; } = default!;
+
+    [Parameter]
+    public RenderFragment? Loading { get; set; }
+
+    [Parameter]
+    public RenderFragment<Exception>? Failure { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        _subscription?.Dispose();
+        _subscription = Query.State.Subscribe(state =>
+        {
+            _state = state;
+            _ = InvokeAsync(StateHasChanged);
+        });
+    }
+
+    public void Dispose()
+    {
+        _subscription?.Dispose();
+    }
+}
