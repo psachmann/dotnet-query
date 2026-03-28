@@ -1,0 +1,60 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "tool restore",
+      "type": "shell",
+      "command": "dotnet tool restore",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "none",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "format",
+      "type": "shell",
+      "command": "dotnet csharpier format .",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "none",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "dotnet build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": "dotnet test --no-build -- --coverage --coverage-output-format cobertura",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "dependsOn": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

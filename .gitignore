@@ -1,0 +1,7 @@
+# C-Sharp excludes
+bin/
+obj/
+TestResults/
+
+# Direnv excludes
+.direnv/
