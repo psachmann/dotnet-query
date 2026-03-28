@@ -9,6 +9,7 @@
     "**/obj": true
   },
   "cSpell.words": [
+    "csharpier",
     "direnv",
     "dotnet",
     "github",
@@ -18,6 +19,7 @@
     "nixpkgs",
     "omnisharp",
     "pkgs",
+    "psachmann",
     "roslyn"
   ],
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix"
