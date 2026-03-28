@@ -54,7 +54,7 @@ jobs:
         run: dotnet test --configuration Release --no-restore --no-build -- --coverage --coverage-output-format cobertura
 
       - name: Upload Test Results to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: '**/*.cobertura.xml'
