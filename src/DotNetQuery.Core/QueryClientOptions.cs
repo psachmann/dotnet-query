@@ -10,5 +10,5 @@ public sealed record QueryClientOptions
 
     public IRetryHandler RetryHandler { get; set; } = new DefaultRetryHandler();
 
-    public QueryRenderMode RenderMode { get; set; } = QueryRenderMode.Csr;
+    public QueryExecutionMode ExecutionMode { get; set; } = QueryExecutionMode.Csr;
 }

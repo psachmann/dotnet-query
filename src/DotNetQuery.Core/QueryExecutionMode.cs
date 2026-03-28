@@ -1,6 +1,6 @@
 namespace DotNetQuery.Core;
 
-public enum QueryRenderMode
+public enum QueryExecutionMode
 {
     /// <summary>Client-Side Rendering (WebAssembly) — registers as Singleton.</summary>
     Csr,

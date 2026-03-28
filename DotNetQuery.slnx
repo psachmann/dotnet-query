@@ -1,8 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/DotNetQuery.Core/DotNetQuery.Core.csproj" />
+    <Project Path="src/DotNetQuery.Extensions.DependencyInjection/DotNetQuery.Extensions.DependencyInjection.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DotNetQuery.Core.Tests/DotNetQuery.Core.Tests.csproj" />
+    <Project Path="tests/DotNetQuery.Extensions.DependencyInjection.Tests/DotNetQuery.Extensions.DependencyInjection.Tests.csproj" />
   </Folder>
 </Solution>
