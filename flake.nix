@@ -13,7 +13,6 @@
       let
         pkgs = import nixpkgs {
           inherit system;
-          config.allowUnfree = true;
         };
       in
       {
@@ -23,7 +22,6 @@
             dotnet-sdk_10
             omnisharp-roslyn
             netcoredbg
-            codecov-cli
           ];
           shellHook = ''
           '';

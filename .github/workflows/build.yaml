@@ -53,10 +53,16 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --no-restore --no-build --results-directory ./coverage -- --coverage --coverage-output-format cobertura
 
+      - name: Find coverage files
+        id: coverage
+        run: |
+          FILES=$(find ./coverage -name "*.cobertura.xml" | tr '\n' ',' | sed 's/,$//')
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+
       - name: Upload Test Results to Codecov
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./coverage
+          files: ${{ steps.coverage.outputs.files }}
           fail_ci_if_error: true
 
