@@ -51,11 +51,12 @@ jobs:
             core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
 
       - name: Test
-        run: dotnet test --configuration Release --no-restore --no-build -- --coverage --coverage-output-format cobertura
+        run: dotnet test --configuration Release --no-restore --no-build --results-directory ./coverage -- --coverage --coverage-output-format cobertura
 
       - name: Upload Test Results to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./coverage
           fail_ci_if_error: true
 
