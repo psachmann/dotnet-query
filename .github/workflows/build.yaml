@@ -53,6 +53,9 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --no-restore --no-build --results-directory ./coverage -- --coverage --coverage-output-format cobertura
 
+      - name: List coverage files
+        run: find ./coverage -name "*.xml" | head -20
+
       - name: Upload Test Results to Codecov
         uses: codecov/codecov-action@v6
         with:
