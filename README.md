@@ -1,5 +1,8 @@
 # DotNet Query
 
+[![Build](https://github.com/psachmann/dotnet-query/actions/workflows/build.yaml/badge.svg)](https://github.com/psachmann/dotnet-query/actions/workflows/build.yaml)
+[![codecov](https://codecov.io/gh/psachmann/dotnet-query/graph/badge.svg)](https://codecov.io/gh/psachmann/dotnet-query)
+
 > A [TanStack Query](https://tanstack.com/query)-inspired async data fetching and state management library for .NET and Blazor.
 
 DotNet Query brings the proven data-fetching patterns of TanStack Query to the .NET ecosystem. It provides a structured, reactive approach to managing asynchronous data, caching, and mutations — removing boilerplate and giving you predictable loading, error, and success states out of the box.
