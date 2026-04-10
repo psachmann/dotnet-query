@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <PackageIcon>dotnet-query-icon.png</PackageIcon>
+    <PackageIcon>dotnet-query-icon.128x128.png</PackageIcon>
     <Authors>Patrick Sachmann</Authors>
     <Company>Patrick Sachmann</Company>
     <Copyright>Copyright (c) 2026 Patrick Sachmann</Copyright>
