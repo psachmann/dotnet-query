@@ -15,7 +15,7 @@ public sealed record QueryKey
     {
         ArgumentNullException.ThrowIfNull(parts, nameof(parts));
 
-        if (Array.Exists(parts, p => p is null))
+        if (Array.Exists(parts, part => part is null))
         {
             throw new ArgumentException("QueryKey parts must not contain null elements.", nameof(parts));
         }
