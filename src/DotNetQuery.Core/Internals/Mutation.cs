@@ -23,11 +23,11 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         );
     }
 
-    public IObserver<bool> IsEnabled => _isEnabled.AsObserver();
+    public void SetEnabled(bool enabled) => _isEnabled.OnNext(enabled);
 
     public IObservable<MutationState<TData>> State => _state.AsObservable();
 
-    public IObservable<TData> Success => _state.Where(state => state.IsSuccess).Select(state => state.Data!);
+    public IObservable<TData> Success => _state.Where(state => state.IsSuccess).Select(state => state.CurrentData!);
 
     public IObservable<Exception> Failure => _state.Where(state => state.IsFailure).Select(state => state.Error!);
 
@@ -68,6 +68,11 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 
     private async Task ExecuteAsync(TArgs args, CancellationToken cancellationToken)
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         _state.OnNext(MutationState<TData>.CreateRunning());
 
         TData data = default!;
@@ -77,17 +82,34 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         try
         {
             data = await _options.RetryHandler!.ExecuteAsync(ct => _options.Mutator(args, ct), cancellationToken);
-            _state.OnNext(MutationState<TData>.CreateSuccess(data));
+
+            if (!_disposed)
+            {
+                _state.OnNext(MutationState<TData>.CreateSuccess(data));
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             cancelled = true;
-            _state.OnNext(MutationState<TData>.CreateIdle());
+
+            if (!_disposed)
+            {
+                _state.OnNext(MutationState<TData>.CreateIdle());
+            }
         }
         catch (Exception ex)
         {
             error = ex;
-            _state.OnNext(MutationState<TData>.CreateFailure(ex));
+
+            if (!_disposed)
+            {
+                _state.OnNext(MutationState<TData>.CreateFailure(ex));
+            }
+        }
+
+        if (_disposed)
+        {
+            return;
         }
 
         if (!cancelled)

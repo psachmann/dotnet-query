@@ -425,4 +425,52 @@ public class QueryTests
 
         await Assert.That(sut.Key).IsEqualTo(QueryKey.From("test"));
     }
+
+    [Test]
+    public async Task Dispose_WhileFetchInFlight_DoesNotRaiseObjectDisposedException()
+    {
+        // Regression: without the _disposed guard in FetchAsync, calling Dispose() while a fetch
+        // was in-flight caused _state.OnNext() to be invoked on an already-disposed BehaviorSubject,
+        // raising ObjectDisposedException on a ThreadPool thread.
+        var started = new TaskCompletionSource();
+        var gate = new TaskCompletionSource();
+        Exception? firstChanceOde = null;
+
+        EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs> handler = (_, e) =>
+        {
+            if (e.Exception is ObjectDisposedException)
+            {
+                firstChanceOde = e.Exception;
+            }
+        };
+
+        AppDomain.CurrentDomain.FirstChanceException += handler;
+
+        try
+        {
+            var sut = CreateQuery(
+                fetcher: async (_, ct) =>
+                {
+                    started.TrySetResult();
+                    await gate.Task.WaitAsync(ct);
+                    return "data";
+                }
+            );
+
+            using var sub = sut.State.Subscribe();
+            sut.Refetch();
+            await started.Task;
+
+            sut.Dispose();
+            gate.SetResult();
+
+            await Task.Delay(100);
+
+            await Assert.That(firstChanceOde).IsNull();
+        }
+        finally
+        {
+            AppDomain.CurrentDomain.FirstChanceException -= handler;
+        }
+    }
 }

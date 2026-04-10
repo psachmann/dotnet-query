@@ -19,6 +19,7 @@ else
 {
     private QueryState<TData> _state = QueryState<TData>.CreateIdle();
     private IDisposable? _subscription;
+    private IQuery<TArgs, TData>? _subscribedQuery;
 
     [Parameter, EditorRequired]
     public IQuery<TArgs, TData> Query { get; set; } = default!;
@@ -34,6 +35,12 @@ else
 
     protected override void OnParametersSet()
     {
+        if (ReferenceEquals(Query, _subscribedQuery))
+        {
+            return;
+        }
+
+        _subscribedQuery = Query;
         _subscription?.Dispose();
         _subscription = Query.State.Subscribe(state =>
         {

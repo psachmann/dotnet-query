@@ -113,6 +113,11 @@ internal sealed class Query<TArgs, TData> : IQuery
         );
         var linkedToken = cts.Token;
 
+        if (_disposed)
+        {
+            return;
+        }
+
         var lastData = _state.Value.CurrentData;
 
         _state.OnNext(QueryState<TData>.CreateFetching(lastData));
@@ -122,15 +127,24 @@ internal sealed class Query<TArgs, TData> : IQuery
             var data = await _options.RetryHandler.ExecuteAsync(ct => _options.Fetcher(_args, ct), linkedToken);
             _lastSuccessAt = _scheduler.Now;
 
-            _state.OnNext(QueryState<TData>.CreateSuccess(data, lastData));
+            if (!_disposed)
+            {
+                _state.OnNext(QueryState<TData>.CreateSuccess(data, lastData));
+            }
         }
         catch (OperationCanceledException) when (linkedToken.IsCancellationRequested)
         {
-            _state.OnNext(QueryState<TData>.CreateIdle(lastData));
+            if (!_disposed)
+            {
+                _state.OnNext(QueryState<TData>.CreateIdle(lastData));
+            }
         }
         catch (Exception error)
         {
-            _state.OnNext(QueryState<TData>.CreateFailure(error, lastData));
+            if (!_disposed)
+            {
+                _state.OnNext(QueryState<TData>.CreateFailure(error, lastData));
+            }
         }
     }
 }

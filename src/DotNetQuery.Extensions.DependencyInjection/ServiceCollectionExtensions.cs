@@ -14,6 +14,8 @@ public static class ServiceCollectionExtensions
             configure(options);
         }
 
+        options.Validate();
+
         services.Add(
             new ServiceDescriptor(
                 typeof(IQueryClient),

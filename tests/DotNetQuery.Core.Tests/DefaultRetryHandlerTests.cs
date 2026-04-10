@@ -126,4 +126,35 @@ public class DefaultRetryHandlerTests
 
         await Assert.That(act).ThrowsException().And.IsTypeOf<OperationCanceledException>();
     }
+
+    [Test]
+    public async Task ExecuteAsync_FailsAllAttempts_PreservesOriginalStackTrace()
+    {
+        // Regression: before ExceptionDispatchInfo.Capture().Throw(), re-throwing with `throw ex`
+        // replaced the original stack trace with the re-throw site. The fix uses
+        // ExceptionDispatchInfo.Capture().Throw() which PREPENDS the original frames and adds new
+        // frames after a "--- End of stack trace from previous location ---" separator.
+        string? originalFirstFrame = null;
+
+        var act = async () =>
+            await _sut.ExecuteAsync<int>(_ =>
+            {
+                try
+                {
+                    throw new InvalidOperationException("original");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    // Capture the first frame at the actual throw site
+                    originalFirstFrame = ex.StackTrace?.Split('\n')[0].Trim();
+                    throw;
+                }
+            });
+
+        var thrown = await Assert.That(act).ThrowsException().And.IsTypeOf<InvalidOperationException>();
+
+        // The re-thrown exception's trace must START with the original throw frame, proving
+        // ExceptionDispatchInfo preserved it rather than replacing it with the re-throw site.
+        await Assert.That(thrown.StackTrace).Contains(originalFirstFrame!);
+    }
 }

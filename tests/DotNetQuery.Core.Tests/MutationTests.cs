@@ -56,7 +56,7 @@ public class MutationTests
 
         using var _ = Assert.Multiple();
         await Assert.That(state.IsSuccess).IsTrue();
-        await Assert.That(state.Data).IsEqualTo("result");
+        await Assert.That(state.CurrentData).IsEqualTo("result");
         await Assert.That(state.HasData).IsTrue();
     }
 
@@ -119,7 +119,7 @@ public class MutationTests
             }
         );
 
-        mutation.IsEnabled.OnNext(false);
+        mutation.SetEnabled(false);
         mutation.Execute(0);
         await Task.Delay(50);
 
@@ -133,7 +133,7 @@ public class MutationTests
             new MutationOptions<int, string> { Mutator = (_, _) => Task.FromResult("ok"), IsEnabled = false }
         );
 
-        mutation.IsEnabled.OnNext(true);
+        mutation.SetEnabled(true);
         mutation.Execute(0);
 
         var state = await mutation.State.Where(s => s.IsSuccess).FirstAsync();
@@ -342,10 +342,61 @@ public class MutationTests
     }
 
     [Test]
+    public async Task Dispose_WhileExecuteInFlight_DoesNotRaiseObjectDisposedException()
+    {
+        // Regression: without the _disposed guard in ExecuteAsync, calling Dispose() while an
+        // execution was in-flight caused _state.OnNext() to be invoked on an already-disposed
+        // BehaviorSubject, raising ObjectDisposedException on a ThreadPool thread.
+        var started = new TaskCompletionSource();
+        var gate = new TaskCompletionSource<string>();
+        Exception? firstChanceOde = null;
+
+        EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs> handler = (_, e) =>
+        {
+            if (e.Exception is ObjectDisposedException)
+            {
+                firstChanceOde = e.Exception;
+            }
+        };
+
+        AppDomain.CurrentDomain.FirstChanceException += handler;
+
+        try
+        {
+            var mutation = _client.CreateMutation(
+                new MutationOptions<int, string>
+                {
+                    Mutator = async (_, _) =>
+                    {
+                        started.TrySetResult();
+                        return await gate.Task;
+                    },
+                }
+            );
+
+            mutation.Execute(0);
+            await started.Task;
+
+            mutation.Dispose();
+            gate.SetResult("done");
+
+            await Task.Delay(100);
+
+            await Assert.That(firstChanceOde).IsNull();
+        }
+        finally
+        {
+            AppDomain.CurrentDomain.FirstChanceException -= handler;
+        }
+    }
+
+    [Test]
     public async Task OnSettled_Callback_IsCalledOnCancellation()
     {
-        // Fix #5: OnSettled was previously skipped on OperationCanceledException.
-        var settled = false;
+        // Regression: OnSettled was previously skipped on OperationCanceledException.
+        // Use a dedicated TCS to avoid a race where FirstAsync() can resume the test
+        // continuation synchronously inside BehaviorSubject.OnNext, before OnSettled fires.
+        var settledTcs = new TaskCompletionSource();
         var started = new TaskCompletionSource();
 
         var mutation = _client.CreateMutation(
@@ -357,7 +408,7 @@ public class MutationTests
                     await Task.Delay(Timeout.Infinite, ct);
                     return "";
                 },
-                OnSettled = () => settled = true,
+                OnSettled = () => settledTcs.TrySetResult(),
             }
         );
 
@@ -365,8 +416,8 @@ public class MutationTests
         await started.Task;
         mutation.Cancel();
 
-        await mutation.State.Where(s => s.IsIdle).FirstAsync();
-        await Assert.That(settled).IsTrue();
+        await settledTcs.Task;
+        await Assert.That(settledTcs.Task.IsCompleted).IsTrue();
     }
 
     [Test]

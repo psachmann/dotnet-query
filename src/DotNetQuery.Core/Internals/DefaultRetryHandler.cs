@@ -1,3 +1,5 @@
+using System.Runtime.ExceptionServices;
+
 namespace DotNetQuery.Core.Internals;
 
 internal sealed class DefaultRetryHandler(TimeSpan[]? retryDelays = default) : IRetryHandler
@@ -38,6 +40,7 @@ internal sealed class DefaultRetryHandler(TimeSpan[]? retryDelays = default) : I
             }
         }
 
-        throw lastException!;
+        ExceptionDispatchInfo.Capture(lastException!).Throw();
+        throw lastException!; // unreachable — satisfies the compiler
     }
 }

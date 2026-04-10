@@ -15,5 +15,9 @@ public sealed record MutationOptions<TArgs, TData>
 
     public Action<Exception>? OnFailure { get; init; }
 
+    /// <summary>
+    /// Invoked after every execution that reaches a terminal state: success, failure, <b>or cancellation</b>.
+    /// Called after <see cref="OnSuccess"/> or <see cref="OnFailure"/> when applicable.
+    /// </summary>
     public Action? OnSettled { get; init; }
 }
