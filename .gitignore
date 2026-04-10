@@ -5,3 +5,7 @@ TestResults/
 
 # Direnv excludes
 .direnv/
+
+# DocFx excludes
+docs/_site/
+docs/api/

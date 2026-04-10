@@ -104,6 +104,7 @@ public class QueryKeyTests
     [Test]
     public async Task From_NullElement_ThrowsArgumentException()
     {
+        // Passing a non-null array that contains a null element
         var act = () => QueryKey.From("users", null!);
 
         var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentException>();

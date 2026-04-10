@@ -3,7 +3,12 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
   <PropertyGroup>
+    <PackageIcon>dotnet-query-icon.png</PackageIcon>
     <Authors>Patrick Sachmann</Authors>
     <Company>Patrick Sachmann</Company>
     <Copyright>Copyright (c) 2026 Patrick Sachmann</Copyright>
@@ -19,6 +24,10 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <MinVerTagPrefix>v</MinVerTagPrefix>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)docs/images/dotnet-query-icon.128x128.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />

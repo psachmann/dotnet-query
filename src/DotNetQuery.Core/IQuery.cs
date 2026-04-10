@@ -12,6 +12,10 @@ public interface IQuery : IDisposable
     /// </summary>
     public QueryKey Key { get; }
 
+    /// <summary>
+    /// The duration for which fetched data is kept in the cache after all subscribers have disposed.
+    /// Once elapsed, the cache entry is evicted.
+    /// </summary>
     public TimeSpan CacheTime { get; }
 
     /// <summary>
@@ -19,6 +23,9 @@ public interface IQuery : IDisposable
     /// </summary>
     public void Refetch();
 
+    /// <summary>
+    /// Cancels the currently running fetch, if any.
+    /// </summary>
     public void Cancel();
 
     /// <summary>

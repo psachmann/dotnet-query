@@ -1,5 +1,9 @@
 namespace DotNetQuery.Core;
 
+/// <summary>
+/// The central client for creating and managing queries and mutations.
+/// Acts as the cache owner — all queries and mutations created through it share the same cache.
+/// </summary>
 public interface IQueryClient : IDisposable
 {
     /// <summary>
