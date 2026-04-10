@@ -2,3 +2,29 @@
   href: introduction.md
 - name: Getting Started
   href: getting-started.md
+- name: Guides
+  items:
+    - name: Queries
+      href: guides/queries.md
+    - name: Mutations
+      href: guides/mutations.md
+    - name: Caching
+      href: guides/caching.md
+    - name: Blazor Components
+      href: guides/blazor.md
+    - name: Retry Handling
+      href: guides/retries.md
+    - name: Server-Side Rendering
+      href: guides/ssr.md
+- name: Examples
+  items:
+    - name: Fetching Data
+      href: examples/queries.md
+    - name: Creating & Updating Data
+      href: examples/mutations.md
+    - name: Blazor Integration
+      href: examples/blazor.md
+- name: Project Structure
+  href: project-structure.md
+- name: Contributing
+  href: contributing.md
