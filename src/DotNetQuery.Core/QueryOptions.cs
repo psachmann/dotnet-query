@@ -1,9 +1,23 @@
 namespace DotNetQuery.Core;
 
+/// <summary>
+/// Configuration options for a single query created via <see cref="IQueryClient.CreateQuery{TArgs,TData}"/>.
+/// Per-query settings override the global defaults set on <see cref="QueryClientOptions"/>.
+/// </summary>
+/// <typeparam name="TArgs">The type of the arguments passed to the fetcher.</typeparam>
+/// <typeparam name="TData">The type of the data returned by the fetcher.</typeparam>
 public sealed record QueryOptions<TArgs, TData>
 {
+    /// <summary>
+    /// A function that derives a <see cref="QueryKey"/> from the given args.
+    /// Used to identify and share cache entries across queries with the same key.
+    /// </summary>
     public required Func<TArgs, QueryKey> KeyFactory { get; init; }
 
+    /// <summary>
+    /// The async function that fetches data for the given args.
+    /// Receives a <see cref="CancellationToken"/> that is cancelled when the query is disposed or superseded.
+    /// </summary>
     public required Func<TArgs, CancellationToken, Task<TData>> Fetcher { get; init; }
 
     /// <summary>Overrides the global <see cref="QueryClientOptions.StaleTime"/>. <c>null</c> uses the global default.</summary>
@@ -20,7 +34,7 @@ public sealed record QueryOptions<TArgs, TData>
 
     /// <summary>
     /// Whether the query is initially enabled. Defaults to <c>true</c>.
-    /// Set to <c>false</c> to create a disabled-by-default query without needing to push to the <see cref="IQuery{TArgs,TData}.Enabled"/> observer.
+    /// Set to <c>false</c> to create a disabled-by-default query without needing to call <see cref="IQuery{TArgs,TData}.SetEnabled"/>.
     /// </summary>
     public bool IsEnabled { get; init; } = true;
 }

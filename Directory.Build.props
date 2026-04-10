@@ -3,6 +3,10 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
   <PropertyGroup>
     <Authors>Patrick Sachmann</Authors>
     <Company>Patrick Sachmann</Company>
