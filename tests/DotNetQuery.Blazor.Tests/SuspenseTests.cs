@@ -131,7 +131,7 @@ public class SuspenseTests
         // subscription even when the Query reference had not changed, causing subscription churn.
         var subscribeCount = 0;
         // Assign to _stateMock so the [After(Test)] teardown can call OnCompleted/Dispose safely.
-        _stateMock = new BehaviorSubject<QueryState<string>>(QueryState<string>.CreateIdle());
+        _ = CreateQuery(QueryState<string>.CreateIdle());
 
         var observableWithCounter = Observable.Create<QueryState<string>>(observer =>
         {
@@ -142,23 +142,20 @@ public class SuspenseTests
         _queryMock.State.Returns(observableWithCounter);
         var query = _queryMock.Object;
 
-        Microsoft.AspNetCore.Components.RenderFragment<string> content =
-            value => builder => builder.AddContent(0, $"<span>{value}</span>");
+        RenderFragment content(string value) => builder => builder.AddContent(0, $"<span>{value}</span>");
 
-        var cut = _context.Render<Suspense<int, string>>(p =>
-            p.Add(c => c.Query, query).Add(c => c.Content, content)
-        );
+        var cut = _context.Render<Suspense<int, string>>(p => p.Add(c => c.Query, query).Add(c => c.Content, content));
 
         var countAfterFirstRender = subscribeCount;
 
         // Simulate a parent re-render passing the same Query reference — OnParametersSet fires again
         await cut.InvokeAsync(() =>
             cut.Instance.SetParametersAsync(
-                Microsoft.AspNetCore.Components.ParameterView.FromDictionary(
+                ParameterView.FromDictionary(
                     new Dictionary<string, object?>
                     {
                         [nameof(Suspense<int, string>.Query)] = (object)query,
-                        [nameof(Suspense<int, string>.Content)] = (object)content,
+                        [nameof(Suspense<int, string>.Content)] = (object)(RenderFragment<string>)content,
                     }
                 )
             )
@@ -167,4 +164,3 @@ public class SuspenseTests
         await Assert.That(subscribeCount).IsEqualTo(countAfterFirstRender);
     }
 }
-
