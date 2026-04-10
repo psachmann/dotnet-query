@@ -22,11 +22,15 @@ internal sealed class QueryClient : IQueryClient
 
         if (options.InvalidateKeys is { Count: > 0 } keys)
         {
-            mutation.Success.Subscribe(_ =>
+            var subscription = mutation.Success.Subscribe(_ =>
             {
                 foreach (var key in keys)
+                {
                     Invalidate(key);
+                }
             });
+
+            mutation.AddDisposable(subscription);
         }
 
         return mutation;

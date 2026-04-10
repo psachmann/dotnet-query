@@ -8,6 +8,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
     private readonly Subject<TArgs> _execute = new();
     private readonly Subject<Unit> _cancel = new();
     private readonly IDisposable _pipelineSubscription;
+    private readonly List<IDisposable> _disposables = [];
     private bool _disposed;
 
     public Mutation(MutationOptions<TArgs, TData> options)
@@ -43,6 +44,8 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 
     public void Cancel() => _cancel.OnNext(Unit.Default);
 
+    internal void AddDisposable(IDisposable disposable) => _disposables.Add(disposable);
+
     public void Dispose()
     {
         if (_disposed)
@@ -60,6 +63,11 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         _cancel.Dispose();
         _isEnabled.Dispose();
         _state.Dispose();
+
+        foreach (var disposable in _disposables)
+        {
+            disposable.Dispose();
+        }
     }
 
     private async Task ExecuteAsync(TArgs args, CancellationToken cancellationToken)

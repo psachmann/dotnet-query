@@ -11,7 +11,7 @@ internal sealed class Query<TArgs, TData> : IQuery
     private readonly Subject<Unit> _invalidate = new();
     private readonly IDisposable _pipelineSubscription;
     private readonly IDisposable? _refetchSubscription;
-
+    private readonly Lock _syncRoot = new();
     private DateTimeOffset? _lastSuccessAt;
     private int _subscriberCount;
     private bool _isStale;
@@ -45,16 +45,23 @@ internal sealed class Query<TArgs, TData> : IQuery
         {
             var subscription = _state.Subscribe(observer);
 
-            if (Interlocked.Increment(ref _subscriberCount) == 1 && _isStale)
+            lock (_syncRoot)
             {
-                _isStale = false;
-                _invalidate.OnNext(Unit.Default);
+                _subscriberCount++;
+                if (_subscriberCount == 1 && _isStale)
+                {
+                    _isStale = false;
+                    _invalidate.OnNext(Unit.Default);
+                }
             }
 
             return () =>
             {
                 subscription.Dispose();
-                Interlocked.Decrement(ref _subscriberCount);
+                lock (_syncRoot)
+                {
+                    _subscriberCount--;
+                }
             };
         });
 
@@ -67,13 +74,16 @@ internal sealed class Query<TArgs, TData> : IQuery
             return;
         }
 
-        if (_subscriberCount > 0)
+        lock (_syncRoot)
         {
-            _invalidate.OnNext(Unit.Default);
-        }
-        else
-        {
-            _isStale = true;
+            if (_subscriberCount > 0)
+            {
+                _invalidate.OnNext(Unit.Default);
+            }
+            else
+            {
+                _isStale = true;
+            }
         }
     }
 
