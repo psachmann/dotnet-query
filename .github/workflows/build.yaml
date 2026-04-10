@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup .NET
+      - name: Setup DotNet
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
@@ -37,7 +37,6 @@ jobs:
 
       - name: Format
         id: csharpier
-        continue-on-error: true
         run: dotnet csharpier check .
 
       - name: Build
