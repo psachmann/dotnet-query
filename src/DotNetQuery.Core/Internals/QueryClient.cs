@@ -2,7 +2,7 @@ namespace DotNetQuery.Core.Internals;
 
 internal sealed class QueryClient : IQueryClient
 {
-    private readonly QueryCache _cache;
+    private readonly IQueryCache _cache;
     private readonly QueryClientOptions _globalOptions;
     private readonly IScheduler _scheduler;
 
@@ -18,7 +18,8 @@ internal sealed class QueryClient : IQueryClient
 
     public IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options)
     {
-        var mutation = new Mutation<TArgs, TData>(options);
+        var effectiveOptions = options with { RetryHandler = options.RetryHandler ?? _globalOptions.RetryHandler };
+        var mutation = new Mutation<TArgs, TData>(effectiveOptions);
 
         if (options.InvalidateKeys is { Count: > 0 } keys)
         {

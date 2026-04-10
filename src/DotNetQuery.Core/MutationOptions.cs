@@ -4,7 +4,8 @@ public sealed record MutationOptions<TArgs, TData>
 {
     public required Func<TArgs, CancellationToken, Task<TData>> Mutator { get; init; }
 
-    public IRetryHandler RetryHandler { get; init; } = new DefaultRetryHandler();
+    /// <summary>Overrides the global <see cref="QueryClientOptions.RetryHandler"/>. <c>null</c> uses the global default.</summary>
+    public IRetryHandler? RetryHandler { get; init; }
 
     public bool IsEnabled { get; init; } = true;
 

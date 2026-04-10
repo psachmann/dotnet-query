@@ -340,4 +340,85 @@ public class MutationTests
 
         await Assert.That(mutation.State).IsNotNull();
     }
+
+    [Test]
+    public async Task OnSettled_Callback_IsCalledOnCancellation()
+    {
+        // Fix #5: OnSettled was previously skipped on OperationCanceledException.
+        var settled = false;
+        var started = new TaskCompletionSource();
+
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string>
+            {
+                Mutator = async (_, ct) =>
+                {
+                    started.TrySetResult();
+                    await Task.Delay(Timeout.Infinite, ct);
+                    return "";
+                },
+                OnSettled = () => settled = true,
+            }
+        );
+
+        mutation.Execute(0);
+        await started.Task;
+        mutation.Cancel();
+
+        await mutation.State.Where(s => s.IsIdle).FirstAsync();
+        await Assert.That(settled).IsTrue();
+    }
+
+    [Test]
+    public async Task RetryHandler_NullInOptions_UsesGlobalHandler()
+    {
+        // Fix #10: null RetryHandler must use the global handler, not a fresh default.
+        // Configure the global to NoRetryHandler so we can observe exactly 1 attempt on failure.
+        using var client = new QueryClient(
+            new QueryClientOptions { RetryHandler = new NoRetryHandler() },
+            _scheduler
+        );
+        var attempts = 0;
+        var mutation = client.CreateMutation(
+            new MutationOptions<int, string>
+            {
+                Mutator = (_, _) =>
+                {
+                    attempts++;
+                    return Task.FromException<string>(new Exception("fail"));
+                },
+                RetryHandler = null,
+            }
+        );
+
+        mutation.Execute(0);
+        await mutation.Failure.FirstAsync();
+
+        await Assert.That(attempts).IsEqualTo(1); // NoRetryHandler: no retries
+    }
+
+    [Test]
+    public async Task RetryHandler_ExplicitInOptions_OverridesGlobal()
+    {
+        // Fix #10: an explicit RetryHandler in options must override the global.
+        // _client uses DefaultRetryHandler globally (would retry on failure);
+        // the explicit NoRetryHandler should suppress all retries.
+        var attempts = 0;
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string>
+            {
+                Mutator = (_, _) =>
+                {
+                    attempts++;
+                    return Task.FromException<string>(new Exception("fail"));
+                },
+                RetryHandler = new NoRetryHandler(),
+            }
+        );
+
+        mutation.Execute(0);
+        await mutation.Failure.FirstAsync();
+
+        await Assert.That(attempts).IsEqualTo(1); // explicit NoRetryHandler wins
+    }
 }

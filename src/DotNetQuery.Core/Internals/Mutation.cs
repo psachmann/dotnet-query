@@ -74,23 +74,38 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
     {
         _state.OnNext(MutationState<TData>.CreateRunning());
 
+        TData data = default!;
+        Exception? error = null;
+        var cancelled = false;
+
         try
         {
-            var data = await _options.RetryHandler.ExecuteAsync(ct => _options.Mutator(args, ct), cancellationToken);
-
+            data = await _options.RetryHandler!.ExecuteAsync(ct => _options.Mutator(args, ct), cancellationToken);
             _state.OnNext(MutationState<TData>.CreateSuccess(data));
-            _options.OnSuccess?.Invoke(args, data);
-            _options.OnSettled?.Invoke();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            cancelled = true;
             _state.OnNext(MutationState<TData>.CreateIdle());
         }
-        catch (Exception error)
+        catch (Exception ex)
         {
-            _state.OnNext(MutationState<TData>.CreateFailure(error));
-            _options.OnFailure?.Invoke(error);
-            _options.OnSettled?.Invoke();
+            error = ex;
+            _state.OnNext(MutationState<TData>.CreateFailure(ex));
         }
+
+        if (!cancelled)
+        {
+            if (error is null)
+            {
+                _options.OnSuccess?.Invoke(args, data);
+            }
+            else
+            {
+                _options.OnFailure?.Invoke(error);
+            }
+        }
+
+        _options.OnSettled?.Invoke();
     }
 }

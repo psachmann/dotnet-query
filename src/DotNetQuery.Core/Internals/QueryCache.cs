@@ -1,19 +1,23 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class QueryCache(IScheduler? scheduler = null) : IDisposable
+internal sealed class QueryCache(IScheduler? scheduler = null) : IQueryCache
 {
     private readonly ConcurrentDictionary<QueryKey, IQuery> _entries = new();
     private readonly ConcurrentDictionary<QueryKey, IDisposable> _pendingRemovals = new();
     private readonly IScheduler _scheduler = scheduler ?? Scheduler.Default;
+    private readonly Lock _evictionLock = new();
 
     public Query<TArgs, TData> GetOrCreate<TArgs, TData>(QueryKey key, Query<TArgs, TData> query)
     {
-        if (_pendingRemovals.TryRemove(key, out var pending))
+        lock (_evictionLock)
         {
-            pending.Dispose();
-        }
+            if (_pendingRemovals.TryRemove(key, out var pending))
+            {
+                pending.Dispose();
+            }
 
-        return (Query<TArgs, TData>)_entries.GetOrAdd(key, query);
+            return (Query<TArgs, TData>)_entries.GetOrAdd(key, query);
+        }
     }
 
     public void Remove(QueryKey key)
@@ -27,11 +31,17 @@ internal sealed class QueryCache(IScheduler? scheduler = null) : IDisposable
             .Timer(query.CacheTime, _scheduler)
             .Subscribe(_ =>
             {
-                if (_entries.TryRemove(key, out var q))
+                IQuery? toDispose = null;
+
+                lock (_evictionLock)
                 {
-                    q.Dispose();
+                    if (_pendingRemovals.TryRemove(key, out IDisposable? _) && _entries.TryRemove(key, out var query))
+                    {
+                        toDispose = query;
+                    }
                 }
-                _pendingRemovals.TryRemove(key, out IDisposable? _);
+
+                toDispose?.Dispose();
             });
 
         _pendingRemovals[key] = subscription;
@@ -47,9 +57,9 @@ internal sealed class QueryCache(IScheduler? scheduler = null) : IDisposable
 
     public void Invalidate(Func<QueryKey, bool> predicate)
     {
-        foreach (var (key, query) in _entries)
+        foreach (var key in _entries.Keys.ToList())
         {
-            if (predicate(key))
+            if (predicate(key) && _entries.TryGetValue(key, out var query))
             {
                 query.Invalidate();
             }

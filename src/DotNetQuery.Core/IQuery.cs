@@ -7,7 +7,8 @@ public interface IQuery : IDisposable
 {
     /// <summary>
     /// The key that uniquely identifies this query in the client cache.
-    /// Returns <c>null</c> before args have been set for the first time.
+    /// Returns <see cref="QueryKey.Default"/> before args have been set for the first time.
+    /// Check against <see cref="QueryKey.Default"/> to detect the uninitialized state.
     /// </summary>
     public QueryKey Key { get; }
 
