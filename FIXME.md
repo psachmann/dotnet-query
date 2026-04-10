@@ -22,17 +22,13 @@ All issues previously listed in this file have been fixed. A summary is preserve
 | 10 | `IQueryCache` internal-only prevented alternative cache implementations | Documented in notes; not promoted to public (would require a larger API surface change — defer to a future version) |
 | 11 | `IMutation<TArgs,TData>` had no awaitable `ExecuteAsync` | Documented; not added (requires deeper contract changes around cancellation semantics — defer to a future version) |
 | 12 | `MutationState<TData>.Data` inconsistent with `QueryState<TData>.CurrentData` | `Data` renamed to `CurrentData`; `HasData` kept as `IsSuccess` (correct for value types) |
+| 13 | `IQueryCache` was a dead internal interface — never mocked in tests, never a consumer extensibility point | Deleted `IQueryCache.cs`; `QueryClient` and `QueryObserver` now reference `QueryCache` directly |
 
 ---
 
 ## Deferred (future work)
 
-### A. `IQueryCache` is internal, preventing alternative implementations
-**File:** `src/DotNetQuery.Core/Internals/IQueryCache.cs`
 
-Promoting `IQueryCache` to `public` is a larger change that also requires exposing `IQuery<TArgs,TData>` as a fully public, injectable abstraction. Defer to a version boundary where a broader public-API review can be done.
-
----
 
 ### B. No awaitable `ExecuteAsync` on `IMutation<TArgs,TData>`
 **File:** `src/DotNetQuery.Core/IMutation.cs`

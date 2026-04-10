@@ -1,6 +1,6 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class QueryCache(IScheduler? scheduler = null) : IQueryCache
+internal sealed class QueryCache(IScheduler? scheduler = null) : IDisposable
 {
     private readonly ConcurrentDictionary<QueryKey, IQuery> _entries = new();
     private readonly ConcurrentDictionary<QueryKey, IDisposable> _pendingRemovals = new();

@@ -2,7 +2,7 @@ namespace DotNetQuery.Core.Internals;
 
 internal sealed class QueryClient : IQueryClient
 {
-    private readonly IQueryCache _cache;
+    private readonly QueryCache _cache;
     private readonly QueryClientOptions _globalOptions;
     private readonly IScheduler _scheduler;
 

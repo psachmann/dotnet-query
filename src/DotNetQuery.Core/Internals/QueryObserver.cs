@@ -2,7 +2,7 @@ namespace DotNetQuery.Core.Internals;
 
 internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
 {
-    private readonly IQueryCache _cache;
+    private readonly QueryCache _cache;
     private readonly EffectiveQueryOptions<TArgs, TData> _options;
     private readonly IScheduler _scheduler;
     private readonly BehaviorSubject<Query<TArgs, TData>?> _activeQuery = new(null);
@@ -16,7 +16,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
     public QueryObserver(
         QueryOptions<TArgs, TData> options,
         QueryClientOptions globalOptions,
-        IQueryCache cache,
+        QueryCache cache,
         IScheduler? scheduler = null
     )
     {
