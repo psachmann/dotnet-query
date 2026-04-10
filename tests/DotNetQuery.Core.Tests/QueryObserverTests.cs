@@ -186,7 +186,7 @@ public class QueryObserverTests
         var tcs = new TaskCompletionSource<QueryState<string>>();
         using var fetchSub = sut.State.Where(s => s.IsFetching).Subscribe(s => tcs.TrySetResult(s));
 
-        sut.IsEnabled.OnNext(true);
+        sut.SetEnabled(true);
 
         var state = await tcs.Task;
         await Assert.That(state.IsFetching).IsTrue();
@@ -211,8 +211,8 @@ public class QueryObserverTests
         var countAfterFirstFetch = fetchCount;
 
         // Setting false then false again — DistinctUntilChanged filters the duplicate
-        sut.IsEnabled.OnNext(false);
-        sut.IsEnabled.OnNext(false);
+        sut.SetEnabled(false);
+        sut.SetEnabled(false);
         await Task.Delay(50);
 
         await Assert.That(fetchCount).IsEqualTo(countAfterFirstFetch);

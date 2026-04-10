@@ -1,6 +1,5 @@
 # List for new features
 
-- Open Telemetry integration
 - Sample Project?
 - API Documentation
 - ...
@@ -24,7 +23,10 @@
 
 ## .NET Ecosystem Integration
 
-- **ILogger Integration** — Log query lifecycle events (fetch start, success, error, retry, cache hit/miss) via `Microsoft.Extensions.Logging`
+- **Observability (ILogger + ActivitySource + Meter)** — OTel-compatible observability using only BCL APIs; no direct OpenTelemetry package dependency in the library itself:
+  - **`ILogger<QueryClient>`** (injected via DI, optional) — structured log messages for fetch start/success/failure, cache hit/miss, retry attempts
+  - **`System.Diagnostics.ActivitySource`** (static singleton) — distributed trace spans for query fetches and mutation executions, tagged with key and status; automatically picked up by OpenTelemetry instrumentation on the consumer side
+  - **`System.Diagnostics.Metrics.Meter`** (static singleton) — metrics for cache hits/misses, fetch duration (histogram), retry count, and active query gauge; automatically picked up by OpenTelemetry instrumentation on the consumer side
 - **Resilience / Polly Integration** — Optional `DotNetQuery.Extensions.Resilience` package wrapping retry and circuit-breaker with Polly pipelines
 - **HttpClient Helpers** — Convenience extension methods for wrapping typed `HttpClient` calls in `QueryOptions`
 - **Background Service Queries** — Support for running queries inside `IHostedService` / `BackgroundService` (non-Blazor scenarios)

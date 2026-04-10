@@ -8,8 +8,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
     private readonly BehaviorSubject<Query<TArgs, TData>?> _activeQuery = new(null);
     private readonly BehaviorSubject<bool> _isEnabled;
     private readonly Subject<TArgs> _args = new();
-    private readonly IDisposable _argsSubscription;
-    private readonly IDisposable _enabledSubscription;
+    private readonly CompositeDisposable _subscriptions = [];
 
     private QueryKey _currentKey = QueryKey.Default;
     private bool _disposed;
@@ -26,25 +25,26 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
         _scheduler = scheduler ?? Scheduler.Default;
         _isEnabled = new BehaviorSubject<bool>(options.IsEnabled);
 
-        _argsSubscription = _args.Subscribe(args =>
-        {
-            var key = options.KeyFactory(args);
-            var query = _cache.GetOrCreate(key, new Query<TArgs, TData>(key, args, _options, _scheduler));
-
-            _currentKey = key;
-
-            if (_isEnabled.Value)
+        _subscriptions.Add(
+            _args.Subscribe(args =>
             {
-                query.Invalidate();
-            }
+                var key = options.KeyFactory(args);
+                var query = _cache.GetOrCreate(key, new Query<TArgs, TData>(key, args, _options, _scheduler));
 
-            _activeQuery.OnNext(query);
-        });
+                _currentKey = key;
 
-        _enabledSubscription = _isEnabled
-            .DistinctUntilChanged()
-            .Where(enabled => enabled)
-            .Subscribe(_ => _activeQuery.Value?.Invalidate());
+                if (_isEnabled.Value)
+                {
+                    query.Invalidate();
+                }
+
+                _activeQuery.OnNext(query);
+            })
+        );
+
+        _subscriptions.Add(
+            _isEnabled.DistinctUntilChanged().Where(enabled => enabled).Subscribe(_ => _activeQuery.Value?.Invalidate())
+        );
     }
 
     public QueryKey Key => _currentKey;
@@ -55,7 +55,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
 
     public IObserver<TArgs> Args => _args;
 
-    public IObserver<bool> IsEnabled => _isEnabled;
+    public void SetEnabled(bool enabled) => _isEnabled.OnNext(enabled);
 
     public IObservable<QueryState<TData>> State =>
         _activeQuery.Where(query => query is not null).Select(query => query!.State).Switch();
@@ -82,8 +82,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
         }
 
         _disposed = true;
-        _argsSubscription.Dispose();
-        _enabledSubscription.Dispose();
+        _subscriptions.Dispose();
         _activeQuery.OnCompleted();
         _args.OnCompleted();
         _isEnabled.OnCompleted();

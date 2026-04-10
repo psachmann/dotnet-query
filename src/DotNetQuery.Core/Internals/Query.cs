@@ -9,9 +9,8 @@ internal sealed class Query<TArgs, TData> : IQuery
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private readonly BehaviorSubject<QueryState<TData>> _state = new(QueryState<TData>.CreateIdle());
     private readonly Subject<Unit> _invalidate = new();
-    private readonly IDisposable _pipelineSubscription;
-    private readonly IDisposable? _refetchSubscription;
-
+    private readonly CompositeDisposable _subscriptions = [];
+    private readonly Lock _syncRoot = new();
     private DateTimeOffset? _lastSuccessAt;
     private int _subscriberCount;
     private bool _isStale;
@@ -24,13 +23,13 @@ internal sealed class Query<TArgs, TData> : IQuery
         _options = options;
         _scheduler = scheduler ?? Scheduler.Default;
 
-        _pipelineSubscription = _invalidate.Select(_ => Observable.FromAsync(FetchAsync)).Switch().Subscribe();
+        _subscriptions.Add(_invalidate.Select(_ => Observable.FromAsync(FetchAsync)).Switch().Subscribe());
 
         if (options.RefetchInterval is { } interval)
         {
-            _refetchSubscription = Observable
-                .Interval(interval, _scheduler)
-                .Subscribe(_ => _invalidate.OnNext(Unit.Default));
+            _subscriptions.Add(
+                Observable.Interval(interval, _scheduler).Subscribe(_ => _invalidate.OnNext(Unit.Default))
+            );
         }
     }
 
@@ -45,16 +44,23 @@ internal sealed class Query<TArgs, TData> : IQuery
         {
             var subscription = _state.Subscribe(observer);
 
-            if (Interlocked.Increment(ref _subscriberCount) == 1 && _isStale)
+            lock (_syncRoot)
             {
-                _isStale = false;
-                _invalidate.OnNext(Unit.Default);
+                _subscriberCount++;
+                if (_subscriberCount == 1 && _isStale)
+                {
+                    _isStale = false;
+                    _invalidate.OnNext(Unit.Default);
+                }
             }
 
             return () =>
             {
                 subscription.Dispose();
-                Interlocked.Decrement(ref _subscriberCount);
+                lock (_syncRoot)
+                {
+                    _subscriberCount--;
+                }
             };
         });
 
@@ -67,13 +73,16 @@ internal sealed class Query<TArgs, TData> : IQuery
             return;
         }
 
-        if (_subscriberCount > 0)
+        lock (_syncRoot)
         {
-            _invalidate.OnNext(Unit.Default);
-        }
-        else
-        {
-            _isStale = true;
+            if (_subscriberCount > 0)
+            {
+                _invalidate.OnNext(Unit.Default);
+            }
+            else
+            {
+                _isStale = true;
+            }
         }
     }
 
@@ -87,8 +96,7 @@ internal sealed class Query<TArgs, TData> : IQuery
         }
 
         _disposed = true;
-        _refetchSubscription?.Dispose();
-        _pipelineSubscription.Dispose();
+        _subscriptions.Dispose();
         _cancellationTokenSource.Cancel();
         _invalidate.OnCompleted();
         _invalidate.Dispose();
@@ -105,6 +113,11 @@ internal sealed class Query<TArgs, TData> : IQuery
         );
         var linkedToken = cts.Token;
 
+        if (_disposed)
+        {
+            return;
+        }
+
         var lastData = _state.Value.CurrentData;
 
         _state.OnNext(QueryState<TData>.CreateFetching(lastData));
@@ -114,15 +127,24 @@ internal sealed class Query<TArgs, TData> : IQuery
             var data = await _options.RetryHandler.ExecuteAsync(ct => _options.Fetcher(_args, ct), linkedToken);
             _lastSuccessAt = _scheduler.Now;
 
-            _state.OnNext(QueryState<TData>.CreateSuccess(data, lastData));
+            if (!_disposed)
+            {
+                _state.OnNext(QueryState<TData>.CreateSuccess(data, lastData));
+            }
         }
         catch (OperationCanceledException) when (linkedToken.IsCancellationRequested)
         {
-            _state.OnNext(QueryState<TData>.CreateIdle(lastData));
+            if (!_disposed)
+            {
+                _state.OnNext(QueryState<TData>.CreateIdle(lastData));
+            }
         }
         catch (Exception error)
         {
-            _state.OnNext(QueryState<TData>.CreateFailure(error, lastData));
+            if (!_disposed)
+            {
+                _state.OnNext(QueryState<TData>.CreateFailure(error, lastData));
+            }
         }
     }
 }

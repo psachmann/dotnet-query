@@ -2,7 +2,11 @@ namespace DotNetQuery.Core;
 
 public interface IMutation<TArgs, TData> : IDisposable
 {
-    public IObserver<bool> IsEnabled { get; }
+    /// <summary>
+    /// Enables or disables the mutation. When <c>false</c>, calls to <see cref="Execute"/> are silently
+    /// ignored. Pass <c>true</c> to allow subsequent executions.
+    /// </summary>
+    public void SetEnabled(bool enabled);
 
     public IObservable<MutationState<TData>> State { get; }
 

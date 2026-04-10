@@ -78,7 +78,7 @@ public class MutationStateTests
         var state = MutationState<string>.CreateSuccess("result");
 
         using var _ = Assert.Multiple();
-        await Assert.That(state.Data).IsEqualTo("result");
+        await Assert.That(state.CurrentData).IsEqualTo("result");
         await Assert.That(state.HasData).IsTrue();
         await Assert.That(state.HasError).IsFalse();
     }

@@ -11,7 +11,17 @@ public sealed record QueryKey
 
     public static QueryKey Default { get; } = new(["\0"]);
 
-    public static QueryKey From(params object[] parts) => new(parts);
+    public static QueryKey From(params object[] parts)
+    {
+        ArgumentNullException.ThrowIfNull(parts, nameof(parts));
+
+        if (Array.Exists(parts, part => part is null))
+        {
+            throw new ArgumentException("QueryKey parts must not contain null elements.", nameof(parts));
+        }
+
+        return new(parts);
+    }
 
     public override string ToString() => string.Join(":", Parts.Select(p => p?.ToString() ?? "null"));
 

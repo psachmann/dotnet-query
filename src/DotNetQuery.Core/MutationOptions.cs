@@ -4,7 +4,8 @@ public sealed record MutationOptions<TArgs, TData>
 {
     public required Func<TArgs, CancellationToken, Task<TData>> Mutator { get; init; }
 
-    public IRetryHandler RetryHandler { get; init; } = new DefaultRetryHandler();
+    /// <summary>Overrides the global <see cref="QueryClientOptions.RetryHandler"/>. <c>null</c> uses the global default.</summary>
+    public IRetryHandler? RetryHandler { get; init; }
 
     public bool IsEnabled { get; init; } = true;
 
@@ -14,5 +15,9 @@ public sealed record MutationOptions<TArgs, TData>
 
     public Action<Exception>? OnFailure { get; init; }
 
+    /// <summary>
+    /// Invoked after every execution that reaches a terminal state: success, failure, <b>or cancellation</b>.
+    /// Called after <see cref="OnSuccess"/> or <see cref="OnFailure"/> when applicable.
+    /// </summary>
     public Action? OnSettled { get; init; }
 }

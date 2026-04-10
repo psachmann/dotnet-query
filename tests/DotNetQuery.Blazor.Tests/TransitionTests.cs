@@ -144,4 +144,46 @@ public class TransitionTests
 
         cut.WaitForAssertion(() => cut.MarkupMatches("<span>done</span>"));
     }
+
+    [Test]
+    public async Task OnParametersSet_SameQueryInstance_DoesNotResubscribe()
+    {
+        // Regression: previously, every OnParametersSet unconditionally disposed and recreated the
+        // subscription even when the Query reference had not changed, causing subscription churn.
+        var subscribeCount = 0;
+        // Assign to _stateMock so the [After(Test)] teardown can call OnCompleted/Dispose safely.
+        _ = CreateQuery(QueryState<string>.CreateIdle());
+
+        var observableWithCounter = Observable.Create<QueryState<string>>(observer =>
+        {
+            subscribeCount++;
+            return _stateMock.Subscribe(observer);
+        });
+
+        _queryMock.State.Returns(observableWithCounter);
+        var query = _queryMock.Object;
+
+        RenderFragment content(string value) => builder => builder.AddContent(0, $"<span>{value}</span>");
+
+        var cut = _context.Render<Transition<int, string>>(p =>
+            p.Add(c => c.Query, query).Add(c => c.Content, content)
+        );
+
+        var countAfterFirstRender = subscribeCount;
+
+        // Simulate a parent re-render passing the same Query reference — OnParametersSet fires again
+        await cut.InvokeAsync(() =>
+            cut.Instance.SetParametersAsync(
+                ParameterView.FromDictionary(
+                    new Dictionary<string, object?>
+                    {
+                        [nameof(Transition<int, string>.Query)] = (object)query,
+                        [nameof(Transition<int, string>.Content)] = (object)(RenderFragment<string>)content,
+                    }
+                )
+            )
+        );
+
+        await Assert.That(subscribeCount).IsEqualTo(countAfterFirstRender);
+    }
 }

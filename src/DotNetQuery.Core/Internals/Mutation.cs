@@ -7,7 +7,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
     private readonly BehaviorSubject<bool> _isEnabled;
     private readonly Subject<TArgs> _execute = new();
     private readonly Subject<Unit> _cancel = new();
-    private readonly IDisposable _pipelineSubscription;
+    private readonly CompositeDisposable _subscriptions = [];
     private bool _disposed;
 
     public Mutation(MutationOptions<TArgs, TData> options)
@@ -15,17 +15,19 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         _options = options;
         _isEnabled = new(options.IsEnabled);
 
-        _pipelineSubscription = _execute
-            .Select(args => Observable.FromAsync(ct => ExecuteAsync(args, ct)).TakeUntil(_cancel))
-            .Switch()
-            .Subscribe();
+        _subscriptions.Add(
+            _execute
+                .Select(args => Observable.FromAsync(ct => ExecuteAsync(args, ct)).TakeUntil(_cancel))
+                .Switch()
+                .Subscribe()
+        );
     }
 
-    public IObserver<bool> IsEnabled => _isEnabled.AsObserver();
+    public void SetEnabled(bool enabled) => _isEnabled.OnNext(enabled);
 
     public IObservable<MutationState<TData>> State => _state.AsObservable();
 
-    public IObservable<TData> Success => _state.Where(state => state.IsSuccess).Select(state => state.Data!);
+    public IObservable<TData> Success => _state.Where(state => state.IsSuccess).Select(state => state.CurrentData!);
 
     public IObservable<Exception> Failure => _state.Where(state => state.IsFailure).Select(state => state.Error!);
 
@@ -43,6 +45,8 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 
     public void Cancel() => _cancel.OnNext(Unit.Default);
 
+    internal void AddDisposable(IDisposable disposable) => _subscriptions.Add(disposable);
+
     public void Dispose()
     {
         if (_disposed)
@@ -51,7 +55,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         }
 
         _disposed = true;
-        _pipelineSubscription.Dispose();
+        _subscriptions.Dispose();
         _execute.OnCompleted();
         _cancel.OnCompleted();
         _isEnabled.OnCompleted();
@@ -64,25 +68,62 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 
     private async Task ExecuteAsync(TArgs args, CancellationToken cancellationToken)
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         _state.OnNext(MutationState<TData>.CreateRunning());
+
+        TData data = default!;
+        Exception? error = null;
+        var cancelled = false;
 
         try
         {
-            var data = await _options.RetryHandler.ExecuteAsync(ct => _options.Mutator(args, ct), cancellationToken);
+            data = await _options.RetryHandler!.ExecuteAsync(ct => _options.Mutator(args, ct), cancellationToken);
 
-            _state.OnNext(MutationState<TData>.CreateSuccess(data));
-            _options.OnSuccess?.Invoke(args, data);
-            _options.OnSettled?.Invoke();
+            if (!_disposed)
+            {
+                _state.OnNext(MutationState<TData>.CreateSuccess(data));
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            _state.OnNext(MutationState<TData>.CreateIdle());
+            cancelled = true;
+
+            if (!_disposed)
+            {
+                _state.OnNext(MutationState<TData>.CreateIdle());
+            }
         }
-        catch (Exception error)
+        catch (Exception ex)
         {
-            _state.OnNext(MutationState<TData>.CreateFailure(error));
-            _options.OnFailure?.Invoke(error);
-            _options.OnSettled?.Invoke();
+            error = ex;
+
+            if (!_disposed)
+            {
+                _state.OnNext(MutationState<TData>.CreateFailure(ex));
+            }
         }
+
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (!cancelled)
+        {
+            if (error is null)
+            {
+                _options.OnSuccess?.Invoke(args, data);
+            }
+            else
+            {
+                _options.OnFailure?.Invoke(error);
+            }
+        }
+
+        _options.OnSettled?.Invoke();
     }
 }

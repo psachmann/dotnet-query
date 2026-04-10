@@ -4,7 +4,7 @@ public sealed record MutationState<TData>
 {
     public MutationStatus Status { get; private set; }
 
-    public TData? Data { get; private set; }
+    public TData? CurrentData { get; private set; }
 
     public Exception? Error { get; private set; }
 
@@ -25,7 +25,7 @@ public sealed record MutationState<TData>
     public static MutationState<TData> CreateRunning() => new() { Status = MutationStatus.Running };
 
     public static MutationState<TData> CreateSuccess(TData data) =>
-        new() { Status = MutationStatus.Success, Data = data };
+        new() { Status = MutationStatus.Success, CurrentData = data };
 
     public static MutationState<TData> CreateFailure(Exception error) =>
         new() { Status = MutationStatus.Failure, Error = error };

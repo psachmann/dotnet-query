@@ -142,4 +142,41 @@ public class MutationInvalidationTests
 
         await Assert.That(onSuccessFired).IsTrue();
     }
+
+    [Test]
+    public async Task CreateMutation_InvalidateKeys_DoesNotInvalidateAfterMutationDisposed()
+    {
+        var key = QueryKey.From("todos");
+        var fetchCount = 0;
+        var mutatorTcs = new TaskCompletionSource<Unit>();
+
+        var query = _client.CreateQuery(
+            new QueryOptions<int, string>
+            {
+                KeyFactory = _ => key,
+                Fetcher = (_, _) =>
+                {
+                    fetchCount++;
+                    return Task.FromResult("data");
+                },
+            }
+        );
+
+        query.Args.OnNext(0);
+        await query.Success.FirstAsync();
+        var countAfterFirstFetch = fetchCount;
+
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, Unit> { Mutator = (_, _) => mutatorTcs.Task, InvalidateKeys = [key] }
+        );
+
+        mutation.Execute(0); // in-flight
+        mutation.Dispose(); // disposes the invalidation subscription
+        mutatorTcs.SetResult(Unit.Default); // mutator completes after dispose
+
+        // Give the pipeline a tick to process
+        await Task.Delay(50);
+
+        await Assert.That(fetchCount).IsEqualTo(countAfterFirstFetch);
+    }
 }

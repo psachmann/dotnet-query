@@ -56,7 +56,7 @@ public class MutationTests
 
         using var _ = Assert.Multiple();
         await Assert.That(state.IsSuccess).IsTrue();
-        await Assert.That(state.Data).IsEqualTo("result");
+        await Assert.That(state.CurrentData).IsEqualTo("result");
         await Assert.That(state.HasData).IsTrue();
     }
 
@@ -119,7 +119,7 @@ public class MutationTests
             }
         );
 
-        mutation.IsEnabled.OnNext(false);
+        mutation.SetEnabled(false);
         mutation.Execute(0);
         await Task.Delay(50);
 
@@ -133,7 +133,7 @@ public class MutationTests
             new MutationOptions<int, string> { Mutator = (_, _) => Task.FromResult("ok"), IsEnabled = false }
         );
 
-        mutation.IsEnabled.OnNext(true);
+        mutation.SetEnabled(true);
         mutation.Execute(0);
 
         var state = await mutation.State.Where(s => s.IsSuccess).FirstAsync();
@@ -339,5 +339,129 @@ public class MutationTests
         mutation.Dispose();
 
         await Assert.That(mutation.State).IsNotNull();
+    }
+
+    [Test]
+    public async Task Dispose_WhileExecuteInFlight_DoesNotRaiseObjectDisposedException()
+    {
+        // Regression: without the _disposed guard in ExecuteAsync, calling Dispose() while an
+        // execution was in-flight caused _state.OnNext() to be invoked on an already-disposed
+        // BehaviorSubject, raising ObjectDisposedException on a ThreadPool thread.
+        var started = new TaskCompletionSource();
+        var gate = new TaskCompletionSource<string>();
+        Exception? firstChanceOde = null;
+
+        EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs> handler = (_, e) =>
+        {
+            if (e.Exception is ObjectDisposedException)
+            {
+                firstChanceOde = e.Exception;
+            }
+        };
+
+        AppDomain.CurrentDomain.FirstChanceException += handler;
+
+        try
+        {
+            var mutation = _client.CreateMutation(
+                new MutationOptions<int, string>
+                {
+                    Mutator = async (_, _) =>
+                    {
+                        started.TrySetResult();
+                        return await gate.Task;
+                    },
+                }
+            );
+
+            mutation.Execute(0);
+            await started.Task;
+
+            mutation.Dispose();
+            gate.SetResult("done");
+
+            await Task.Delay(100);
+
+            await Assert.That(firstChanceOde).IsNull();
+        }
+        finally
+        {
+            AppDomain.CurrentDomain.FirstChanceException -= handler;
+        }
+    }
+
+    [Test]
+    public async Task OnSettled_Callback_IsCalledOnCancellation()
+    {
+        // Regression: OnSettled was previously skipped on OperationCanceledException.
+        // Use a dedicated TCS to avoid a race where FirstAsync() can resume the test
+        // continuation synchronously inside BehaviorSubject.OnNext, before OnSettled fires.
+        var settledTcs = new TaskCompletionSource();
+        var started = new TaskCompletionSource();
+
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string>
+            {
+                Mutator = async (_, ct) =>
+                {
+                    started.TrySetResult();
+                    await Task.Delay(Timeout.Infinite, ct);
+                    return "";
+                },
+                OnSettled = () => settledTcs.TrySetResult(),
+            }
+        );
+
+        mutation.Execute(0);
+        await started.Task;
+        mutation.Cancel();
+
+        await settledTcs.Task;
+        await Assert.That(settledTcs.Task.IsCompleted).IsTrue();
+    }
+
+    [Test]
+    public async Task RetryHandler_NullInOptions_UsesGlobalHandler()
+    {
+        using var client = new QueryClient(new QueryClientOptions { RetryHandler = new NoRetryHandler() }, _scheduler);
+        var attempts = 0;
+        var mutation = client.CreateMutation(
+            new MutationOptions<int, string>
+            {
+                Mutator = (_, _) =>
+                {
+                    attempts++;
+                    return Task.FromException<string>(new Exception("fail"));
+                },
+                RetryHandler = null,
+            }
+        );
+
+        mutation.Execute(0);
+        await mutation.Failure.FirstAsync();
+
+        await Assert.That(attempts).IsEqualTo(1); // NoRetryHandler: no retries
+    }
+
+    [Test]
+    public async Task RetryHandler_ExplicitInOptions_OverridesGlobal()
+    {
+        var attempts = 0;
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string>
+            {
+                Mutator = (_, _) =>
+                {
+                    attempts++;
+                    return Task.FromException<string>(new Exception("fail"));
+                },
+                RetryHandler = new NoRetryHandler(),
+            }
+        );
+
+        mutation.Execute(0);
+        await mutation.Failure.FirstAsync();
+
+        await Assert.That(attempts).IsEqualTo(1); // explicit NoRetryHandler wins
     }
 }

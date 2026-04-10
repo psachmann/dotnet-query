@@ -18,15 +18,20 @@ internal sealed class QueryClient : IQueryClient
 
     public IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options)
     {
-        var mutation = new Mutation<TArgs, TData>(options);
+        var effectiveOptions = options with { RetryHandler = options.RetryHandler ?? _globalOptions.RetryHandler };
+        var mutation = new Mutation<TArgs, TData>(effectiveOptions);
 
         if (options.InvalidateKeys is { Count: > 0 } keys)
         {
-            mutation.Success.Subscribe(_ =>
+            var subscription = mutation.Success.Subscribe(_ =>
             {
                 foreach (var key in keys)
+                {
                     Invalidate(key);
+                }
             });
+
+            mutation.AddDisposable(subscription);
         }
 
         return mutation;

@@ -7,7 +7,8 @@ public interface IQuery : IDisposable
 {
     /// <summary>
     /// The key that uniquely identifies this query in the client cache.
-    /// Returns <c>null</c> before args have been set for the first time.
+    /// Returns <see cref="QueryKey.Default"/> before args have been set for the first time.
+    /// Check against <see cref="QueryKey.Default"/> to detect the uninitialized state.
     /// </summary>
     public QueryKey Key { get; }
 
@@ -21,7 +22,12 @@ public interface IQuery : IDisposable
     public void Cancel();
 
     /// <summary>
-    /// Marks the cached data as stale. The next access or active subscriber will trigger a re-fetch.
+    /// Marks the cached data as stale. If there are active subscribers, a re-fetch is triggered
+    /// immediately; otherwise the fetch is deferred until the first subscriber joins.
+    /// <para>
+    /// If the last successful fetch occurred within the configured <c>StaleTime</c> window, this call
+    /// is a no-op. Use <see cref="Refetch"/> to bypass stale-time and force an immediate fetch.
+    /// </para>
     /// </summary>
     public void Invalidate();
 }
@@ -46,10 +52,11 @@ public interface IQuery<TArgs, TData> : IQuery
     public IObserver<TArgs> Args { get; }
 
     /// <summary>
-    /// Controls whether the query is active. Emit <c>false</c> to suspend fetching, <c>true</c> to resume.
-    /// The query will not fetch while disabled, even if invalidated or args change.
+    /// Enables or disables the query. When <c>false</c>, fetching is suspended even if the query is
+    /// invalidated or new args are pushed. Pass <c>true</c> to resume; the query will immediately
+    /// re-evaluate its active key and trigger a fetch if one is pending.
     /// </summary>
-    public IObserver<bool> IsEnabled { get; }
+    public void SetEnabled(bool enabled);
 
     /// <summary>
     /// Emits on every state transition (e.g. Idle → Fetching → Success/Failed).

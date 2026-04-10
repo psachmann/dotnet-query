@@ -100,4 +100,31 @@ public class QueryKeyTests
 
         await Assert.That(dict[QueryKey.From("users", 1)]).IsEqualTo("value");
     }
+
+    [Test]
+    public async Task From_NullElement_ThrowsArgumentException()
+    {
+        var act = () => QueryKey.From("users", null!);
+
+        var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentException>();
+        await Assert.That(ex?.ParamName).IsEqualTo("parts");
+    }
+
+    [Test]
+    public async Task From_MultipleNullElements_ThrowsArgumentException()
+    {
+        var act = () => QueryKey.From(null!, null!);
+
+        await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentException>();
+    }
+
+    [Test]
+    public async Task From_NullArray_ThrowsArgumentNullException()
+    {
+        // When a single null! is passed, the compiler treats it as a null array, not a null element.
+        var act = () => QueryKey.From(null!);
+
+        var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentNullException>();
+        await Assert.That(ex?.ParamName).IsEqualTo("parts");
+    }
 }
