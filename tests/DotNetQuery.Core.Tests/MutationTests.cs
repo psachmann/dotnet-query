@@ -374,10 +374,7 @@ public class MutationTests
     {
         // Fix #10: null RetryHandler must use the global handler, not a fresh default.
         // Configure the global to NoRetryHandler so we can observe exactly 1 attempt on failure.
-        using var client = new QueryClient(
-            new QueryClientOptions { RetryHandler = new NoRetryHandler() },
-            _scheduler
-        );
+        using var client = new QueryClient(new QueryClientOptions { RetryHandler = new NoRetryHandler() }, _scheduler);
         var attempts = 0;
         var mutation = client.CreateMutation(
             new MutationOptions<int, string>

@@ -7,8 +7,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
     private readonly BehaviorSubject<bool> _isEnabled;
     private readonly Subject<TArgs> _execute = new();
     private readonly Subject<Unit> _cancel = new();
-    private readonly IDisposable _pipelineSubscription;
-    private readonly List<IDisposable> _disposables = [];
+    private readonly CompositeDisposable _subscriptions = [];
     private bool _disposed;
 
     public Mutation(MutationOptions<TArgs, TData> options)
@@ -16,10 +15,12 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         _options = options;
         _isEnabled = new(options.IsEnabled);
 
-        _pipelineSubscription = _execute
-            .Select(args => Observable.FromAsync(ct => ExecuteAsync(args, ct)).TakeUntil(_cancel))
-            .Switch()
-            .Subscribe();
+        _subscriptions.Add(
+            _execute
+                .Select(args => Observable.FromAsync(ct => ExecuteAsync(args, ct)).TakeUntil(_cancel))
+                .Switch()
+                .Subscribe()
+        );
     }
 
     public IObserver<bool> IsEnabled => _isEnabled.AsObserver();
@@ -44,7 +45,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 
     public void Cancel() => _cancel.OnNext(Unit.Default);
 
-    internal void AddDisposable(IDisposable disposable) => _disposables.Add(disposable);
+    internal void AddDisposable(IDisposable disposable) => _subscriptions.Add(disposable);
 
     public void Dispose()
     {
@@ -54,7 +55,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         }
 
         _disposed = true;
-        _pipelineSubscription.Dispose();
+        _subscriptions.Dispose();
         _execute.OnCompleted();
         _cancel.OnCompleted();
         _isEnabled.OnCompleted();
@@ -63,11 +64,6 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         _cancel.Dispose();
         _isEnabled.Dispose();
         _state.Dispose();
-
-        foreach (var disposable in _disposables)
-        {
-            disposable.Dispose();
-        }
     }
 
     private async Task ExecuteAsync(TArgs args, CancellationToken cancellationToken)

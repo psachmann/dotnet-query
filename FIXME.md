@@ -15,18 +15,9 @@ Issues identified via static analysis and architectural review. Grouped by sever
 
 ---
 
-### 2. Manual Subscription Disposal Boilerplate Repeated Across Types
-**Files:** `src/DotNetQuery.Core/Internals/Query.cs`, `QueryObserver.cs`, `Mutation.cs`
-
-Every class manually tracks 2–3 `IDisposable` subscription fields and disposes them individually in `Dispose()`. This pattern is repeated and error-prone — a missed field is a silent leak. `System.Reactive.Disposables.CompositeDisposable` already provides this aggregation.
-
-**Fix:** Replace individual subscription fields with a single `CompositeDisposable _subscriptions` and call `_subscriptions.Add(...)` at construction time. `Dispose()` then reduces to `_subscriptions.Dispose()`.
-
----
-
 ## Minor
 
-### 3. Stack Trace Lost in `DefaultRetryHandler`
+### 2. Stack Trace Lost in `DefaultRetryHandler`
 **File:** `src/DotNetQuery.Core/Internals/DefaultRetryHandler.cs:41`
 
 After exhausting retries, the handler re-throws the last exception with `throw lastException!`, which replaces the original stack trace with the re-throw site. Callers lose the location of the original failure, making debugging significantly harder.
@@ -35,7 +26,7 @@ After exhausting retries, the handler re-throws the last exception with `throw l
 
 ---
 
-### 4. `IsEnabled` Is a Misleading Name for an `IObserver<bool>`
+### 3. `IsEnabled` Is a Misleading Name for an `IObserver<bool>`
 **File:** `src/DotNetQuery.Core/IQuery.cs`
 
 The property `IsEnabled` sounds like a readable boolean. It is actually an `IObserver<bool>` — a push target into which callers push `true`/`false` values. This naming is counterintuitive and likely to confuse API consumers expecting a readable property.
@@ -44,7 +35,7 @@ The property `IsEnabled` sounds like a readable boolean. It is actually an `IObs
 
 ---
 
-### 5. Blazor Components Re-Subscribe on Every `OnParametersSet`
+### 4. Blazor Components Re-Subscribe on Every `OnParametersSet`
 **Files:** `src/DotNetQuery.Blazor/Suspense.razor:35–44`, `Transition.razor`
 
 On every parameter change, the component unconditionally disposes the current subscription and creates a new one, even if the `Query` reference has not changed. In components that re-render frequently this causes unnecessary subscription churn.
@@ -53,7 +44,7 @@ On every parameter change, the component unconditionally disposes the current su
 
 ---
 
-### 6. `QueryKey.From()` Accepts `null` Elements Without Validation
+### 5. `QueryKey.From()` Accepts `null` Elements Without Validation
 **File:** `src/DotNetQuery.Core/QueryKey.cs`
 
 `QueryKey.From(params object[] parts)` accepts `null` elements. `null` parts are serialized as the string `"null"`, which is indistinguishable from a key intentionally containing the string `"null"`. This can produce collisions between intentional and unintentional keys.
@@ -62,7 +53,7 @@ On every parameter change, the component unconditionally disposes the current su
 
 ---
 
-### 7. `QueryClientFactory` Performs No Option Validation
+### 6. `QueryClientFactory` Performs No Option Validation
 **File:** `src/DotNetQuery.Core/QueryClientFactory.cs`
 
 Options such as negative `CacheTime`, negative `StaleTime`, or a `null` global `RetryHandler` are accepted silently. Invalid values produce incorrect runtime behavior (e.g. immediate eviction, NullReferenceException during fetch) far from the construction site.

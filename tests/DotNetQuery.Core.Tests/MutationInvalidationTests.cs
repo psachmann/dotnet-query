@@ -167,15 +167,11 @@ public class MutationInvalidationTests
         var countAfterFirstFetch = fetchCount;
 
         var mutation = _client.CreateMutation(
-            new MutationOptions<int, Unit>
-            {
-                Mutator = (_, _) => mutatorTcs.Task,
-                InvalidateKeys = [key],
-            }
+            new MutationOptions<int, Unit> { Mutator = (_, _) => mutatorTcs.Task, InvalidateKeys = [key] }
         );
 
-        mutation.Execute(0);     // in-flight
-        mutation.Dispose();      // disposes the invalidation subscription
+        mutation.Execute(0); // in-flight
+        mutation.Dispose(); // disposes the invalidation subscription
         mutatorTcs.SetResult(Unit.Default); // mutator completes after dispose
 
         // Give the pipeline a tick to process
