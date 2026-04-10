@@ -108,7 +108,7 @@ public class QueryKeyTests
         var act = () => QueryKey.From("users", null!);
 
         var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentException>();
-        await Assert.That(ex.ParamName!).IsEqualTo("parts");
+        await Assert.That(ex?.ParamName).IsEqualTo("parts");
     }
 
     [Test]
@@ -126,6 +126,6 @@ public class QueryKeyTests
         var act = () => QueryKey.From(null!);
 
         var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentNullException>();
-        await Assert.That(ex.ParamName!).IsEqualTo("parts");
+        await Assert.That(ex?.ParamName).IsEqualTo("parts");
     }
 }

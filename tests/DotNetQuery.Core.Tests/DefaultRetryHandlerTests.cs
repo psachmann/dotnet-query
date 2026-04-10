@@ -134,7 +134,7 @@ public class DefaultRetryHandlerTests
         // replaced the original stack trace with the re-throw site. The fix uses
         // ExceptionDispatchInfo.Capture().Throw() which PREPENDS the original frames and adds new
         // frames after a "--- End of stack trace from previous location ---" separator.
-        string? originalFirstFrame = null;
+        string originalFirstFrame = string.Empty;
 
         var act = async () =>
             await _sut.ExecuteAsync<int>(_ =>
@@ -146,7 +146,8 @@ public class DefaultRetryHandlerTests
                 catch (InvalidOperationException ex)
                 {
                     // Capture the first frame at the actual throw site
-                    originalFirstFrame = ex.StackTrace?.Split('\n')[0].Trim();
+                    originalFirstFrame = ex.StackTrace?.Split('\n')[0].Trim() ?? string.Empty;
+
                     throw;
                 }
             });
@@ -155,6 +156,6 @@ public class DefaultRetryHandlerTests
 
         // The re-thrown exception's trace must START with the original throw frame, proving
         // ExceptionDispatchInfo preserved it rather than replacing it with the re-throw site.
-        await Assert.That(thrown.StackTrace).Contains(originalFirstFrame!);
+        await Assert.That(thrown?.StackTrace).Contains(originalFirstFrame);
     }
 }

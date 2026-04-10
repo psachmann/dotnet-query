@@ -41,6 +41,7 @@ internal sealed class DefaultRetryHandler(TimeSpan[]? retryDelays = default) : I
         }
 
         ExceptionDispatchInfo.Capture(lastException!).Throw();
+
         throw lastException!; // unreachable — satisfies the compiler
     }
 }

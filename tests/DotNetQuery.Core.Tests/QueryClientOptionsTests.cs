@@ -17,7 +17,7 @@ public class QueryClientOptionsTests
         var act = () => options.Validate();
 
         var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentOutOfRangeException>();
-        await Assert.That(ex.ParamName!).IsEqualTo(nameof(QueryClientOptions.StaleTime));
+        await Assert.That(ex?.ParamName).IsEqualTo(nameof(QueryClientOptions.StaleTime));
     }
 
     [Test]
@@ -28,7 +28,7 @@ public class QueryClientOptionsTests
         var act = () => options.Validate();
 
         var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentOutOfRangeException>();
-        await Assert.That(ex.ParamName!).IsEqualTo(nameof(QueryClientOptions.CacheTime));
+        await Assert.That(ex?.ParamName).IsEqualTo(nameof(QueryClientOptions.CacheTime));
     }
 
     [Test]
@@ -39,7 +39,7 @@ public class QueryClientOptionsTests
         var act = () => options.Validate();
 
         var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentOutOfRangeException>();
-        await Assert.That(ex.ParamName!).IsEqualTo(nameof(QueryClientOptions.RefetchInterval));
+        await Assert.That(ex?.ParamName).IsEqualTo(nameof(QueryClientOptions.RefetchInterval));
     }
 
     [Test]
@@ -50,7 +50,7 @@ public class QueryClientOptionsTests
         var act = () => options.Validate();
 
         var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentOutOfRangeException>();
-        await Assert.That(ex.ParamName!).IsEqualTo(nameof(QueryClientOptions.RefetchInterval));
+        await Assert.That(ex?.ParamName).IsEqualTo(nameof(QueryClientOptions.RefetchInterval));
     }
 
     [Test]
@@ -67,7 +67,7 @@ public class QueryClientOptionsTests
         var act = () => options.Validate();
 
         var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentNullException>();
-        await Assert.That(ex.ParamName!).IsEqualTo(nameof(QueryClientOptions.RetryHandler));
+        await Assert.That(ex?.ParamName).IsEqualTo(nameof(QueryClientOptions.RetryHandler));
     }
 
     [Test]

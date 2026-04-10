@@ -423,8 +423,6 @@ public class MutationTests
     [Test]
     public async Task RetryHandler_NullInOptions_UsesGlobalHandler()
     {
-        // Fix #10: null RetryHandler must use the global handler, not a fresh default.
-        // Configure the global to NoRetryHandler so we can observe exactly 1 attempt on failure.
         using var client = new QueryClient(new QueryClientOptions { RetryHandler = new NoRetryHandler() }, _scheduler);
         var attempts = 0;
         var mutation = client.CreateMutation(
@@ -448,9 +446,6 @@ public class MutationTests
     [Test]
     public async Task RetryHandler_ExplicitInOptions_OverridesGlobal()
     {
-        // Fix #10: an explicit RetryHandler in options must override the global.
-        // _client uses DefaultRetryHandler globally (would retry on failure);
-        // the explicit NoRetryHandler should suppress all retries.
         var attempts = 0;
         var mutation = _client.CreateMutation(
             new MutationOptions<int, string>
