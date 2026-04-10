@@ -34,11 +34,13 @@
     "output": "_site",
     "template": [
       "default",
-      "material/material"
+      "modern"
     ],
     "globalMetadata": {
-      "_appName": "dotnet-query",
+      "_appName": "DotNet Query",
       "_appTitle": "DotNet Query",
+      "_appLogoPath": "images/dotnet-query-icon.64x64.svg",
+      "_appFaviconPath": "images/dotnet-query-icon.128x128.png",
       "_enableSearch": true,
       "pdf": false
     }
