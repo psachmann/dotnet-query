@@ -63,9 +63,9 @@ Remember to call `client.Dispose()` when you are done with it.
 A query needs two things: a **key factory** and a **fetcher**.
 
 ```csharp
-public class UserService(IQueryClient queryClient, HttpClient httpClient)
+public sealed class UserService(IQueryClient queryClient, HttpClient httpClient) : IDisposable
 {
-    private readonly IQuery<int, UserDto> _userQuery = queryClient.CreateQuery(
+    public readonly IQuery<int, UserDto> UserQuery = queryClient.CreateQuery(
         new QueryOptions<int, UserDto>
         {
             KeyFactory = id => QueryKey.From("users", id),
@@ -74,7 +74,7 @@ public class UserService(IQueryClient queryClient, HttpClient httpClient)
         }
     );
 
-    public IQuery<int, UserDto> UserQuery => _userQuery;
+    public void Dispose() => UserQuery.Dispose();
 }
 ```
 
@@ -152,12 +152,17 @@ _createMutation.State.Subscribe(state =>
 
 ## Putting It Together in Blazor
 
-If you are using Blazor, the `<Suspense>` and `<Transition>` components handle all the state-switching for you:
+If you are using Blazor, the `<Suspense>` and `<Transition>` components handle all the state-switching for you. Register the service class and inject it into your component — the component stays focused on rendering:
+
+```csharp
+// Program.cs
+builder.Services.AddScoped<UserService>();
+```
 
 ```razor
-@inject IQueryClient QueryClient
+@inject UserService UserService
 
-<Suspense Query="_userQuery">
+<Suspense Query="UserService.UserQuery">
     <Content Context="user">
         <p>Hello, @user.Name!</p>
     </Content>
@@ -170,17 +175,9 @@ If you are using Blazor, the `<Suspense>` and `<Transition>` components handle a
 </Suspense>
 
 @code {
-    private IQuery<int, UserDto> _userQuery = default!;
-
     protected override void OnInitialized()
     {
-        _userQuery = QueryClient.CreateQuery(new QueryOptions<int, UserDto>
-        {
-            KeyFactory = id => QueryKey.From("users", id),
-            Fetcher    = (id, ct) => Http.GetFromJsonAsync<UserDto>($"/api/users/{id}", ct)!,
-        });
-
-        _userQuery.Args.OnNext(42);
+        UserService.UserQuery.Args.OnNext(42);
     }
 }
 ```

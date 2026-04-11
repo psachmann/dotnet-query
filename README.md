@@ -32,6 +32,15 @@ dotnet add package DotNetQuery.Extensions.DependencyInjection
 dotnet add package DotNetQuery.Blazor
 ```
 
+## Documentation
+
+Full guides, examples, and API reference are available **[here](https://psachmann.github.io/dotnet-query/)**.
+
+- [Introduction](https://psachmann.github.io/dotnet-query/doc/introduction.html) — core concepts and motivation
+- [Getting Started](https://psachmann.github.io/dotnet-query/doc/getting-started.html) — install and write your first query
+- [Guides](https://psachmann.github.io/dotnet-query/doc/guides/queries.html) — queries, mutations, caching, Blazor, retries, and SSR
+- [API Reference](https://psachmann.github.io/dotnet-query/api/DotNetQuery.Core.html) — full generated API docs
+
 ## Quick Start
 
 ```csharp
@@ -76,15 +85,6 @@ mutation.Execute(new CreateUserRequest { Name = "Alice" });
     <Failure Context="error"><p>Error: @error.Message</p></Failure>
 </Suspense>
 ```
-
-## Documentation
-
-Full guides, examples, and API reference are available at **https://psachmann.github.io/dotnet-query/**.
-
-- [Introduction](https://psachmann.github.io/dotnet-query/doc/introduction.html) — core concepts and motivation
-- [Getting Started](https://psachmann.github.io/dotnet-query/doc/getting-started.html) — install and write your first query
-- [Guides](https://psachmann.github.io/dotnet-query/doc/guides/queries.html) — queries, mutations, caching, Blazor, retries, and SSR
-- [API Reference](https://psachmann.github.io/dotnet-query/api/DotNetQuery.Core.html) — full generated API docs
 
 ## Contributing
 
