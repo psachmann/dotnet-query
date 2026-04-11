@@ -113,8 +113,8 @@ public sealed class UserQueries(IQueryClient queryClient, UserApiClient api) : I
 
     protected override void OnParametersSet()
     {
-        Queries.UserQuery.Args.OnNext(Id);
-        Queries.PostsQuery.Args.OnNext(Id);
+        Queries.UserQuery.SetArgs(Id);
+        Queries.PostsQuery.SetArgs(Id);
     }
 
     public void Dispose() => Queries.Dispose();
@@ -147,7 +147,7 @@ using var subscription = query.State.Subscribe(state =>
         Console.WriteLine($"Error: {state.Error!.Message}");
 });
 
-query.Args.OnNext(42);
+query.SetArgs(42);
 
 // Wait for the result
 var result = await query.Success.FirstAsync();
@@ -170,7 +170,7 @@ var searchQuery = queryClient.CreateQuery(new QueryOptions<string, List<UserDto>
 if (term.Length >= 3)
 {
     searchQuery.SetEnabled(true);
-    searchQuery.Args.OnNext(term);
+    searchQuery.SetArgs(term);
 }
 else
 {

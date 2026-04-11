@@ -42,7 +42,7 @@ var query = queryClient.CreateQuery(new QueryOptions<int, UserDto>
     Fetcher    = (id, ct) => userService.GetByIdAsync(id, ct),
 });
 
-query.Args.OnNext(42);
+query.SetArgs(42);
 
 query.Success.Subscribe(user => Console.WriteLine($"Hello, {user.Name}!"));
 query.Failure.Subscribe(error => Console.WriteLine($"Oops: {error.Message}"));

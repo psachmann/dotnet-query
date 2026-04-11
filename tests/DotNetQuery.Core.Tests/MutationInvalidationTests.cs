@@ -62,7 +62,7 @@ public class MutationInvalidationTests
             new QueryOptions<int, string> { KeyFactory = _ => key, Fetcher = (_, _) => Task.FromResult("data") }
         );
 
-        query.Args.OnNext(0);
+        query.SetArgs(0);
         await query.Success.FirstAsync();
 
         var mutation = _client.CreateMutation(
@@ -93,7 +93,7 @@ public class MutationInvalidationTests
             }
         );
 
-        query.Args.OnNext(0);
+        query.SetArgs(0);
         await query.Success.FirstAsync();
 
         var countAfterFirstFetch = fetchCount;
@@ -122,7 +122,7 @@ public class MutationInvalidationTests
             new QueryOptions<int, string> { KeyFactory = _ => key, Fetcher = (_, _) => Task.FromResult("data") }
         );
 
-        query.Args.OnNext(0);
+        query.SetArgs(0);
         await query.Success.FirstAsync();
 
         var mutation = _client.CreateMutation(
@@ -162,7 +162,7 @@ public class MutationInvalidationTests
             }
         );
 
-        query.Args.OnNext(0);
+        query.SetArgs(0);
         await query.Success.FirstAsync();
         var countAfterFirstFetch = fetchCount;
 

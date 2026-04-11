@@ -19,23 +19,78 @@ builder.Services.AddDotNetQuery(options =>
     options.CacheTime = TimeSpan.FromMinutes(15);
 });
 
+builder.Services.AddScoped<UserQueries>();
+builder.Services.AddScoped<UserMutations>();
+
 await builder.Build().RunAsync();
+```
+
+## Service Layer
+
+Register queries and mutations in dedicated service classes and inject them into components. The services own the query and mutation instances and handle disposal — components stay focused on rendering.
+
+```csharp
+public sealed class UserQueries(IQueryClient queryClient, HttpClient http) : IDisposable
+{
+    public readonly IQuery<Unit, List<UserDto>> UsersQuery = queryClient.CreateQuery(
+        new QueryOptions<Unit, List<UserDto>>
+        {
+            KeyFactory = _ => QueryKey.From("users"),
+            Fetcher    = (_, ct) => http.GetFromJsonAsync<List<UserDto>>("/api/users", ct)!,
+        });
+
+    public readonly IQuery<int, UserDto> UserQuery = queryClient.CreateQuery(
+        new QueryOptions<int, UserDto>
+        {
+            KeyFactory = id => QueryKey.From("users", id),
+            Fetcher    = (id, ct) => http.GetFromJsonAsync<UserDto>($"/api/users/{id}", ct)!,
+            StaleTime  = TimeSpan.FromMinutes(5),
+        });
+
+    public void Dispose()
+    {
+        UsersQuery.Dispose();
+        UserQuery.Dispose();
+    }
+}
+
+public sealed class UserMutations(IQueryClient queryClient, HttpClient http) : IDisposable
+{
+    public readonly IMutation<CreateUserRequest, UserDto> CreateUser = queryClient.CreateMutation(
+        new MutationOptions<CreateUserRequest, UserDto>
+        {
+            Mutator        = (req, ct) => http.PostAsJsonAsync<UserDto>("/api/users", req, ct),
+            InvalidateKeys = [QueryKey.From("users")],
+        });
+
+    public readonly IMutation<int, Unit> DeleteUser = queryClient.CreateMutation(
+        new MutationOptions<int, Unit>
+        {
+            Mutator        = (id, ct) => http.DeleteAsync($"/api/users/{id}", ct)
+                                             .ContinueWith(_ => Unit.Default, ct),
+            InvalidateKeys = [QueryKey.From("users")],
+        });
+
+    public void Dispose()
+    {
+        CreateUser.Dispose();
+        DeleteUser.Dispose();
+    }
+}
 ```
 
 ## User List Page
 
 ```razor
 @page "/users"
-@inject IQueryClient QueryClient
-@inject HttpClient Http
+@inject UserQueries Queries
 @inject NavigationManager Nav
-@implements IDisposable
 
 <h1>Users</h1>
 
-<button @onclick="HandleCreate" class="btn btn-primary">New User</button>
+<button @onclick="() => Nav.NavigateTo("/users/new")" class="btn btn-primary">New User</button>
 
-<Transition Query="_usersQuery">
+<Transition Query="Queries.UsersQuery">
     <Content Context="users">
         <table class="table">
             <thead>
@@ -55,8 +110,7 @@ await builder.Build().RunAsync();
                             <button @onclick="() => Nav.NavigateTo($"/users/{user.Id}")">
                                 View
                             </button>
-                            <DeleteButton UserId="user.Id"
-                                          OnDeleted="() => _usersQuery.Refetch()" />
+                            <DeleteButton UserId="user.Id" />
                         </td>
                     </tr>
                 }
@@ -72,22 +126,10 @@ await builder.Build().RunAsync();
 </Transition>
 
 @code {
-    private IQuery<Unit, List<UserDto>> _usersQuery = default!;
-
     protected override void OnInitialized()
     {
-        _usersQuery = QueryClient.CreateQuery(new QueryOptions<Unit, List<UserDto>>
-        {
-            KeyFactory = _ => QueryKey.From("users"),
-            Fetcher    = (_, ct) => Http.GetFromJsonAsync<List<UserDto>>("/api/users", ct)!,
-        });
-
-        _usersQuery.Args.OnNext(Unit.Default);
+        Queries.UsersQuery.SetArgs(Unit.Default);
     }
-
-    private void HandleCreate() => Nav.NavigateTo("/users/new");
-
-    public void Dispose() => _usersQuery.Dispose();
 }
 ```
 
@@ -95,12 +137,10 @@ await builder.Build().RunAsync();
 
 ```razor
 @page "/users/{Id:int}"
-@inject IQueryClient QueryClient
-@inject HttpClient Http
+@inject UserQueries Queries
 @inject NavigationManager Nav
-@implements IDisposable
 
-<Transition Query="_userQuery">
+<Transition Query="Queries.UserQuery">
     <Content Context="user">
         <h1>@user.Name</h1>
         <dl>
@@ -111,7 +151,7 @@ await builder.Build().RunAsync();
 
         <div class="actions">
             <button @onclick="() => Nav.NavigateTo($"/users/{Id}/edit")">Edit</button>
-            <button @onclick="() => _userQuery.Refetch()">Refresh</button>
+            <button @onclick="() => Queries.UserQuery.Refetch()">Refresh</button>
         </div>
     </Content>
     <Loading>
@@ -126,30 +166,17 @@ await builder.Build().RunAsync();
 @code {
     [Parameter] public int Id { get; set; }
 
-    private IQuery<int, UserDto> _userQuery = default!;
-
-    protected override void OnInitialized()
-    {
-        _userQuery = QueryClient.CreateQuery(new QueryOptions<int, UserDto>
-        {
-            KeyFactory = id => QueryKey.From("users", id),
-            Fetcher    = (id, ct) => Http.GetFromJsonAsync<UserDto>($"/api/users/{id}", ct)!,
-            StaleTime  = TimeSpan.FromMinutes(5),
-        });
-    }
-
-    protected override void OnParametersSet() => _userQuery.Args.OnNext(Id);
-
-    public void Dispose() => _userQuery.Dispose();
+    protected override void OnParametersSet() => Queries.UserQuery.SetArgs(Id);
 }
 ```
 
 ## Create User Form
 
+The component only disposes its own state subscription — the mutation itself is owned and disposed by the injected service.
+
 ```razor
 @page "/users/new"
-@inject IQueryClient QueryClient
-@inject HttpClient Http
+@inject UserMutations Mutations
 @inject NavigationManager Nav
 @implements IDisposable
 
@@ -185,20 +212,13 @@ await builder.Build().RunAsync();
 @code {
     private readonly CreateUserRequest _model = new();
 
-    private IMutation<CreateUserRequest, UserDto> _mutation = default!;
     private IDisposable? _subscription;
-    private bool _isBusy;
-    private string? _errorMessage;
+    private bool         _isBusy;
+    private string?      _errorMessage;
 
     protected override void OnInitialized()
     {
-        _mutation = QueryClient.CreateMutation(new MutationOptions<CreateUserRequest, UserDto>
-        {
-            Mutator        = (req, ct) => Http.PostAsJsonAsync<UserDto>("/api/users", req, ct),
-            InvalidateKeys = [QueryKey.From("users")],
-        });
-
-        _subscription = _mutation.State.Subscribe(async state =>
+        _subscription = Mutations.CreateUser.State.Subscribe(async state =>
         {
             _isBusy       = state.IsRunning;
             _errorMessage = state.IsFailure ? state.Error!.Message : null;
@@ -210,25 +230,19 @@ await builder.Build().RunAsync();
         });
     }
 
-    private void HandleSubmit() => _mutation.Execute(_model);
+    private void HandleSubmit() => Mutations.CreateUser.Execute(_model);
 
-    public void Dispose()
-    {
-        _subscription?.Dispose();
-        _mutation.Dispose();
-    }
+    public void Dispose() => _subscription?.Dispose();
 }
 ```
 
 ## Delete Button Component
 
-A reusable component that wraps a delete mutation:
+Uses `Settled.Take(1)` to track per-click state without holding a long-lived subscription. Because `DeleteUser` declares `InvalidateKeys`, the users list refetches automatically on success.
 
 ```razor
 @* Components/DeleteButton.razor *@
-@inject IQueryClient QueryClient
-@inject HttpClient Http
-@implements IDisposable
+@inject UserMutations Mutations
 
 <button @onclick="HandleClick"
         disabled="@_isDeleting"
@@ -238,37 +252,22 @@ A reusable component that wraps a delete mutation:
 
 @code {
     [Parameter, EditorRequired] public int UserId { get; set; }
-    [Parameter] public EventCallback OnDeleted { get; set; }
 
-    private IMutation<int, Unit> _mutation = default!;
-    private IDisposable? _subscription;
     private bool _isDeleting;
 
-    protected override void OnInitialized()
+    private void HandleClick()
     {
-        _mutation = QueryClient.CreateMutation(new MutationOptions<int, Unit>
-        {
-            Mutator = (id, ct) => Http.DeleteAsync($"/api/users/{id}", ct)
-                                      .ContinueWith(_ => Unit.Default, ct),
-        });
+        _isDeleting = true;
 
-        _subscription = _mutation.State.Subscribe(async state =>
-        {
-            _isDeleting = state.IsRunning;
+        Mutations.DeleteUser.Settled
+            .Take(1)
+            .Subscribe(async _ =>
+            {
+                _isDeleting = false;
+                await InvokeAsync(StateHasChanged);
+            });
 
-            if (state.IsSuccess)
-                await OnDeleted.InvokeAsync();
-
-            await InvokeAsync(StateHasChanged);
-        });
-    }
-
-    private void HandleClick() => _mutation.Execute(UserId);
-
-    public void Dispose()
-    {
-        _subscription?.Dispose();
-        _mutation.Dispose();
+        Mutations.DeleteUser.Execute(UserId);
     }
 }
 ```

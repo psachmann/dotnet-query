@@ -102,21 +102,45 @@ Use `<Transition>` when:
 
 ## Complete Component Example
 
-Here is a full Blazor component using both queries and mutations with the Blazor components:
+Here is a full Blazor component using both queries and mutations with the Blazor components. Queries are defined in an injected service class — the component only handles rendering and pushing args.
+
+```csharp
+public sealed class UserProfileQueries(IQueryClient queryClient, HttpClient http) : IDisposable
+{
+    public readonly IQuery<int, UserDto> UserQuery = queryClient.CreateQuery(
+        new QueryOptions<int, UserDto>
+        {
+            KeyFactory = id => QueryKey.From("users", id),
+            Fetcher    = (id, ct) => http.GetFromJsonAsync<UserDto>($"/api/users/{id}", ct)!,
+            StaleTime  = TimeSpan.FromMinutes(5),
+        });
+
+    public readonly IQuery<int, List<PostDto>> PostsQuery = queryClient.CreateQuery(
+        new QueryOptions<int, List<PostDto>>
+        {
+            KeyFactory = id => QueryKey.From("users", id, "posts"),
+            Fetcher    = (id, ct) => http.GetFromJsonAsync<List<PostDto>>($"/api/users/{id}/posts", ct)!,
+        });
+
+    public void Dispose()
+    {
+        UserQuery.Dispose();
+        PostsQuery.Dispose();
+    }
+}
+```
 
 ```razor
 @page "/users/{Id:int}"
-@inject IQueryClient QueryClient
-@inject HttpClient Http
-@implements IDisposable
+@inject UserProfileQueries Queries
 
-<Transition Query="_userQuery">
+<Transition Query="Queries.UserQuery">
     <Content Context="user">
         <h1>@user.Name</h1>
 
-        <button @onclick="HandleRefresh">Refresh</button>
+        <button @onclick="() => Queries.UserQuery.Refetch()">Refresh</button>
 
-        <Suspense Query="_postsQuery">
+        <Suspense Query="Queries.PostsQuery">
             <Content Context="posts">
                 <ul>
                     @foreach (var post in posts)
@@ -135,43 +159,17 @@ Here is a full Blazor component using both queries and mutations with the Blazor
 @code {
     [Parameter] public int Id { get; set; }
 
-    private IQuery<int, UserDto>         _userQuery  = default!;
-    private IQuery<int, List<PostDto>>   _postsQuery = default!;
-
-    protected override void OnInitialized()
-    {
-        _userQuery = QueryClient.CreateQuery(new QueryOptions<int, UserDto>
-        {
-            KeyFactory = id => QueryKey.From("users", id),
-            Fetcher    = (id, ct) => Http.GetFromJsonAsync<UserDto>($"/api/users/{id}", ct)!,
-            StaleTime  = TimeSpan.FromMinutes(5),
-        });
-
-        _postsQuery = QueryClient.CreateQuery(new QueryOptions<int, List<PostDto>>
-        {
-            KeyFactory = id => QueryKey.From("users", id, "posts"),
-            Fetcher    = (id, ct) => Http.GetFromJsonAsync<List<PostDto>>($"/api/users/{id}/posts", ct)!,
-        });
-    }
-
     protected override void OnParametersSet()
     {
-        _userQuery.Args.OnNext(Id);
-        _postsQuery.Args.OnNext(Id);
-    }
-
-    private void HandleRefresh() => _userQuery.Refetch();
-
-    public void Dispose()
-    {
-        _userQuery.Dispose();
-        _postsQuery.Dispose();
+        Queries.UserQuery.SetArgs(Id);
+        Queries.PostsQuery.SetArgs(Id);
     }
 }
 ```
 
 ## Tips
 
-- **Dispose your queries.** Both `<Suspense>` and `<Transition>` dispose their internal subscriptions automatically, but they do not dispose the query itself. Dispose the query in your component's `Dispose()` method (or `DisposeAsync()`).
+- **Use service classes for queries and mutations.** Define queries and mutations in a dedicated service that implements `IDisposable`, register it with the DI container, and inject it into components. The service owns and disposes the instances — components stay focused on rendering.
+- **Components only dispose their own subscriptions.** `<Suspense>` and `<Transition>` dispose their internal subscriptions automatically. If a component subscribes to a query or mutation state stream directly, dispose that subscription in `Dispose()` — but do not dispose the query or mutation itself if it belongs to an injected service.
 - **Push args in `OnParametersSet`.** When your component receives route parameters, push them inside `OnParametersSet` so the query updates when the URL changes.
 - **Nest components freely.** A `<Suspense>` inside a `<Transition>`'s `Content` works perfectly — each component manages its own subscription independently.

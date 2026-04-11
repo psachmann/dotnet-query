@@ -27,9 +27,7 @@
   - **`ILogger<QueryClient>`** (injected via DI, optional) — structured log messages for fetch start/success/failure, cache hit/miss, retry attempts
   - **`System.Diagnostics.ActivitySource`** (static singleton) — distributed trace spans for query fetches and mutation executions, tagged with key and status; automatically picked up by OpenTelemetry instrumentation on the consumer side
   - **`System.Diagnostics.Metrics.Meter`** (static singleton) — metrics for cache hits/misses, fetch duration (histogram), retry count, and active query gauge; automatically picked up by OpenTelemetry instrumentation on the consumer side
-- **Resilience / Polly Integration** — Optional `DotNetQuery.Extensions.Resilience` package wrapping retry and circuit-breaker with Polly pipelines
-- **HttpClient Helpers** — Convenience extension methods for wrapping typed `HttpClient` calls in `QueryOptions`
-- **Background Service Queries** — Support for running queries inside `IHostedService` / `BackgroundService` (non-Blazor scenarios)
+- **MVVM Integration (`DotNetQuery.Mvvm`)** — `QueryViewModel<TArgs, TData>` wrapping `IQuery<TArgs, TData>` for MVVM-based UI frameworks (MAUI, WPF, UNO Platform); implements `INotifyPropertyChanged` and exposes bindable properties (`IsLoading`, `IsSuccess`, `IsFailure`, `Data`, `Error`); thread marshaling handled per-platform (`MainThread` / `Dispatcher` / `DispatcherQueue`)
 
 ## Developer Experience
 
