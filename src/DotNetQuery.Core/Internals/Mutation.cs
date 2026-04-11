@@ -91,11 +91,6 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 
     private async Task ExecuteAsync(TArgs args, CancellationToken cancellationToken)
     {
-        if (_disposed)
-        {
-            return;
-        }
-
         using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityMutationExecute);
         var stopwatch = Stopwatch.StartNew();
 

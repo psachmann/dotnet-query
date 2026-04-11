@@ -434,6 +434,85 @@ public class QueryTests
     }
 
     [Test]
+    public async Task Refetch_OnSuccess_RecordsActivityWithQueryKeyTag()
+    {
+        var key = QueryKey.From("activity-fetch-success");
+        Activity? recorded = null;
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == QueryTelemetry.SourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = a =>
+            {
+                if (Equals(a.GetTagItem(QueryTelemetryTags.TagQueryKey), key.ToString()))
+                    recorded = a;
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var options = new EffectiveQueryOptions<int, string>
+        {
+            Fetcher = (_, _) => Task.FromResult("ok"),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+        };
+        using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
+        using var sub = sut.State.Subscribe();
+
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(recorded).IsNotNull();
+        await Assert.That(recorded!.Status).IsEqualTo(ActivityStatusCode.Ok);
+    }
+
+    [Test]
+    public async Task Refetch_OnFailure_RecordsActivityWithErrorTags()
+    {
+        var key = QueryKey.From("activity-fetch-failure");
+        Activity? recorded = null;
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == QueryTelemetry.SourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = a =>
+            {
+                if (Equals(a.GetTagItem(QueryTelemetryTags.TagQueryKey), key.ToString()))
+                    recorded = a;
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var options = new EffectiveQueryOptions<int, string>
+        {
+            Fetcher = (_, _) => Task.FromException<string>(new InvalidOperationException("err")),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+        };
+        using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
+        using var sub = sut.State.Subscribe();
+
+        sut.Refetch();
+        await sut.State.Where(s => s.IsFailure).FirstAsync();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(recorded).IsNotNull();
+        await Assert.That(recorded!.Status).IsEqualTo(ActivityStatusCode.Error);
+        await Assert
+            .That(recorded.GetTagItem(QueryTelemetryTags.TagErrorType))
+            .IsEqualTo(nameof(InvalidOperationException));
+    }
+
+    [Test]
     public async Task Dispose_WhileFetchInFlight_DoesNotRaiseObjectDisposedException()
     {
         // Regression: without the _disposed guard in FetchAsync, calling Dispose() while a fetch

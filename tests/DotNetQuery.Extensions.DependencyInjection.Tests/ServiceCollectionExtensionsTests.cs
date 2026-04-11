@@ -111,4 +111,29 @@ public class ServiceCollectionExtensionsTests
 
         await Assert.That(result).IsSameReferenceAs(services);
     }
+
+    [Test]
+    public async Task AddDotNetQuery_WithoutLoggerFactory_CanResolveIQueryClient()
+    {
+        var services = new ServiceCollection();
+        services.AddDotNetQuery();
+
+        var provider = services.BuildServiceProvider();
+        var client = provider.GetService<IQueryClient>();
+
+        await Assert.That(client).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddDotNetQuery_WithLoggerFactory_CanResolveIQueryClient()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        services.AddDotNetQuery();
+
+        var provider = services.BuildServiceProvider();
+        var client = provider.GetService<IQueryClient>();
+
+        await Assert.That(client).IsNotNull();
+    }
 }

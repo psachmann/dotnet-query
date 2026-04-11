@@ -19,14 +19,13 @@ public class QueryInstrumentationTests
         _sut = new(_logger);
     }
 
-    // ── Logger — Query fetch ─────────────────────────────────────────────────
-
     [Test]
     public async Task RecordFetchStart_LogsDebugWithKey()
     {
         _sut.RecordFetchStart(QueryKey.From("users", 1));
 
         var entry = _logger.Entries.Single();
+
         using var _ = Assert.Multiple();
         await Assert.That(entry.LogLevel).IsEqualTo(LogLevel.Debug);
         await Assert.That(entry.Message).Contains("users:1");
@@ -38,6 +37,7 @@ public class QueryInstrumentationTests
         _sut.RecordFetchSuccess(QueryKey.From("users", 1), 42.5);
 
         var entry = _logger.Entries.Single();
+
         using var _ = Assert.Multiple();
         await Assert.That(entry.LogLevel).IsEqualTo(LogLevel.Debug);
         await Assert.That(entry.Message).Contains("users:1");
@@ -51,6 +51,7 @@ public class QueryInstrumentationTests
         _sut.RecordFetchFailure(QueryKey.From("users", 1), 10.0, ex);
 
         var entry = _logger.Entries.Single();
+
         using var _ = Assert.Multiple();
         await Assert.That(entry.LogLevel).IsEqualTo(LogLevel.Warning);
         await Assert.That(entry.Message).Contains("users:1");
@@ -63,12 +64,11 @@ public class QueryInstrumentationTests
         _sut.RecordFetchCancelled(QueryKey.From("users", 1));
 
         var entry = _logger.Entries.Single();
+
         using var _ = Assert.Multiple();
         await Assert.That(entry.LogLevel).IsEqualTo(LogLevel.Debug);
         await Assert.That(entry.Message).Contains("users:1");
     }
-
-    // ── Logger — Cache ───────────────────────────────────────────────────────
 
     [Test]
     public async Task RecordCacheHit_LogsDebugWithKey()
@@ -76,6 +76,7 @@ public class QueryInstrumentationTests
         _sut.RecordCacheHit(QueryKey.From("users", 1));
 
         var entry = _logger.Entries.Single();
+
         using var _ = Assert.Multiple();
         await Assert.That(entry.LogLevel).IsEqualTo(LogLevel.Debug);
         await Assert.That(entry.Message).Contains("users:1");
@@ -87,12 +88,11 @@ public class QueryInstrumentationTests
         _sut.RecordCacheMiss(QueryKey.From("users", 1));
 
         var entry = _logger.Entries.Single();
+
         using var _ = Assert.Multiple();
         await Assert.That(entry.LogLevel).IsEqualTo(LogLevel.Debug);
         await Assert.That(entry.Message).Contains("users:1");
     }
-
-    // ── Logger — Mutation ────────────────────────────────────────────────────
 
     [Test]
     public async Task RecordMutationStart_LogsDebug()
@@ -109,6 +109,7 @@ public class QueryInstrumentationTests
         _sut.RecordMutationSuccess(99.0);
 
         var entry = _logger.Entries.Single();
+
         using var _ = Assert.Multiple();
         await Assert.That(entry.LogLevel).IsEqualTo(LogLevel.Debug);
         await Assert.That(entry.Message).Contains("99");
@@ -121,6 +122,7 @@ public class QueryInstrumentationTests
         _sut.RecordMutationFailure(5.0, ex);
 
         var entry = _logger.Entries.Single();
+
         using var _ = Assert.Multiple();
         await Assert.That(entry.LogLevel).IsEqualTo(LogLevel.Warning);
         await Assert.That(entry.Exception).IsEqualTo(ex);
@@ -134,8 +136,6 @@ public class QueryInstrumentationTests
         var entry = _logger.Entries.Single();
         await Assert.That(entry.LogLevel).IsEqualTo(LogLevel.Debug);
     }
-
-    // ── Metrics ──────────────────────────────────────────────────────────────
 
     [Test]
     public async Task RecordFetchSuccess_RecordsFetchDurationWithTags()
@@ -306,8 +306,6 @@ public class QueryInstrumentationTests
             );
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
     /// <summary>Listens to a specific instrument and only fires the callback for the given query key.</summary>
     private static MeterListener CreateKeyedMeterListener<T>(
         string instrumentName,
@@ -320,7 +318,9 @@ public class QueryInstrumentationTests
             (m, tags) =>
             {
                 if (tags.Any(t => t.Key == QueryTelemetryTags.TagQueryKey && Equals(t.Value, key.ToString())))
+                {
                     onMeasurement(m, tags);
+                }
             }
         );
 
@@ -336,7 +336,9 @@ public class QueryInstrumentationTests
             (m, tags) =>
             {
                 if (tags.Any(t => t.Key == QueryTelemetryTags.TagStatus && Equals(t.Value, statusValue)))
+                {
                     onMeasurement(m, tags);
+                }
             }
         );
 
@@ -351,7 +353,9 @@ public class QueryInstrumentationTests
             InstrumentPublished = (instrument, l) =>
             {
                 if (instrument.Meter.Name == QueryTelemetry.SourceName && instrument.Name == instrumentName)
+                {
                     l.EnableMeasurementEvents(instrument);
+                }
             },
         };
 
@@ -359,13 +363,18 @@ public class QueryInstrumentationTests
             (_, measurement, tags, _) =>
             {
                 var tagList = new List<KeyValuePair<string, object?>>();
+
                 foreach (var tag in tags)
+                {
                     tagList.Add(tag);
+                }
+
                 onMeasurement(measurement, tagList);
             }
         );
 
         listener.Start();
+
         return listener;
     }
 }
