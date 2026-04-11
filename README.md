@@ -79,7 +79,7 @@ mutation.Execute(new CreateUserRequest { Name = "Alice" });
 
 ```razor
 <!-- Blazor -->
-<Suspense Query="_userQuery">
+<Suspense Query="query">
     <Content Context="user"><p>Hello, @user.Name!</p></Content>
     <Loading><p>Loading...</p></Loading>
     <Failure Context="error"><p>Error: @error.Message</p></Failure>
