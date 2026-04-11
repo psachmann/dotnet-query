@@ -5,21 +5,22 @@ internal sealed class QueryClient : IQueryClient
     private readonly QueryCache _cache;
     private readonly QueryClientOptions _globalOptions;
     private readonly IScheduler _scheduler;
+    private readonly QueryInstrumentation _instrumentation;
 
-    public QueryClient(QueryClientOptions globalOptions, IScheduler? scheduler = null)
+    public QueryClient(QueryClientOptions globalOptions, IScheduler scheduler, QueryInstrumentation instrumentation)
     {
         _globalOptions = globalOptions;
-        _scheduler = scheduler ?? Scheduler.Default;
-        _cache = new QueryCache(scheduler);
+        _scheduler = scheduler;
+        _instrumentation = instrumentation;
+        _cache = new(_scheduler, _instrumentation);
     }
 
     public IQuery<TArgs, TData> CreateQuery<TArgs, TData>(QueryOptions<TArgs, TData> options) =>
-        new QueryObserver<TArgs, TData>(options, _globalOptions, _cache, _scheduler);
+        new QueryObserver<TArgs, TData>(options, _globalOptions, _cache, _scheduler, _instrumentation);
 
     public IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options)
     {
-        var effectiveOptions = options with { RetryHandler = options.RetryHandler ?? _globalOptions.RetryHandler };
-        var mutation = new Mutation<TArgs, TData>(effectiveOptions);
+        var mutation = new Mutation<TArgs, TData>(options, _globalOptions, _instrumentation);
 
         if (options.InvalidateKeys is { Count: > 0 } keys)
         {

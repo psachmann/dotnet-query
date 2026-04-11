@@ -15,6 +15,7 @@ DotNet Query brings the battle-tested data-fetching patterns of TanStack Query t
 - **Smart caching** — configurable stale time and cache time control when data is re-fetched and when it is evicted
 - **Query deduplication** — identical keys share a single cached query instance; no redundant requests
 - **Retry logic** — exponential backoff out of the box; plug in your own strategy via `IRetryHandler`
+- **Observability** — OTel-compatible distributed tracing (`ActivitySource`), metrics (`Meter`), and structured logging (`ILogger`) using only BCL APIs; no OpenTelemetry package required in the library
 - **Blazor components** — `<Suspense>` and `<Transition>` components for declarative query rendering
 - **CSR / SSR support** — `QueryExecutionMode` controls Singleton (WebAssembly) vs Scoped (Server-Side Rendering) DI lifetime
 - **DI integration** — first-class support for `Microsoft.Extensions.DependencyInjection`

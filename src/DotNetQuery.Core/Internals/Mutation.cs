@@ -2,7 +2,8 @@ namespace DotNetQuery.Core.Internals;
 
 internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 {
-    private readonly MutationOptions<TArgs, TData> _options;
+    private readonly EffectiveMutationOptions<TArgs, TData> _options;
+    private readonly QueryInstrumentation _instrumentation;
     private readonly BehaviorSubject<MutationState<TData>> _state = new(MutationState<TData>.CreateIdle());
     private readonly BehaviorSubject<bool> _isEnabled;
     private readonly Subject<TArgs> _execute = new();
@@ -10,10 +11,15 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
     private readonly CompositeDisposable _subscriptions = [];
     private bool _disposed;
 
-    public Mutation(MutationOptions<TArgs, TData> options)
+    public Mutation(
+        MutationOptions<TArgs, TData> options,
+        QueryClientOptions globalOptions,
+        QueryInstrumentation instrumentation
+    )
     {
-        _options = options;
-        _isEnabled = new(options.IsEnabled);
+        _options = MergeOptions(options, globalOptions);
+        _instrumentation = instrumentation;
+        _isEnabled = new(_options.IsEnabled);
 
         _subscriptions.Add(
             _execute
@@ -32,6 +38,23 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
     public IObservable<Exception> Failure => _state.Where(state => state.IsFailure).Select(state => state.Error!);
 
     public IObservable<MutationState<TData>> Settled => _state.Where(state => state.IsSuccess || state.IsFailure);
+
+    public static EffectiveMutationOptions<TArgs, TData> MergeOptions(
+        MutationOptions<TArgs, TData> options,
+        QueryClientOptions globalOptions
+    )
+    {
+        return new()
+        {
+            Mutator = options.Mutator,
+            RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
+            IsEnabled = options.IsEnabled,
+            InvalidateKeys = options.InvalidateKeys ?? [],
+            OnSuccess = options.OnSuccess ?? delegate { },
+            OnFailure = options.OnFailure ?? delegate { },
+            OnSettled = options.OnSettled ?? delegate { },
+        };
+    }
 
     public void Execute(TArgs args)
     {
@@ -73,7 +96,11 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
             return;
         }
 
+        using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityMutationExecute);
+        var stopwatch = Stopwatch.StartNew();
+
         _state.OnNext(MutationState<TData>.CreateRunning());
+        _instrumentation.RecordMutationStart();
 
         TData data = default!;
         Exception? error = null;
@@ -81,7 +108,11 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 
         try
         {
-            data = await _options.RetryHandler!.ExecuteAsync(ct => _options.Mutator(args, ct), cancellationToken);
+            data = await _options.RetryHandler.ExecuteAsync(ct => _options.Mutator(args, ct), cancellationToken);
+            stopwatch.Stop();
+
+            activity?.SetStatus(ActivityStatusCode.Ok);
+            _instrumentation.RecordMutationSuccess(stopwatch.Elapsed.TotalMilliseconds);
 
             if (!_disposed)
             {
@@ -90,7 +121,10 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            stopwatch.Stop();
             cancelled = true;
+
+            _instrumentation.RecordMutationCancelled();
 
             if (!_disposed)
             {
@@ -99,7 +133,12 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         }
         catch (Exception ex)
         {
+            stopwatch.Stop();
             error = ex;
+
+            activity?.SetTag(QueryTelemetryTags.TagErrorType, ex.GetType().Name);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            _instrumentation.RecordMutationFailure(stopwatch.Elapsed.TotalMilliseconds, ex);
 
             if (!_disposed)
             {
@@ -116,14 +155,14 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         {
             if (error is null)
             {
-                _options.OnSuccess?.Invoke(args, data);
+                _options.OnSuccess.Invoke(args, data);
             }
             else
             {
-                _options.OnFailure?.Invoke(error);
+                _options.OnFailure.Invoke(error);
             }
         }
 
-        _options.OnSettled?.Invoke();
+        _options.OnSettled.Invoke();
     }
 }

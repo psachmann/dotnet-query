@@ -14,6 +14,8 @@
       href: guides/blazor.md
     - name: Retry Handling
       href: guides/retries.md
+    - name: Observability
+      href: guides/observability.md
     - name: Server-Side Rendering
       href: guides/ssr.md
 - name: Examples

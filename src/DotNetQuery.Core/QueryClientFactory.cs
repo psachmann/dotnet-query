@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace DotNetQuery.Core;
 
 /// <summary>
@@ -14,11 +16,19 @@ public static class QueryClientFactory
     /// An optional <see cref="IScheduler"/> used for timing operations such as stale-time,
     /// cache eviction, and refetch intervals. Defaults to <see cref="DefaultScheduler.Instance"/> when <c>null</c>.
     /// </param>
+    /// <param name="logger">
+    /// An optional <see cref="ILogger"/> used for structured log messages on fetch, cache, retry, and mutation events.
+    /// When <c>null</c>, logging is disabled but metrics and traces are still emitted.
+    /// </param>
     /// <returns>A new <see cref="IQueryClient"/> instance.</returns>
-    public static IQueryClient Create(QueryClientOptions options, IScheduler? scheduler = null)
+    public static IQueryClient Create(QueryClientOptions options, IScheduler? scheduler = null, ILogger? logger = null)
     {
         options.Validate();
 
-        return new QueryClient(options, scheduler);
+        logger ??= NullLogger.Instance;
+        scheduler ??= Scheduler.Default;
+        var instrumentation = new QueryInstrumentation(logger);
+
+        return new QueryClient(options, scheduler, instrumentation);
     }
 }

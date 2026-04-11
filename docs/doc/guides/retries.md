@@ -4,18 +4,9 @@ DotNet Query retries failed fetches and mutations automatically. Out of the box 
 
 ## Default Behavior
 
-The built-in `DefaultRetryHandler` makes up to **4 total attempts** (1 initial + 3 retries) with exponential backoff:
+By default, DotNet Query makes **one attempt** and does not retry. If the fetch or mutation throws, the exception is propagated immediately and the query transitions to `Failure` (or the mutation to `Failure`).
 
-| Attempt | Delay before attempt |
-|---------|---------------------|
-| 1st | — (immediate) |
-| 2nd | 1 second |
-| 3rd | 2 seconds |
-| 4th | 4 seconds |
-
-If all four attempts fail, the final exception is propagated and the query transitions to `Failure` (or the mutation to `Failure`).
-
-The `CancellationToken` is respected at every step — if cancelled, the retry loop stops immediately and throws `OperationCanceledException`.
+To add retry logic, configure a custom `IRetryHandler` — either globally or per query/mutation.
 
 ## Configuring the Global Retry Handler
 

@@ -23,10 +23,6 @@
 
 ## .NET Ecosystem Integration
 
-- **Observability (ILogger + ActivitySource + Meter)** — OTel-compatible observability using only BCL APIs; no direct OpenTelemetry package dependency in the library itself:
-  - **`ILogger<QueryClient>`** (injected via DI, optional) — structured log messages for fetch start/success/failure, cache hit/miss, retry attempts
-  - **`System.Diagnostics.ActivitySource`** (static singleton) — distributed trace spans for query fetches and mutation executions, tagged with key and status; automatically picked up by OpenTelemetry instrumentation on the consumer side
-  - **`System.Diagnostics.Metrics.Meter`** (static singleton) — metrics for cache hits/misses, fetch duration (histogram), retry count, and active query gauge; automatically picked up by OpenTelemetry instrumentation on the consumer side
 - **MVVM Integration (`DotNetQuery.Mvvm`)** — `QueryViewModel<TArgs, TData>` wrapping `IQuery<TArgs, TData>` for MVVM-based UI frameworks (MAUI, WPF, UNO Platform); implements `INotifyPropertyChanged` and exposes bindable properties (`IsLoading`, `IsSuccess`, `IsFailure`, `Data`, `Error`); thread marshaling handled per-platform (`MainThread` / `Dispatcher` / `DispatcherQueue`)
 
 ## Developer Experience

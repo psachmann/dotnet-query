@@ -1,10 +1,11 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class QueryCache(IScheduler? scheduler = null) : IDisposable
+internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation instrumentation) : IDisposable
 {
     private readonly ConcurrentDictionary<QueryKey, IQuery> _entries = new();
     private readonly ConcurrentDictionary<QueryKey, IDisposable> _pendingRemovals = new();
-    private readonly IScheduler _scheduler = scheduler ?? Scheduler.Default;
+    private readonly IScheduler _scheduler = scheduler;
+    private readonly QueryInstrumentation _instrumentation = instrumentation;
     private readonly Lock _evictionLock = new();
 
     public Query<TArgs, TData> GetOrCreate<TArgs, TData>(QueryKey key, Query<TArgs, TData> query)
@@ -16,7 +17,18 @@ internal sealed class QueryCache(IScheduler? scheduler = null) : IDisposable
                 pending.Dispose();
             }
 
-            return (Query<TArgs, TData>)_entries.GetOrAdd(key, query);
+            var result = (Query<TArgs, TData>)_entries.GetOrAdd(key, query);
+
+            if (ReferenceEquals(result, query))
+            {
+                _instrumentation.RecordCacheMiss(key);
+            }
+            else
+            {
+                _instrumentation.RecordCacheHit(key);
+            }
+
+            return result;
         }
     }
 
