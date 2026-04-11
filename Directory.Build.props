@@ -23,8 +23,13 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <MinVerTagPrefix>v</MinVerTagPrefix>
-    <PackageReleaseNotes>https://github.com/psachmann/dotnet-query/releases/tag/v$(Version)</PackageReleaseNotes>
   </PropertyGroup>
+
+  <Target Name="SetPackageReleaseNotes" BeforeTargets="GenerateNuspec">
+    <PropertyGroup>
+      <PackageReleaseNotes>https://github.com/psachmann/dotnet-query/releases/tag/v$(Version)</PackageReleaseNotes>
+    </PropertyGroup>
+  </Target>
 
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)docs/images/dotnet-query-icon.128x128.png" Pack="true" PackagePath="\" />
