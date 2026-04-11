@@ -21,15 +21,29 @@ else
     private IDisposable? _subscription;
     private IQuery<TArgs, TData>? _subscribedQuery;
 
+    /// <summary>
+    /// The query whose state drives rendering. Required.
+    /// </summary>
     [Parameter, EditorRequired]
     public IQuery<TArgs, TData> Query { get; set; } = default!;
 
+    /// <summary>
+    /// Rendered when the query succeeds. Receives the fetched data as context. Required.
+    /// </summary>
     [Parameter, EditorRequired]
     public RenderFragment<TData> Content { get; set; } = default!;
 
+    /// <summary>
+    /// Rendered while the query is <c>Idle</c> or <c>Fetching</c>, including during background re-fetches.
+    /// Defaults to nothing if not provided.
+    /// </summary>
     [Parameter]
     public RenderFragment? Loading { get; set; }
 
+    /// <summary>
+    /// Rendered when the query has failed. Receives the exception as context.
+    /// Defaults to nothing if not provided.
+    /// </summary>
     [Parameter]
     public RenderFragment<Exception>? Failure { get; set; }
 
