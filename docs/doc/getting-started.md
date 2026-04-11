@@ -63,7 +63,7 @@ Remember to call `client.Dispose()` when you are done with it.
 A query needs two things: a **key factory** and a **fetcher**.
 
 ```csharp
-public sealed class UserService(IQueryClient queryClient, HttpClient httpClient) : IDisposable
+public sealed class UserQueries(IQueryClient queryClient, HttpClient httpClient) : IDisposable
 {
     public readonly IQuery<int, UserDto> UserQuery = queryClient.CreateQuery(
         new QueryOptions<int, UserDto>
@@ -82,13 +82,13 @@ Queries do not fetch anything on their own — they wait for you to push args:
 
 ```csharp
 // Trigger a fetch for user 42
-_userQuery.Args.OnNext(42);
+userQueries.UserQuery.SetArgs(42);
 ```
 
 Then subscribe to the state stream to react to changes:
 
 ```csharp
-_userQuery.State.Subscribe(state =>
+userQueries.UserQuery.State.Subscribe(state =>
 {
     if (state.IsFetching)
         ShowSpinner();
@@ -104,14 +104,14 @@ _userQuery.State.Subscribe(state =>
 Or use the shortcut streams if you only care about success or failure:
 
 ```csharp
-_userQuery.Success.Subscribe(user => Console.WriteLine($"Got user: {user.Name}"));
-_userQuery.Failure.Subscribe(error => Console.WriteLine($"Failed: {error.Message}"));
+userQueries.UserQuery.Success.Subscribe(user => Console.WriteLine($"Got user: {user.Name}"));
+userQueries.UserQuery.Failure.Subscribe(error => Console.WriteLine($"Failed: {error.Message}"));
 ```
 
 You can also read the current state synchronously at any time — useful for rendering without subscribing:
 
 ```csharp
-var state = _userQuery.CurrentState;
+var state = userQueries.UserQuery.CurrentState;
 ```
 
 ## Your First Mutation
@@ -119,30 +119,35 @@ var state = _userQuery.CurrentState;
 A mutation needs a **mutator** function:
 
 ```csharp
-private readonly IMutation<CreateUserRequest, UserDto> _createMutation =
-    queryClient.CreateMutation(new MutationOptions<CreateUserRequest, UserDto>
-    {
-        Mutator = (request, ct) => httpClient.PostAsJsonAsync<UserDto>("/api/users", request, ct),
+public sealed class UserMutations(IQueryClient queryClient, HttpClient httpClient) : IDisposable
+{
+    public readonly IMutation<CreateUserRequest, UserDto> CreateUser =
+        queryClient.CreateMutation(new MutationOptions<CreateUserRequest, UserDto>
+        {
+            Mutator = (request, ct) => httpClient.PostAsJsonAsync<UserDto>("/api/users", request, ct),
 
-        // Automatically invalidate the "users" list query after a successful creation
-        InvalidateKeys = [QueryKey.From("users")],
+            // Automatically invalidate the "users" list query after a successful creation
+            InvalidateKeys = [QueryKey.From("users")],
 
-        OnSuccess = (request, user) => Console.WriteLine($"Created user {user.Id}"),
-        OnFailure = error => Console.WriteLine($"Failed: {error.Message}"),
-        OnSettled = () => Console.WriteLine("Mutation finished"),
-    });
+            OnSuccess = (request, user) => Console.WriteLine($"Created user {user.Id}"),
+            OnFailure = error => Console.WriteLine($"Failed: {error.Message}"),
+            OnSettled = () => Console.WriteLine("Mutation finished"),
+        });
+
+    public void Dispose() => CreateUser.Dispose();
+}
 ```
 
 Trigger the mutation by calling `Execute`:
 
 ```csharp
-_createMutation.Execute(new CreateUserRequest { Name = "Alice" });
+userMutations.CreateUser.Execute(new CreateUserRequest { Name = "Alice" });
 ```
 
 Subscribe to the mutation state the same way you would a query:
 
 ```csharp
-_createMutation.State.Subscribe(state =>
+userMutations.CreateUser.State.Subscribe(state =>
 {
     if (state.IsRunning) ShowSpinner();
     if (state.IsSuccess) NavigateTo("/users");
@@ -152,17 +157,20 @@ _createMutation.State.Subscribe(state =>
 
 ## Putting It Together in Blazor
 
-If you are using Blazor, the `<Suspense>` and `<Transition>` components handle all the state-switching for you. Register the service class and inject it into your component — the component stays focused on rendering:
+If you are using Blazor, the `<Suspense>` and `<Transition>` components handle all the state-switching for you. Register the service classes and inject them into your components — components stay focused on rendering:
 
 ```csharp
 // Program.cs
-builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<UserQueries>();
+builder.Services.AddScoped<UserMutations>();
 ```
 
-```razor
-@inject UserService UserService
+Render query state declaratively with `<Suspense>`:
 
-<Suspense Query="UserService.UserQuery">
+```razor
+@inject UserQueries Queries
+
+<Suspense Query="Queries.UserQuery">
     <Content Context="user">
         <p>Hello, @user.Name!</p>
     </Content>
@@ -177,8 +185,38 @@ builder.Services.AddScoped<UserService>();
 @code {
     protected override void OnInitialized()
     {
-        UserService.UserQuery.Args.OnNext(42);
+        Queries.UserQuery.SetArgs(42);
     }
+}
+```
+
+Subscribe to mutation state directly for form handling. The component only disposes its own subscription — the mutation itself is owned by the injected service:
+
+```razor
+@inject UserMutations Mutations
+@inject NavigationManager Nav
+@implements IDisposable
+
+<button @onclick="HandleCreate">Create Alice</button>
+
+@code {
+    private IDisposable? _subscription;
+
+    protected override void OnInitialized()
+    {
+        _subscription = Mutations.CreateUser.State.Subscribe(state =>
+        {
+            if (state.IsSuccess)
+                Nav.NavigateTo($"/users/{state.CurrentData!.Id}");
+
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void HandleCreate() =>
+        Mutations.CreateUser.Execute(new CreateUserRequest { Name = "Alice" });
+
+    public void Dispose() => _subscription?.Dispose();
 }
 ```
 

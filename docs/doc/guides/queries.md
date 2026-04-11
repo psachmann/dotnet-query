@@ -63,13 +63,13 @@ new QueryOptions<int, UserDto>
 }
 ```
 
-## Pushing Args
+## Setting Args
 
-Queries do not fetch until you push args. Use the `Args` observer:
+Queries do not fetch until you set args. Call `SetArgs` to provide them:
 
 ```csharp
-query.Args.OnNext(42);   // fetch user 42
-query.Args.OnNext(99);   // switch to user 99 — cancels the in-flight fetch for 42 if still running
+query.SetArgs(42);   // fetch user 42
+query.SetArgs(99);   // switch to user 99 — cancels the in-flight fetch for 42 if still running
 ```
 
 Every time you push new args, the query:
@@ -227,7 +227,7 @@ var query = queryClient.CreateQuery(new QueryOptions<int?, UserDto>
 
 // Later, when the user selects an ID:
 query.SetEnabled(true);
-query.Args.OnNext(selectedUserId);
+query.SetArgs(selectedUserId);
 ```
 
 ### Detach

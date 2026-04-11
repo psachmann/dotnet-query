@@ -161,8 +161,8 @@ public sealed class UserProfileQueries(IQueryClient queryClient, HttpClient http
 
     protected override void OnParametersSet()
     {
-        Queries.UserQuery.Args.OnNext(Id);
-        Queries.PostsQuery.Args.OnNext(Id);
+        Queries.UserQuery.SetArgs(Id);
+        Queries.PostsQuery.SetArgs(Id);
     }
 }
 ```

@@ -128,7 +128,7 @@ public sealed class UserMutations(IQueryClient queryClient, HttpClient http) : I
 @code {
     protected override void OnInitialized()
     {
-        Queries.UsersQuery.Args.OnNext(Unit.Default);
+        Queries.UsersQuery.SetArgs(Unit.Default);
     }
 }
 ```
@@ -166,7 +166,7 @@ public sealed class UserMutations(IQueryClient queryClient, HttpClient http) : I
 @code {
     [Parameter] public int Id { get; set; }
 
-    protected override void OnParametersSet() => Queries.UserQuery.Args.OnNext(Id);
+    protected override void OnParametersSet() => Queries.UserQuery.SetArgs(Id);
 }
 ```
 

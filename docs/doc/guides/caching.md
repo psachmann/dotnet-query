@@ -85,11 +85,11 @@ When two different parts of your app create queries with the same options, they 
 ```csharp
 // Component A
 var queryA = queryClient.CreateQuery(options); // same options as Component B
-queryA.Args.OnNext(42);                        // triggers a fetch
+queryA.SetArgs(42);                        // triggers a fetch
 
 // Component B (maybe rendered at the same time)
 var queryB = queryClient.CreateQuery(options);
-queryB.Args.OnNext(42);                        // cache hit — no second fetch
+queryB.SetArgs(42);                        // cache hit — no second fetch
 ```
 
 Both `queryA` and `queryB` receive the same `QueryState<TData>` transitions. This eliminates redundant network requests and keeps your data consistent.
