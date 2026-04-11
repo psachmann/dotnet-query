@@ -53,10 +53,10 @@ public interface IQuery<TArgs, TData> : IQuery
     public QueryState<TData> CurrentState { get; }
 
     /// <summary>
-    /// Push new args to trigger a fetch. Use <see cref="IObserver{T}.OnNext"/> to update.
-    /// When args change, the observer switches to the cache entry for the new derived key.
+    /// Sets the args that drive the next fetch. When args change, the query switches to the
+    /// cache entry for the newly derived key and triggers a fetch if the query is enabled.
     /// </summary>
-    public IObserver<TArgs> Args { get; }
+    public void SetArgs(TArgs args);
 
     /// <summary>
     /// Enables or disables the query. When <c>false</c>, fetching is suspended even if the query is

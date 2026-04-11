@@ -53,7 +53,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
 
     public QueryState<TData> CurrentState => _activeQuery.Value?.CurrentState ?? QueryState<TData>.CreateIdle();
 
-    public IObserver<TArgs> Args => _args;
+    public void SetArgs(TArgs args) => _args.OnNext(args);
 
     public void SetEnabled(bool enabled) => _isEnabled.OnNext(enabled);
 

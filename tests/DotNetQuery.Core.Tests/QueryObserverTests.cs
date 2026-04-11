@@ -58,7 +58,7 @@ public class QueryObserverTests
         using var sut = CreateObserver(keyFactory: id => QueryKey.From("item", id));
 
         using var _ = sut.State.Subscribe();
-        sut.Args.OnNext(42);
+        sut.SetArgs(42);
 
         await Assert.That(sut.Key).IsEqualTo(QueryKey.From("item", 42));
     }
@@ -69,7 +69,7 @@ public class QueryObserverTests
         using var sut = CreateObserver(fetcher: (_, _) => Task.FromResult("hello"));
 
         using var _ = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
 
         var state = await sut.State.Where(s => s.IsSuccess).FirstAsync();
         await Assert.That(state.CurrentData).IsEqualTo("hello");
@@ -85,10 +85,10 @@ public class QueryObserverTests
 
         using var _ = sut.State.Subscribe();
 
-        sut.Args.OnNext(1);
+        sut.SetArgs(1);
         await sut.State.Where(s => s.IsSuccess && s.CurrentData == "1").FirstAsync();
 
-        sut.Args.OnNext(2);
+        sut.SetArgs(2);
         var state = await sut.State.Where(s => s.IsSuccess && s.CurrentData == "2").FirstAsync();
 
         await Assert.That(state.CurrentData).IsEqualTo("2");
@@ -116,12 +116,12 @@ public class QueryObserverTests
         );
 
         using var subA = sutA.State.Subscribe();
-        sutA.Args.OnNext(0);
+        sutA.SetArgs(0);
         await sutA.State.Where(s => s.IsSuccess).FirstAsync();
 
         // sutB uses the same cache key; StaleTime not elapsed so no second fetch
         using var subB = sutB.State.Subscribe();
-        sutB.Args.OnNext(0);
+        sutB.SetArgs(0);
         await Task.Delay(50);
 
         await Assert.That(fetchCount).IsEqualTo(1);
@@ -136,7 +136,7 @@ public class QueryObserverTests
         using var sut = CreateObserver(fetcher: (_, _) => Task.FromResult("result"));
 
         using var _ = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
         await Assert.That(sut.CurrentState.IsSuccess).IsTrue();
@@ -156,7 +156,7 @@ public class QueryObserverTests
         );
 
         using var _ = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
         await Task.Delay(50);
 
         await Assert.That(fetched).IsFalse();
@@ -168,7 +168,7 @@ public class QueryObserverTests
         using var sut = CreateObserver(isEnabled: false);
 
         using var _ = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
         await Task.Delay(50);
 
         await Assert.That(sut.CurrentState.IsIdle).IsTrue();
@@ -180,7 +180,7 @@ public class QueryObserverTests
         using var sut = CreateObserver(isEnabled: false);
 
         using var sub = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
         await Task.Delay(50);
 
         var tcs = new TaskCompletionSource<QueryState<string>>();
@@ -205,7 +205,7 @@ public class QueryObserverTests
         );
 
         using var _ = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
         var countAfterFirstFetch = fetchCount;
@@ -224,7 +224,7 @@ public class QueryObserverTests
         using var sut = CreateObserver();
 
         using var sub = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
         var tcs = new TaskCompletionSource<QueryState<string>>();
@@ -259,7 +259,7 @@ public class QueryObserverTests
         );
 
         using var sub = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
         await sut.State.Where(s => s.IsFetching).FirstAsync();
 
         sut.Cancel();
@@ -274,7 +274,7 @@ public class QueryObserverTests
         using var sut = CreateObserver();
 
         using var sub = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
         var tcs = new TaskCompletionSource<QueryState<string>>();
@@ -310,7 +310,7 @@ public class QueryObserverTests
         );
 
         using var sub = sutA.State.Subscribe();
-        sutA.Args.OnNext(0);
+        sutA.SetArgs(0);
         await sutA.State.Where(s => s.IsSuccess).FirstAsync();
 
         sutA.Detach();
@@ -329,7 +329,7 @@ public class QueryObserverTests
         );
 
         using var subB = sutB.State.Subscribe();
-        sutB.Args.OnNext(0);
+        sutB.SetArgs(0);
         await sutB.State.Where(s => s.IsSuccess).FirstAsync();
 
         await Assert.That(fetchCount).IsEqualTo(2);
@@ -344,7 +344,7 @@ public class QueryObserverTests
         using var sut = CreateObserver(fetcher: (_, _) => Task.FromResult("result"));
 
         using var _ = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
 
         var data = await sut.Success.FirstAsync();
         await Assert.That(data).IsEqualTo("result");
@@ -364,7 +364,7 @@ public class QueryObserverTests
         );
 
         using var _ = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
 
         var emitted = await sut.Failure.FirstAsync();
         await Assert.That(emitted).IsEqualTo(error);
@@ -376,7 +376,7 @@ public class QueryObserverTests
         using var sut = CreateObserver();
 
         using var _ = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
 
         var state = await sut.Settled.FirstAsync();
         await Assert.That(state.IsSuccess).IsTrue();
@@ -397,7 +397,7 @@ public class QueryObserverTests
         );
 
         using var sub = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
         // StaleTime not yet elapsed — Invalidate should be skipped
@@ -422,7 +422,7 @@ public class QueryObserverTests
         );
 
         using var sub = sut.State.Subscribe();
-        sut.Args.OnNext(0);
+        sut.SetArgs(0);
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
         // Global StaleTime not yet elapsed — Invalidate should be skipped

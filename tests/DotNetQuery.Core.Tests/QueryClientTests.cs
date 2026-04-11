@@ -29,7 +29,7 @@ public class QueryClientTests
         );
 
         using var _ = query.State.Subscribe();
-        query.Args.OnNext(0);
+        query.SetArgs(0);
 
         var state = await query.State.Where(s => s.IsSuccess).FirstAsync();
         await Assert.That(state.CurrentData).IsEqualTo("data");
@@ -57,11 +57,11 @@ public class QueryClientTests
         using var subA = queryA.State.Subscribe();
         using var subB = queryB.State.Subscribe();
 
-        queryA.Args.OnNext(0);
+        queryA.SetArgs(0);
         await queryA.State.Where(s => s.IsSuccess).FirstAsync();
 
         // Push the same key to queryB — cache hit, StaleTime not elapsed, no second fetch
-        queryB.Args.OnNext(0);
+        queryB.SetArgs(0);
         await Task.Delay(50);
 
         await Assert.That(fetchCount).IsEqualTo(1);
@@ -85,10 +85,10 @@ public class QueryClientTests
 
         using var _ = query.State.Subscribe();
 
-        query.Args.OnNext(1);
+        query.SetArgs(1);
         await query.State.Where(s => s.IsSuccess).FirstAsync();
 
-        query.Args.OnNext(2);
+        query.SetArgs(2);
         await query.State.Where(s => s.IsSuccess && s.CurrentData == "2").FirstAsync();
 
         await Assert.That(fetchCount).IsEqualTo(2);
@@ -117,7 +117,7 @@ public class QueryClientTests
         );
 
         using var sub = query.State.Subscribe();
-        query.Args.OnNext(0);
+        query.SetArgs(0);
         await query.State.Where(s => s.IsSuccess).FirstAsync();
 
         var mutation = _sut.CreateMutation(
@@ -142,7 +142,7 @@ public class QueryClientTests
         );
 
         using var sub = query.State.Subscribe();
-        query.Args.OnNext(0);
+        query.SetArgs(0);
         await query.State.Where(s => s.IsSuccess).FirstAsync();
 
         var tcs = new TaskCompletionSource<QueryState<string>>();
@@ -171,7 +171,7 @@ public class QueryClientTests
         );
 
         using var _ = query.State.Subscribe();
-        query.Args.OnNext(0);
+        query.SetArgs(0);
         await query.State.Where(s => s.IsSuccess).FirstAsync();
 
         var countAfterFirstFetch = fetchCount;
@@ -201,8 +201,8 @@ public class QueryClientTests
 
         using var subA = queryA.State.Subscribe();
         using var subB = queryB.State.Subscribe();
-        queryA.Args.OnNext(0);
-        queryB.Args.OnNext(0);
+        queryA.SetArgs(0);
+        queryB.SetArgs(0);
         await queryA.State.Where(s => s.IsSuccess).FirstAsync();
         await queryB.State.Where(s => s.IsSuccess).FirstAsync();
 
@@ -230,7 +230,7 @@ public class QueryClientTests
         );
 
         using var sub = query.State.Subscribe();
-        query.Args.OnNext(0);
+        query.SetArgs(0);
         await query.State.Where(s => s.IsSuccess).FirstAsync();
 
         var completed = false;
