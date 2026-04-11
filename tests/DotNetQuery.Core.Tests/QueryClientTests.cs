@@ -5,10 +5,12 @@ public class QueryClientTests
     private readonly TestScheduler _scheduler = new();
     private QueryClient _sut = default!;
 
+    private static readonly QueryInstrumentation _instrumentation = new(NullLogger.Instance);
+
     [Before(Test)]
     public void Setup()
     {
-        _sut = new QueryClient(new QueryClientOptions(), _scheduler);
+        _sut = new QueryClient(new QueryClientOptions(), _scheduler, _instrumentation);
     }
 
     [After(Test)]

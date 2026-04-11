@@ -5,10 +5,12 @@ public class QueryCacheTests
     private readonly TestScheduler _scheduler = new();
     private QueryCache _sut = default!;
 
+    private static readonly QueryInstrumentation _instrumentation = new(NullLogger.Instance);
+
     [Before(Test)]
     public void Setup()
     {
-        _sut = new(_scheduler);
+        _sut = new(_scheduler, _instrumentation);
     }
 
     [After(Test)]
@@ -22,10 +24,13 @@ public class QueryCacheTests
         var options = new EffectiveQueryOptions<int, string>
         {
             Fetcher = (_, _) => Task.FromResult("data"),
-            CacheTime = cacheTime ?? TimeSpan.FromMinutes(5),
             StaleTime = TimeSpan.Zero,
+            CacheTime = cacheTime ?? TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
         };
-        return new Query<int, string>(key, 0, options, _scheduler);
+        return new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
     }
 
     [Test]

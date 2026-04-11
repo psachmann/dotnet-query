@@ -5,10 +5,12 @@ public class MutationTests
     private readonly TestScheduler _scheduler = new();
     private QueryClient _client = default!;
 
+    private static readonly QueryInstrumentation _instrumentation = new(NullLogger.Instance);
+
     [Before(Test)]
     public void Setup()
     {
-        _client = new(new(), _scheduler);
+        _client = new(new(), _scheduler, _instrumentation);
     }
 
     [After(Test)]
@@ -68,7 +70,7 @@ public class MutationTests
             new MutationOptions<int, string>
             {
                 Mutator = (_, _) => Task.FromException<string>(error),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
             }
         );
 
@@ -187,7 +189,7 @@ public class MutationTests
             new MutationOptions<int, string>
             {
                 Mutator = (_, _) => Task.FromException<string>(error),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
             }
         );
 
@@ -217,7 +219,7 @@ public class MutationTests
             new MutationOptions<int, string>
             {
                 Mutator = (_, _) => Task.FromException<string>(new Exception("fail")),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
             }
         );
 
@@ -236,7 +238,7 @@ public class MutationTests
             new MutationOptions<int, string>
             {
                 Mutator = (_, _) => Task.FromException<string>(error),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
                 OnFailure = e => captured = e,
             }
         );
@@ -273,7 +275,7 @@ public class MutationTests
             new MutationOptions<int, string>
             {
                 Mutator = (_, _) => Task.FromException<string>(new Exception("fail")),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
                 OnSettled = () => settled = true,
             }
         );
@@ -423,7 +425,11 @@ public class MutationTests
     [Test]
     public async Task RetryHandler_NullInOptions_UsesGlobalHandler()
     {
-        using var client = new QueryClient(new QueryClientOptions { RetryHandler = new NoRetryHandler() }, _scheduler);
+        using var client = new QueryClient(
+            new QueryClientOptions { RetryHandler = new DefaultRetryHandler() },
+            _scheduler,
+            _instrumentation
+        );
         var attempts = 0;
         var mutation = client.CreateMutation(
             new MutationOptions<int, string>
@@ -455,7 +461,7 @@ public class MutationTests
                     attempts++;
                     return Task.FromException<string>(new Exception("fail"));
                 },
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
             }
         );
 

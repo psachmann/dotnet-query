@@ -4,6 +4,8 @@ public class QueryTests
 {
     private readonly TestScheduler _scheduler = new();
 
+    private static readonly QueryInstrumentation _instrumentation = new(NullLogger.Instance);
+
     private Query<int, string> CreateQuery(
         Func<int, CancellationToken, Task<string>>? fetcher = null,
         TimeSpan? staleTime = null,
@@ -18,9 +20,10 @@ public class QueryTests
             StaleTime = staleTime ?? TimeSpan.Zero,
             CacheTime = cacheTime ?? TimeSpan.FromMinutes(5),
             RefetchInterval = refetchInterval,
-            RetryHandler = new DefaultRetryHandler([]),
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
         };
-        return new Query<int, string>(QueryKey.From("test"), args, options, _scheduler);
+        return new Query<int, string>(QueryKey.From("test"), args, options, _scheduler, _instrumentation);
     }
 
     [Test]
@@ -30,9 +33,13 @@ public class QueryTests
         var options = new EffectiveQueryOptions<int, string>
         {
             Fetcher = (_, _) => Task.FromResult("data"),
-            RetryHandler = new DefaultRetryHandler([]),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
         };
-        using var sut = new Query<int, string>(key, 0, options, _scheduler);
+        using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
 
         await Assert.That(sut.Key).IsEqualTo(key);
     }
