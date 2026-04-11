@@ -30,7 +30,12 @@ public static class ServiceCollectionExtensions
         services.Add(
             new ServiceDescriptor(
                 typeof(IQueryClient),
-                serviceProvider => QueryClientFactory.Create(options, serviceProvider.GetService<IScheduler>()),
+                serviceProvider =>
+                    QueryClientFactory.Create(
+                        options,
+                        serviceProvider.GetService<IScheduler>(),
+                        serviceProvider.GetService<ILoggerFactory>()?.CreateLogger(QueryTelemetry.SourceName)
+                    ),
                 options.ExecutionMode.ToServiceLifetime()
             )
         );

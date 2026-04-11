@@ -5,8 +5,10 @@ public class QueryObserverTests
     private readonly TestScheduler _scheduler = new();
     private QueryCache _cache = default!;
 
+    private static readonly QueryInstrumentation _instrumentation = new(NullLogger.Instance);
+
     [Before(Test)]
-    public void Setup() => _cache = new QueryCache(_scheduler);
+    public void Setup() => _cache = new QueryCache(_scheduler, _instrumentation);
 
     [After(Test)]
     public void Teardown() => _cache.Dispose();
@@ -32,7 +34,8 @@ public class QueryObserverTests
             options,
             globalOptions ?? new QueryClientOptions { StaleTime = TimeSpan.Zero },
             _cache,
-            _scheduler
+            _scheduler,
+            _instrumentation
         );
     }
 
@@ -356,11 +359,7 @@ public class QueryObserverTests
         var error = new Exception("boom");
         using var sut = CreateObserver(
             fetcher: (_, _) => Task.FromException<string>(error),
-            globalOptions: new QueryClientOptions
-            {
-                StaleTime = TimeSpan.Zero,
-                RetryHandler = new DefaultRetryHandler([]),
-            }
+            globalOptions: new QueryClientOptions { StaleTime = TimeSpan.Zero }
         );
 
         using var _ = sut.State.Subscribe();

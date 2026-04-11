@@ -14,6 +14,7 @@
     "csharpier",
     "direnv",
     "dotnet",
+    "dotnetquery",
     "github",
     "netcoredbg",
     "nixd",

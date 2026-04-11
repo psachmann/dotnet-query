@@ -6,6 +6,7 @@ internal sealed class Query<TArgs, TData> : IQuery
     private readonly TArgs _args;
     private readonly EffectiveQueryOptions<TArgs, TData> _options;
     private readonly IScheduler _scheduler;
+    private readonly QueryInstrumentation _instrumentation;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private readonly BehaviorSubject<QueryState<TData>> _state = new(QueryState<TData>.CreateIdle());
     private readonly Subject<Unit> _invalidate = new();
@@ -16,12 +17,19 @@ internal sealed class Query<TArgs, TData> : IQuery
     private bool _isStale;
     private bool _disposed;
 
-    public Query(QueryKey key, TArgs args, EffectiveQueryOptions<TArgs, TData> options, IScheduler? scheduler = null)
+    public Query(
+        QueryKey key,
+        TArgs args,
+        EffectiveQueryOptions<TArgs, TData> options,
+        IScheduler scheduler,
+        QueryInstrumentation instrumentation
+    )
     {
         _key = key;
         _args = args;
         _options = options;
-        _scheduler = scheduler ?? Scheduler.Default;
+        _scheduler = scheduler;
+        _instrumentation = instrumentation;
 
         _subscriptions.Add(_invalidate.Select(_ => Observable.FromAsync(FetchAsync)).Switch().Subscribe());
 
@@ -120,12 +128,22 @@ internal sealed class Query<TArgs, TData> : IQuery
 
         var lastData = _state.Value.CurrentData;
 
+        using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityQueryFetch);
+        activity?.SetTag(QueryTelemetryTags.TagQueryKey, _key.ToString());
+
+        var stopwatch = Stopwatch.StartNew();
+
         _state.OnNext(QueryState<TData>.CreateFetching(lastData));
+        _instrumentation.RecordFetchStart(_key);
 
         try
         {
             var data = await _options.RetryHandler.ExecuteAsync(ct => _options.Fetcher(_args, ct), linkedToken);
             _lastSuccessAt = _scheduler.Now;
+            stopwatch.Stop();
+
+            activity?.SetStatus(ActivityStatusCode.Ok);
+            _instrumentation.RecordFetchSuccess(_key, stopwatch.Elapsed.TotalMilliseconds);
 
             if (!_disposed)
             {
@@ -134,6 +152,10 @@ internal sealed class Query<TArgs, TData> : IQuery
         }
         catch (OperationCanceledException) when (linkedToken.IsCancellationRequested)
         {
+            stopwatch.Stop();
+
+            _instrumentation.RecordFetchCancelled(_key);
+
             if (!_disposed)
             {
                 _state.OnNext(QueryState<TData>.CreateIdle(lastData));
@@ -141,6 +163,12 @@ internal sealed class Query<TArgs, TData> : IQuery
         }
         catch (Exception error)
         {
+            stopwatch.Stop();
+
+            activity?.SetTag(QueryTelemetryTags.TagErrorType, error.GetType().Name);
+            activity?.SetStatus(ActivityStatusCode.Error, error.Message);
+            _instrumentation.RecordFetchFailure(_key, stopwatch.Elapsed.TotalMilliseconds, error);
+
             if (!_disposed)
             {
                 _state.OnNext(QueryState<TData>.CreateFailure(error, lastData));

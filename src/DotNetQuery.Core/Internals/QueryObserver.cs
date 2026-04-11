@@ -5,6 +5,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
     private readonly QueryCache _cache;
     private readonly EffectiveQueryOptions<TArgs, TData> _options;
     private readonly IScheduler _scheduler;
+    private readonly QueryInstrumentation _instrumentation;
     private readonly BehaviorSubject<Query<TArgs, TData>?> _activeQuery = new(null);
     private readonly BehaviorSubject<bool> _isEnabled;
     private readonly Subject<TArgs> _args = new();
@@ -17,19 +18,24 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
         QueryOptions<TArgs, TData> options,
         QueryClientOptions globalOptions,
         QueryCache cache,
-        IScheduler? scheduler = null
+        IScheduler scheduler,
+        QueryInstrumentation instrumentation
     )
     {
         _options = MergeOptions(options, globalOptions);
         _cache = cache;
-        _scheduler = scheduler ?? Scheduler.Default;
+        _scheduler = scheduler;
+        _instrumentation = instrumentation;
         _isEnabled = new BehaviorSubject<bool>(options.IsEnabled);
 
         _subscriptions.Add(
             _args.Subscribe(args =>
             {
                 var key = options.KeyFactory(args);
-                var query = _cache.GetOrCreate(key, new Query<TArgs, TData>(key, args, _options, _scheduler));
+                var query = _cache.GetOrCreate(
+                    key,
+                    new Query<TArgs, TData>(key, args, _options, _scheduler, _instrumentation)
+                );
 
                 _currentKey = key;
 
@@ -91,7 +97,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
         _activeQuery.Dispose();
     }
 
-    private static EffectiveQueryOptions<TArgs, TData> MergeOptions(
+    public static EffectiveQueryOptions<TArgs, TData> MergeOptions(
         QueryOptions<TArgs, TData> options,
         QueryClientOptions globalOptions
     )
@@ -102,6 +108,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
             StaleTime = options.StaleTime ?? globalOptions.StaleTime,
             CacheTime = options.CacheTime ?? globalOptions.CacheTime,
             RefetchInterval = options.RefetchInterval ?? globalOptions.RefetchInterval,
+            IsEnabled = options.IsEnabled,
             RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
         };
     }

@@ -228,4 +228,5 @@ See the [Blazor Components guide](guides/blazor.md) for more details, including 
 - [Mutations guide](guides/mutations.md) — deep dive into mutations, callbacks, and invalidation.
 - [Caching guide](guides/caching.md) — understand stale time, cache time, and deduplication.
 - [Blazor Components guide](guides/blazor.md) — `<Suspense>` and `<Transition>` in detail.
+- [Observability guide](guides/observability.md) — distributed tracing, metrics, and structured logging with OpenTelemetry.
 - [Examples](examples/queries.md) — complete real-world examples.

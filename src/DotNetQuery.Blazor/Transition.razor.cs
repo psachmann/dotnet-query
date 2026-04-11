@@ -2,8 +2,8 @@ namespace DotNetQuery.Blazor;
 
 /// <summary>
 /// Renders query state with stale-while-revalidate semantics.
-/// Keeps showing the previous <see cref="Content"/> during background re-fetches instead of switching
-/// to a loading indicator. Only falls back to <see cref="Loading"/> when no data has ever been fetched.
+/// Keeps showing the previous <c>Content</c> during background re-fetches instead of switching
+/// to a loading indicator. Only falls back to <c>Loading</c> when no data has ever been fetched.
 /// </summary>
 /// <remarks>
 /// Use <see cref="Transition{TArgs,TData}"/> when the data updates frequently and switching to a

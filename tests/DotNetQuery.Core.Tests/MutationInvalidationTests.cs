@@ -5,10 +5,12 @@ public class MutationInvalidationTests
     private readonly TestScheduler _scheduler = new();
     private QueryClient _client = default!;
 
+    private static readonly QueryInstrumentation _instrumentation = new(NullLogger.Instance);
+
     [Before(Test)]
     public void Setup()
     {
-        _client = new(new(), _scheduler);
+        _client = new(new(), _scheduler, _instrumentation);
     }
 
     [After(Test)]
@@ -43,7 +45,7 @@ public class MutationInvalidationTests
             new MutationOptions<int, Unit>
             {
                 Mutator = (_, _) => Task.FromException<Unit>(new Exception("fail")),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
                 OnSuccess = (_, _) => called = true,
             }
         );
@@ -101,7 +103,7 @@ public class MutationInvalidationTests
             new MutationOptions<int, Unit>
             {
                 Mutator = (_, _) => Task.FromException<Unit>(new Exception("fail")),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
                 InvalidateKeys = [key],
             }
         );

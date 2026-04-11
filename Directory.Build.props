@@ -13,7 +13,7 @@
     <Company>Patrick Sachmann</Company>
     <Copyright>Copyright (c) 2026 Patrick Sachmann</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/psachmann/dotnet-query</PackageProjectUrl>
+    <PackageProjectUrl>https://psachmann.github.io/dotnet-query</PackageProjectUrl>
     <RepositoryUrl>https://github.com/psachmann/dotnet-query</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -23,6 +23,7 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <MinVerTagPrefix>v</MinVerTagPrefix>
+    <PackageReleaseNotes>https://github.com/psachmann/dotnet-query/releases/tag/v$(Version)</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

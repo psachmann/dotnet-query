@@ -5,10 +5,12 @@ public class MutationTests
     private readonly TestScheduler _scheduler = new();
     private QueryClient _client = default!;
 
+    private static readonly QueryInstrumentation _instrumentation = new(NullLogger.Instance);
+
     [Before(Test)]
     public void Setup()
     {
-        _client = new(new(), _scheduler);
+        _client = new(new(), _scheduler, _instrumentation);
     }
 
     [After(Test)]
@@ -68,7 +70,7 @@ public class MutationTests
             new MutationOptions<int, string>
             {
                 Mutator = (_, _) => Task.FromException<string>(error),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
             }
         );
 
@@ -187,7 +189,7 @@ public class MutationTests
             new MutationOptions<int, string>
             {
                 Mutator = (_, _) => Task.FromException<string>(error),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
             }
         );
 
@@ -217,7 +219,7 @@ public class MutationTests
             new MutationOptions<int, string>
             {
                 Mutator = (_, _) => Task.FromException<string>(new Exception("fail")),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
             }
         );
 
@@ -236,7 +238,7 @@ public class MutationTests
             new MutationOptions<int, string>
             {
                 Mutator = (_, _) => Task.FromException<string>(error),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
                 OnFailure = e => captured = e,
             }
         );
@@ -273,7 +275,7 @@ public class MutationTests
             new MutationOptions<int, string>
             {
                 Mutator = (_, _) => Task.FromException<string>(new Exception("fail")),
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
                 OnSettled = () => settled = true,
             }
         );
@@ -421,9 +423,86 @@ public class MutationTests
     }
 
     [Test]
+    public async Task Execute_OnSuccess_RecordsActivityWithOkStatus()
+    {
+        Activity? recorded = null;
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == QueryTelemetry.SourceName,
+            Sample = (ref _) => ActivitySamplingResult.AllData,
+            ActivityStopped = a =>
+            {
+                if (a.OperationName == QueryTelemetryTags.ActivityMutationExecute && a.Status == ActivityStatusCode.Ok)
+                {
+                    recorded = a;
+                }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string> { Mutator = (_, _) => Task.FromResult("ok") }
+        );
+
+        mutation.Execute(0);
+        await mutation.State.Where(s => s.IsSuccess).FirstAsync();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(recorded).IsNotNull();
+        await Assert.That(recorded!.Status).IsEqualTo(ActivityStatusCode.Ok);
+    }
+
+    [Test]
+    public async Task Execute_OnFailure_RecordsActivityWithErrorTags()
+    {
+        Activity? recorded = null;
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == QueryTelemetry.SourceName,
+            Sample = (ref _) => ActivitySamplingResult.AllData,
+            ActivityStopped = a =>
+            {
+                if (
+                    a.OperationName == QueryTelemetryTags.ActivityMutationExecute
+                    && a.Status == ActivityStatusCode.Error
+                    && Equals(a.GetTagItem(QueryTelemetryTags.TagErrorType), nameof(InvalidOperationException))
+                )
+                {
+                    recorded = a;
+                }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string>
+            {
+                Mutator = (_, _) => Task.FromException<string>(new InvalidOperationException("oops")),
+                RetryHandler = new DefaultRetryHandler(),
+            }
+        );
+
+        mutation.Execute(0);
+        await mutation.Failure.FirstAsync();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(recorded).IsNotNull();
+        await Assert.That(recorded!.Status).IsEqualTo(ActivityStatusCode.Error);
+        await Assert
+            .That(recorded.GetTagItem(QueryTelemetryTags.TagErrorType))
+            .IsEqualTo(nameof(InvalidOperationException));
+    }
+
+    [Test]
     public async Task RetryHandler_NullInOptions_UsesGlobalHandler()
     {
-        using var client = new QueryClient(new QueryClientOptions { RetryHandler = new NoRetryHandler() }, _scheduler);
+        using var client = new QueryClient(
+            new QueryClientOptions { RetryHandler = new DefaultRetryHandler() },
+            _scheduler,
+            _instrumentation
+        );
         var attempts = 0;
         var mutation = client.CreateMutation(
             new MutationOptions<int, string>
@@ -455,7 +534,7 @@ public class MutationTests
                     attempts++;
                     return Task.FromException<string>(new Exception("fail"));
                 },
-                RetryHandler = new NoRetryHandler(),
+                RetryHandler = new DefaultRetryHandler(),
             }
         );
 
