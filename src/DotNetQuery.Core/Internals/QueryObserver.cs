@@ -66,11 +66,20 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
     public IObservable<QueryState<TData>> State =>
         _activeQuery.Where(query => query is not null).Select(query => query!.State).Switch();
 
-    public IObservable<TData> Success => State.Where(state => state.IsSuccess).Select(state => state.CurrentData!);
+    public IObservable<TData> Success =>
+        State
+            .Where(state => state.IsSuccess)
+            .Select(state => state.CurrentData!)
+            .DistinctUntilChanged(_options.DataComparer);
 
     public IObservable<Exception> Failure => State.Where(state => state.IsFailure).Select(state => state.Error!);
 
     public IObservable<QueryState<TData>> Settled => State.Where(state => state.IsSuccess || state.IsFailure);
+
+    public IObservable<TResult> Select<TResult>(
+        Func<TData, TResult> selector,
+        IEqualityComparer<TResult>? comparer = null
+    ) => Success.Select(selector).DistinctUntilChanged(comparer ?? EqualityComparer<TResult>.Default);
 
     public void Refetch() => _activeQuery.Value?.Refetch();
 
@@ -110,6 +119,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
             RefetchInterval = options.RefetchInterval ?? globalOptions.RefetchInterval,
             IsEnabled = options.IsEnabled,
             RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
+            DataComparer = options.DataComparer ?? EqualityComparer<TData>.Default,
         };
     }
 }

@@ -92,4 +92,21 @@ public interface IQuery<TArgs, TData> : IQuery
     /// Use <see cref="IDisposable.Dispose"/> to also tear down all subscriptions and release resources.
     /// </summary>
     public void Detach();
+
+    /// <summary>
+    /// Returns a derived observable that applies <paramref name="selector"/> to each successfully fetched value
+    /// and suppresses re-emissions when the selected result is equal according to <paramref name="comparer"/>
+    /// (defaults to <see cref="EqualityComparer{T}.Default"/>).
+    /// The underlying fetch and cache are unaffected — no additional fetches are triggered.
+    /// </summary>
+    /// <typeparam name="TResult">The type produced by the selector.</typeparam>
+    /// <param name="selector">A transform applied to each successful <typeparamref name="TData"/> value.</param>
+    /// <param name="comparer">
+    /// Equality comparer for <typeparamref name="TResult"/>. When <c>null</c>,
+    /// <see cref="EqualityComparer{T}.Default"/> is used.
+    /// </param>
+    public IObservable<TResult> Select<TResult>(
+        Func<TData, TResult> selector,
+        IEqualityComparer<TResult>? comparer = null
+    );
 }

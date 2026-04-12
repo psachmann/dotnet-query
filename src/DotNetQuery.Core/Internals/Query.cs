@@ -147,7 +147,8 @@ internal sealed class Query<TArgs, TData> : IQuery
 
             if (!_disposed)
             {
-                _state.OnNext(QueryState<TData>.CreateSuccess(data, lastData));
+                var emitData = lastData is not null && _options.DataComparer.Equals(data, lastData) ? lastData : data;
+                _state.OnNext(QueryState<TData>.CreateSuccess(emitData, lastData));
             }
         }
         catch (OperationCanceledException) when (linkedToken.IsCancellationRequested)

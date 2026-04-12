@@ -23,6 +23,8 @@
     "omnisharp",
     "pkgs",
     "psachmann",
-    "roslyn"
+    "roslyn",
+    "snupkg",
+    "tanstack"
   ],
 }
