@@ -29,7 +29,9 @@ public class QueryCacheTests
             RefetchInterval = null,
             RetryHandler = new DefaultRetryHandler(),
             IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
         };
+
         return new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
     }
 

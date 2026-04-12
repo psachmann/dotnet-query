@@ -13,4 +13,6 @@ internal record EffectiveQueryOptions<TArgs, TData>
     public required bool IsEnabled { get; init; }
 
     public required TimeSpan? RefetchInterval { get; init; }
+
+    public required IEqualityComparer<TData> DataComparer { get; init; }
 }

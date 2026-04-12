@@ -37,4 +37,12 @@ public sealed record QueryOptions<TArgs, TData>
     /// Set to <c>false</c> to create a disabled-by-default query without needing to call <see cref="IQuery{TArgs,TData}.SetEnabled"/>.
     /// </summary>
     public bool IsEnabled { get; init; } = true;
+
+    /// <summary>
+    /// Comparer used to determine whether newly fetched data is structurally equal to the previously cached value.
+    /// When equal, the cached data reference is preserved and <see cref="IQuery{TArgs,TData}.Success"/> will not re-emit.
+    /// Defaults to <c>null</c>, which falls back to <see cref="EqualityComparer{T}.Default"/>
+    /// (reference equality for classes, value equality for records and primitives).
+    /// </summary>
+    public IEqualityComparer<TData>? DataComparer { get; init; }
 }
