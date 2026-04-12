@@ -8,7 +8,7 @@ internal sealed class Query<TArgs, TData> : IQuery
     private readonly IScheduler _scheduler;
     private readonly QueryInstrumentation _instrumentation;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
-    private readonly BehaviorSubject<QueryState<TData>> _state = new(QueryState<TData>.CreateIdle());
+    private readonly BehaviorSubject<QueryState<TData>> _state;
     private readonly Subject<Unit> _invalidate = new();
     private readonly CompositeDisposable _subscriptions = [];
     private readonly Lock _syncRoot = new();
@@ -30,6 +30,10 @@ internal sealed class Query<TArgs, TData> : IQuery
         _options = options;
         _scheduler = scheduler;
         _instrumentation = instrumentation;
+
+        _state = options.InitialData is { } initial
+            ? new BehaviorSubject<QueryState<TData>>(QueryState<TData>.CreateSuccess(initial))
+            : new BehaviorSubject<QueryState<TData>>(QueryState<TData>.CreateIdle());
 
         _subscriptions.Add(_invalidate.Select(_ => Observable.FromAsync(FetchAsync)).Switch().Subscribe());
 
