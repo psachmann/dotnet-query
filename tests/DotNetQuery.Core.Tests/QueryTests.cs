@@ -22,7 +22,9 @@ public class QueryTests
             RefetchInterval = refetchInterval,
             RetryHandler = new DefaultRetryHandler(),
             IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
         };
+
         return new Query<int, string>(QueryKey.From("test"), args, options, _scheduler, _instrumentation);
     }
 
@@ -38,6 +40,7 @@ public class QueryTests
             RefetchInterval = null,
             RetryHandler = new DefaultRetryHandler(),
             IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
         };
         using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
 
@@ -196,7 +199,10 @@ public class QueryTests
             fetcher: async (_, ct) =>
             {
                 if (++callCount > 1)
+                {
                     await gate.Task.WaitAsync(ct);
+                }
+
                 return $"result{callCount}";
             }
         );
@@ -459,6 +465,7 @@ public class QueryTests
             RefetchInterval = null,
             RetryHandler = new DefaultRetryHandler(),
             IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
         };
         using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
         using var sub = sut.State.Subscribe();
@@ -497,6 +504,7 @@ public class QueryTests
             RefetchInterval = null,
             RetryHandler = new DefaultRetryHandler(),
             IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
         };
         using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
         using var sub = sut.State.Subscribe();
