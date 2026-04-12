@@ -59,6 +59,17 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
         _pendingRemovals[key] = subscription;
     }
 
+    internal void SetData(QueryKey key, object? data)
+    {
+        if (_entries.TryGetValue(key, out var entry) && entry is IQueryDataAccess w)
+        {
+            w.SetData(data);
+        }
+    }
+
+    internal object? GetCurrentData(QueryKey key) =>
+        _entries.TryGetValue(key, out var entry) && entry is IQueryDataAccess r ? r.GetCurrentData() : null;
+
     public void Invalidate(QueryKey key)
     {
         if (_entries.TryGetValue(key, out var query))

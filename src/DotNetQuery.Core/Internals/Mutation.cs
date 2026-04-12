@@ -50,6 +50,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
             RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
             IsEnabled = options.IsEnabled,
             InvalidateKeys = options.InvalidateKeys ?? [],
+            OnMutate = options.OnMutate,
             OnSuccess = options.OnSuccess ?? delegate { },
             OnFailure = options.OnFailure ?? delegate { },
             OnSettled = options.OnSettled ?? delegate { },
@@ -94,6 +95,8 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityMutationExecute);
         var stopwatch = Stopwatch.StartNew();
 
+        var rollback = _options.OnMutate?.Invoke(args);
+
         _state.OnNext(MutationState<TData>.CreateRunning());
         _instrumentation.RecordMutationStart();
 
@@ -118,6 +121,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         {
             stopwatch.Stop();
             cancelled = true;
+            rollback?.Invoke();
 
             _instrumentation.RecordMutationCancelled();
 
@@ -130,6 +134,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         {
             stopwatch.Stop();
             error = ex;
+            rollback?.Invoke();
 
             activity?.SetTag(QueryTelemetryTags.TagErrorType, ex.GetType().Name);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);

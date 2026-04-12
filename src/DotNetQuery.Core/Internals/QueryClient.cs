@@ -38,6 +38,11 @@ internal sealed class QueryClient : IQueryClient
         return mutation;
     }
 
+    public void SetQueryData<TData>(QueryKey key, TData data) => _cache.SetData(key, data);
+
+    public TData? GetQueryData<TData>(QueryKey key) =>
+        _cache.GetCurrentData(key) is TData data ? data : default;
+
     public void Invalidate(QueryKey key) => _cache.Invalidate(key);
 
     public void Invalidate(Func<QueryKey, bool> predicate) => _cache.Invalidate(predicate);

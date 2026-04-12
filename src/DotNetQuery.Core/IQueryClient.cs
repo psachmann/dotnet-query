@@ -27,4 +27,17 @@ public interface IQueryClient : IDisposable
     /// the specified keys are invalidated automatically on success.
     /// </summary>
     IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options);
+
+    /// <summary>
+    /// Writes <paramref name="data"/> directly into the cache for the given key, bypassing a fetch.
+    /// Subscribers to the affected query will receive an immediate <c>Success</c> state update.
+    /// Has no effect if the key has no active cache entry.
+    /// </summary>
+    void SetQueryData<TData>(QueryKey key, TData data);
+
+    /// <summary>
+    /// Returns the current cached data for <paramref name="key"/>, or <c>default</c>
+    /// if the key has no active cache entry or the cached type does not match <typeparamref name="TData"/>.
+    /// </summary>
+    TData? GetQueryData<TData>(QueryKey key);
 }

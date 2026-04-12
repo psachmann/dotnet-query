@@ -10,6 +10,8 @@ internal sealed record EffectiveMutationOptions<TArgs, TData>
 
     public required IReadOnlyList<QueryKey> InvalidateKeys { get; init; }
 
+    public Func<TArgs, Action?>? OnMutate { get; init; }
+
     public required Action<TArgs, TData> OnSuccess { get; init; }
 
     public required Action<Exception> OnFailure { get; init; }

@@ -1,6 +1,6 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class Query<TArgs, TData> : IQuery
+internal sealed class Query<TArgs, TData> : IQuery, IQueryDataAccess
 {
     private readonly QueryKey _key;
     private readonly TArgs _args;
@@ -97,6 +97,16 @@ internal sealed class Query<TArgs, TData> : IQuery
             }
         }
     }
+
+    void IQueryDataAccess.SetData(object? data)
+    {
+        if (data is not TData typedData || _disposed) return;
+        var lastData = _state.Value.CurrentData;
+        _lastSuccessAt = _scheduler.Now;
+        _state.OnNext(QueryState<TData>.CreateSuccess(typedData, lastData));
+    }
+
+    object? IQueryDataAccess.GetCurrentData() => _state.Value.CurrentData;
 
     public void Cancel() => _cancellationTokenSource.Cancel();
 
