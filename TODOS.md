@@ -3,7 +3,6 @@
 ## Core Library Gaps (vs TanStack Query)
 
 - **Infinite/Paginated Queries** — `IInfiniteQuery` equivalent with fetch-next-page / fetch-previous-page support
-- **Optimistic Updates** — Mutations that temporarily update the cache before server confirmation, with automatic rollback on failure
 - **Query Prefetching** — `PrefetchQuery()` on `IQueryClient` to pre-populate the cache before a component mounts
 
 ## Blazor-Specific Gaps
