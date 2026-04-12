@@ -39,6 +39,14 @@ public sealed record QueryOptions<TArgs, TData>
     public bool IsEnabled { get; init; } = true;
 
     /// <summary>
+    /// Data used to pre-populate the query result before the first fetch completes.
+    /// The query is always treated as immediately stale when initial data is present,
+    /// so a background fetch begins as soon as the first subscriber joins.
+    /// Has no effect if the cache already holds a real entry for the derived key.
+    /// </summary>
+    public TData? InitialData { get; init; }
+
+    /// <summary>
     /// Comparer used to determine whether newly fetched data is structurally equal to the previously cached value.
     /// When equal, the cached data reference is preserved and <see cref="IQuery{TArgs,TData}.Success"/> will not re-emit.
     /// Defaults to <c>null</c>, which falls back to <see cref="EqualityComparer{T}.Default"/>

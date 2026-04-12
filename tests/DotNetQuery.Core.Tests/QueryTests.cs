@@ -23,6 +23,7 @@ public class QueryTests
             RetryHandler = new DefaultRetryHandler(),
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
         };
 
         return new Query<int, string>(QueryKey.From("test"), args, options, _scheduler, _instrumentation);
@@ -41,6 +42,7 @@ public class QueryTests
             RetryHandler = new DefaultRetryHandler(),
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
         };
         using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
 
@@ -113,6 +115,7 @@ public class QueryTests
             fetcher: (_, _) =>
             {
                 fetchCount++;
+
                 return Task.FromResult("data");
             },
             staleTime: TimeSpan.FromHours(1)
@@ -137,7 +140,10 @@ public class QueryTests
             fetcher: async (_, ct) =>
             {
                 if (++callCount > 1)
+                {
                     await gate.Task.WaitAsync(ct);
+                }
+
                 return $"result{callCount}";
             }
         );
@@ -176,6 +182,7 @@ public class QueryTests
             fetcher: async (_, ct) =>
             {
                 await gate.Task.WaitAsync(ct);
+
                 return "data";
             }
         );
@@ -243,6 +250,7 @@ public class QueryTests
             fetcher: (_, _) =>
             {
                 fetched = true;
+
                 return Task.FromResult("data");
             }
         );
@@ -276,6 +284,7 @@ public class QueryTests
             fetcher: (_, _) =>
             {
                 fetchCount++;
+
                 return Task.FromResult("data");
             },
             staleTime: TimeSpan.FromMinutes(5)
@@ -300,6 +309,7 @@ public class QueryTests
             fetcher: (_, _) =>
             {
                 fetchCount++;
+
                 return Task.FromResult("data");
             },
             staleTime: TimeSpan.FromMinutes(5)
@@ -327,6 +337,7 @@ public class QueryTests
             fetcher: (_, _) =>
             {
                 fetchCount++;
+
                 return Task.FromResult("data");
             }
         );
@@ -368,6 +379,7 @@ public class QueryTests
             fetcher: (_, _) =>
             {
                 fetchCount++;
+
                 return Task.FromResult("data");
             },
             refetchInterval: TimeSpan.FromMinutes(1)
@@ -391,6 +403,7 @@ public class QueryTests
             fetcher: (_, _) =>
             {
                 fetchCount++;
+
                 return Task.FromResult("data");
             },
             refetchInterval: null
@@ -452,7 +465,9 @@ public class QueryTests
             ActivityStopped = a =>
             {
                 if (Equals(a.GetTagItem(QueryTelemetryTags.TagQueryKey), key.ToString()))
+                {
                     recorded = a;
+                }
             },
         };
         ActivitySource.AddActivityListener(listener);
@@ -466,6 +481,7 @@ public class QueryTests
             RetryHandler = new DefaultRetryHandler(),
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
         };
         using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
         using var sub = sut.State.Subscribe();
@@ -487,11 +503,13 @@ public class QueryTests
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == QueryTelemetry.SourceName,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            Sample = (ref _) => ActivitySamplingResult.AllData,
             ActivityStopped = a =>
             {
                 if (Equals(a.GetTagItem(QueryTelemetryTags.TagQueryKey), key.ToString()))
+                {
                     recorded = a;
+                }
             },
         };
         ActivitySource.AddActivityListener(listener);
@@ -505,6 +523,7 @@ public class QueryTests
             RetryHandler = new DefaultRetryHandler(),
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
         };
         using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
         using var sub = sut.State.Subscribe();
@@ -547,6 +566,7 @@ public class QueryTests
                 {
                     started.TrySetResult();
                     await gate.Task.WaitAsync(ct);
+
                     return "data";
                 }
             );

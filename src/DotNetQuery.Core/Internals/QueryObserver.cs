@@ -120,6 +120,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
             IsEnabled = options.IsEnabled,
             RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
             DataComparer = options.DataComparer ?? EqualityComparer<TData>.Default,
+            InitialData = options.InitialData,
         };
     }
 }

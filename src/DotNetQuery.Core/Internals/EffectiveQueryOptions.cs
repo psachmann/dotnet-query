@@ -15,4 +15,6 @@ internal record EffectiveQueryOptions<TArgs, TData>
     public required TimeSpan? RefetchInterval { get; init; }
 
     public required IEqualityComparer<TData> DataComparer { get; init; }
+
+    public required TData? InitialData { get; init; }
 }
