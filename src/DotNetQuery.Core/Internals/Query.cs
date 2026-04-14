@@ -80,11 +80,6 @@ internal sealed class Query<TArgs, TData> : IQuery
 
     internal Task PrefetchAsync(CancellationToken ct = default)
     {
-        if (_disposed)
-        {
-            return Task.CompletedTask;
-        }
-
         if (_lastSuccessAt is { } last && _scheduler.Now - last < _options.StaleTime)
         {
             return Task.CompletedTask;
