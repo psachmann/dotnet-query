@@ -93,8 +93,8 @@ All metrics use the `"DotNetQuery"` meter name. Attach a tag filter in your metr
 
 | Instrument | Type | Unit | Description |
 |---|---|---|---|
-| `dotnetquery.fetch.duration` | Histogram | ms | Duration of each fetch operation |
-| `dotnetquery.fetch.active` | UpDownCounter | — | Number of fetch operations currently in flight |
+| `dotnetquery.query.duration` | Histogram | ms | Duration of each query fetch operation |
+| `dotnetquery.query.active` | UpDownCounter | — | Number of query fetch operations currently in flight |
 | `dotnetquery.cache.hits` | Counter | — | Cache lookups that found an existing entry |
 | `dotnetquery.cache.misses` | Counter | — | Cache lookups that created a new entry |
 | `dotnetquery.mutation.duration` | Histogram | ms | Duration of each mutation operation |
@@ -103,8 +103,8 @@ All metrics use the `"DotNetQuery"` meter name. Attach a tag filter in your metr
 
 | Metric | Tags |
 |---|---|
-| `dotnetquery.fetch.duration` | `query.key`, `status` (`success` / `failure`) |
-| `dotnetquery.fetch.active` | `query.key` |
+| `dotnetquery.query.duration` | `query.key`, `status` (`success` / `failure`) |
+| `dotnetquery.query.active` | `query.key` |
 | `dotnetquery.cache.hits` | `query.key` |
 | `dotnetquery.cache.misses` | `query.key` |
 | `dotnetquery.mutation.duration` | `status` (`success` / `failure`) |

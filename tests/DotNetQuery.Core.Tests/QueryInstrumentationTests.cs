@@ -145,7 +145,7 @@ public class QueryInstrumentationTests
         List<KeyValuePair<string, object?>> recordedTags = [];
 
         using var listener = CreateKeyedMeterListener<double>(
-            "dotnetquery.fetch.duration",
+            "dotnetquery.query.duration",
             key,
             (m, tags) =>
             {
@@ -177,7 +177,7 @@ public class QueryInstrumentationTests
         List<KeyValuePair<string, object?>> recordedTags = [];
 
         using var listener = CreateKeyedMeterListener<double>(
-            "dotnetquery.fetch.duration",
+            "dotnetquery.query.duration",
             key,
             (m, tags) =>
             {
@@ -204,7 +204,7 @@ public class QueryInstrumentationTests
         var key = QueryKey.From("inst-active-inc");
         int? delta = null;
 
-        using var listener = CreateKeyedMeterListener<int>("dotnetquery.fetch.active", key, (m, _) => delta = m);
+        using var listener = CreateKeyedMeterListener<int>("dotnetquery.query.active", key, (m, _) => delta = m);
 
         _sut.RecordFetchStart(key);
 
@@ -217,7 +217,7 @@ public class QueryInstrumentationTests
         var key = QueryKey.From("inst-active-dec");
         var deltas = new List<int>();
 
-        using var listener = CreateKeyedMeterListener<int>("dotnetquery.fetch.active", key, (m, _) => deltas.Add(m));
+        using var listener = CreateKeyedMeterListener<int>("dotnetquery.query.active", key, (m, _) => deltas.Add(m));
 
         _sut.RecordFetchStart(key);
         _sut.RecordFetchSuccess(key, 10.0);
