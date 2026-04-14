@@ -5,10 +5,7 @@ public class PrefetchQueryTests
     private static readonly QueryInstrumentation _instrumentation = new(NullLogger.Instance);
 
     private IQueryClient CreateClient(TimeSpan? staleTime = null) =>
-        QueryClientFactory.Create(new QueryClientOptions
-        {
-            StaleTime = staleTime ?? TimeSpan.Zero,
-        });
+        QueryClientFactory.Create(new QueryClientOptions { StaleTime = staleTime ?? TimeSpan.Zero });
 
     private QueryOptions<int, string> MakeOptions(
         Func<int, CancellationToken, Task<string>>? fetcher = null,
@@ -73,7 +70,11 @@ public class PrefetchQueryTests
         var fetchCount = 0;
 
         var options = MakeOptions(
-            fetcher: (_, _) => { fetchCount++; return Task.FromResult("data"); },
+            fetcher: (_, _) =>
+            {
+                fetchCount++;
+                return Task.FromResult("data");
+            },
             staleTime: TimeSpan.FromMinutes(5)
         );
 
@@ -118,7 +119,13 @@ public class PrefetchQueryTests
         using var client = CreateClient();
         var fetched = new List<int>();
 
-        var options = MakeOptions(fetcher: (id, _) => { fetched.Add(id); return Task.FromResult($"data-{id}"); });
+        var options = MakeOptions(
+            fetcher: (id, _) =>
+            {
+                fetched.Add(id);
+                return Task.FromResult($"data-{id}");
+            }
+        );
 
         await Task.WhenAll(
             client.PrefetchQueryAsync(1, options),
@@ -137,12 +144,14 @@ public class PrefetchQueryTests
 
         var fetchStarted = new TaskCompletionSource();
 
-        var options = MakeOptions(fetcher: async (_, ct) =>
-        {
-            fetchStarted.TrySetResult();
-            await Task.Delay(Timeout.Infinite, ct);
-            return "data";
-        });
+        var options = MakeOptions(
+            fetcher: async (_, ct) =>
+            {
+                fetchStarted.TrySetResult();
+                await Task.Delay(Timeout.Infinite, ct);
+                return "data";
+            }
+        );
 
         var prefetch = client.PrefetchQueryAsync(1, options, cts.Token);
         await fetchStarted.Task;
