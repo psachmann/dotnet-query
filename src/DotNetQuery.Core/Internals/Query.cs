@@ -78,6 +78,16 @@ internal sealed class Query<TArgs, TData> : IQuery
 
     public void Refetch() => _invalidate.OnNext(Unit.Default);
 
+    internal Task PrefetchAsync(CancellationToken ct = default)
+    {
+        if (_lastSuccessAt is { } last && _scheduler.Now - last < _options.StaleTime)
+        {
+            return Task.CompletedTask;
+        }
+
+        return FetchAsync(ct);
+    }
+
     public void Invalidate()
     {
         if (_lastSuccessAt is { } last && _scheduler.Now - last < _options.StaleTime)

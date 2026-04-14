@@ -27,4 +27,16 @@ public interface IQueryClient : IDisposable
     /// the specified keys are invalidated automatically on success.
     /// </summary>
     IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options);
+
+    /// <summary>
+    /// Warms the cache for <paramref name="args"/> by fetching data immediately,
+    /// before any query observer subscribes.
+    /// If the cache already holds fresh data for the derived key, the fetch is skipped.
+    /// Returns a <see cref="Task"/> that completes when the fetch settles (success or failure).
+    /// </summary>
+    Task PrefetchQueryAsync<TArgs, TData>(
+        TArgs args,
+        QueryOptions<TArgs, TData> options,
+        CancellationToken cancellationToken = default
+    );
 }

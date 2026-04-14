@@ -4,14 +4,14 @@ internal sealed class QueryInstrumentation(ILogger logger)
 {
     // Instruments are static — created once on the shared Meter, no-op when no listener is attached.
     private static readonly Histogram<double> FetchDuration = QueryTelemetry.Meter.CreateHistogram<double>(
-        "dotnetquery.fetch.duration",
+        "dotnetquery.query.duration",
         "ms",
         "Duration of query fetch operations."
     );
 
     private static readonly UpDownCounter<int> ActiveFetches = QueryTelemetry.Meter.CreateUpDownCounter<int>(
-        "dotnetquery.fetch.active",
-        description: "Number of fetch operations currently in flight."
+        "dotnetquery.query.active",
+        description: "Number of query fetch operations currently in flight."
     );
 
     private static readonly Counter<long> CacheHits = QueryTelemetry.Meter.CreateCounter<long>(
