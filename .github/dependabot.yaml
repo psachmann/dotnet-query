@@ -9,6 +9,13 @@ updates:
       - dependencies
     assignees:
       - psachmann
+    groups:
+      microsoft:
+        patterns:
+          - Microsoft.*
+      tunit:
+        patterns:
+          - TUnit.*
 
   - package-ecosystem: github-actions
     directory: /
