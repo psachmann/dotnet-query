@@ -12,7 +12,7 @@
     <PackageVersion Include="MinVer" Version="7.0.0" />
     <PackageVersion Include="System.Reactive" Version="6.1.0" />
     <PackageVersion Include="TUnit" Version="1.43.2" />
-    <PackageVersion Include="TUnit.Mocks" Version="1.32.0-beta" />
-    <PackageVersion Include="TUnit.Mocks.Logging" Version="1.32.0-beta" />
+    <PackageVersion Include="TUnit.Mocks" Version="1.44.39" />
+    <PackageVersion Include="TUnit.Mocks.Logging" Version="1.44.39" />
   </ItemGroup>
 </Project>
