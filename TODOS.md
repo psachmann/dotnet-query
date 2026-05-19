@@ -25,4 +25,4 @@
 
 ## NuGet Publishing (optional / post-beta)
 
-- [ ] Multi-target (`net9.0;net10.0`) for broader compatibility
+- [x] Multi-target (`net9.0;net10.0`) for broader compatibility
