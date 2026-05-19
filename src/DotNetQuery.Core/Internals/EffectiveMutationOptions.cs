@@ -4,6 +4,8 @@ internal sealed record EffectiveMutationOptions<TArgs, TData>
 {
     public required Func<TArgs, CancellationToken, Task<TData>> Mutator { get; init; }
 
+    public required Action<TArgs> OnMutate { get; init; }
+
     public required IRetryHandler RetryHandler { get; init; }
 
     public required bool IsEnabled { get; init; }

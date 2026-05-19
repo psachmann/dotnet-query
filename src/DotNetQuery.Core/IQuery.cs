@@ -59,6 +59,14 @@ public interface IQuery<TArgs, TData> : IQuery
     public void SetArgs(TArgs args);
 
     /// <summary>
+    /// Directly writes <paramref name="data"/> into the active cache entry as a success state,
+    /// bypassing any in-flight fetch. Stamps the entry as fresh so stale-time is respected
+    /// and an immediate re-fetch is not triggered.
+    /// Useful for applying optimistic updates before a mutation completes.
+    /// </summary>
+    public void SetData(TData data);
+
+    /// <summary>
     /// Enables or disables the query. When <c>false</c>, fetching is suspended even if the query is
     /// invalidated or new args are pushed. Pass <c>true</c> to resume; the query will immediately
     /// re-evaluate its active key and trigger a fetch if one is pending.

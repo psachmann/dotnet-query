@@ -132,11 +132,7 @@ public class PrefetchQueryTests
         );
 
         using var query = client.CreateQuery(options);
-        await Task.WhenAll(
-            query.PrefetchAsync(1),
-            query.PrefetchAsync(2),
-            query.PrefetchAsync(3)
-        );
+        await Task.WhenAll(query.PrefetchAsync(1), query.PrefetchAsync(2), query.PrefetchAsync(3));
 
         await Assert.That(fetched.Order().ToList()).IsEquivalentTo([1, 2, 3]);
     }

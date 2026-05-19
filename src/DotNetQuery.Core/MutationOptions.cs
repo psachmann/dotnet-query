@@ -29,6 +29,13 @@ public sealed record MutationOptions<TArgs, TData>
     public IReadOnlyList<QueryKey>? InvalidateKeys { get; init; }
 
     /// <summary>
+    /// Invoked synchronously with the mutation args immediately before the mutator runs.
+    /// Use this to snapshot the current cache state and apply an optimistic update via
+    /// <see cref="IQuery{TArgs,TData}.SetData"/>. On failure, restore the snapshot in <see cref="OnFailure"/>.
+    /// </summary>
+    public Action<TArgs>? OnMutate { get; init; }
+
+    /// <summary>
     /// Invoked after each successful execution with the original args and the returned data.
     /// Called before <see cref="OnSettled"/>.
     /// </summary>
