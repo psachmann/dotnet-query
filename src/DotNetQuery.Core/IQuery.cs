@@ -109,4 +109,12 @@ public interface IQuery<TArgs, TData> : IQuery
         Func<TData, TResult> selector,
         IEqualityComparer<TResult>? comparer = null
     );
+
+    /// <summary>
+    /// Warms the cache for <paramref name="args"/> by fetching data immediately,
+    /// before any observer subscribes via <see cref="SetArgs"/>.
+    /// If the cache already holds fresh data for the derived key, the fetch is skipped.
+    /// Returns a <see cref="Task"/> that completes when the fetch settles (success or failure).
+    /// </summary>
+    public Task PrefetchAsync(TArgs args, CancellationToken cancellationToken = default);
 }

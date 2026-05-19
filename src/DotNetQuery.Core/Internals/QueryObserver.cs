@@ -4,6 +4,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
 {
     private readonly QueryCache _cache;
     private readonly EffectiveQueryOptions<TArgs, TData> _options;
+    private readonly Func<TArgs, QueryKey> _keyFactory;
     private readonly IScheduler _scheduler;
     private readonly QueryInstrumentation _instrumentation;
     private readonly BehaviorSubject<Query<TArgs, TData>?> _activeQuery = new(null);
@@ -23,6 +24,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
     )
     {
         _options = MergeOptions(options, globalOptions);
+        _keyFactory = options.KeyFactory;
         _cache = cache;
         _scheduler = scheduler;
         _instrumentation = instrumentation;
@@ -88,6 +90,20 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
     public void Invalidate() => _activeQuery.Value?.Invalidate();
 
     public void Detach() => _cache.Remove(_currentKey);
+
+    public Task PrefetchAsync(TArgs args, CancellationToken cancellationToken = default)
+    {
+        var key = _keyFactory(args);
+        var candidate = new Query<TArgs, TData>(key, args, _options, _scheduler, _instrumentation);
+        var query = _cache.GetOrCreate(key, candidate);
+
+        if (!ReferenceEquals(query, candidate))
+        {
+            candidate.Dispose();
+        }
+
+        return query.PrefetchAsync(cancellationToken);
+    }
 
     public void Dispose()
     {

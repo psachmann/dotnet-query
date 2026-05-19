@@ -19,21 +19,22 @@ public class PrefetchQueryTests
         };
 
     [Test]
-    public async Task PrefetchQueryAsync_ReturnsTask_ThatCompletes()
+    public async Task PrefetchAsync_ReturnsTask_ThatCompletes()
     {
         using var client = CreateClient();
-        var options = MakeOptions();
+        using var query = client.CreateQuery(MakeOptions());
 
-        await client.PrefetchQueryAsync(1, options);
+        await query.PrefetchAsync(1);
     }
 
     [Test]
-    public async Task PrefetchQueryAsync_PopulatesCacheBeforeObserverSubscribes()
+    public async Task PrefetchAsync_PopulatesCacheBeforeObserverSubscribes()
     {
         using var client = CreateClient();
         var options = MakeOptions(fetcher: (_, _) => Task.FromResult("prefetched"));
 
-        await client.PrefetchQueryAsync(1, options);
+        using var prefetcher = client.CreateQuery(options);
+        await prefetcher.PrefetchAsync(1);
 
         using var query = client.CreateQuery(options);
         query.SetArgs(1);
@@ -44,12 +45,13 @@ public class PrefetchQueryTests
     }
 
     [Test]
-    public async Task PrefetchQueryAsync_ObserverSeesData_WithNoLoadingFlash()
+    public async Task PrefetchAsync_ObserverSeesData_WithNoLoadingFlash()
     {
         using var client = CreateClient(staleTime: TimeSpan.FromMinutes(5));
         var options = MakeOptions(fetcher: (_, _) => Task.FromResult("prefetched"), staleTime: TimeSpan.FromMinutes(5));
 
-        await client.PrefetchQueryAsync(1, options);
+        using var prefetcher = client.CreateQuery(options);
+        await prefetcher.PrefetchAsync(1);
 
         using var query = client.CreateQuery(options);
 
@@ -64,7 +66,7 @@ public class PrefetchQueryTests
     }
 
     [Test]
-    public async Task PrefetchQueryAsync_SkipsRefetch_WhenCacheIsFresh()
+    public async Task PrefetchAsync_SkipsRefetch_WhenCacheIsFresh()
     {
         using var client = CreateClient(staleTime: TimeSpan.FromMinutes(5));
         var fetchCount = 0;
@@ -78,14 +80,15 @@ public class PrefetchQueryTests
             staleTime: TimeSpan.FromMinutes(5)
         );
 
-        await client.PrefetchQueryAsync(1, options);
-        await client.PrefetchQueryAsync(1, options);
+        using var query = client.CreateQuery(options);
+        await query.PrefetchAsync(1);
+        await query.PrefetchAsync(1);
 
         await Assert.That(fetchCount).IsEqualTo(1);
     }
 
     [Test]
-    public async Task PrefetchQueryAsync_RefetchesWhenStale()
+    public async Task PrefetchAsync_RefetchesWhenStale()
     {
         using var client = CreateClient(staleTime: TimeSpan.Zero);
         var fetchCount = 0;
@@ -105,16 +108,17 @@ public class PrefetchQueryTests
             staleTime: TimeSpan.Zero
         );
 
-        await client.PrefetchQueryAsync(1, options);
+        using var query = client.CreateQuery(options);
+        await query.PrefetchAsync(1);
 
         allowSecondFetch.TrySetResult();
-        await client.PrefetchQueryAsync(1, options);
+        await query.PrefetchAsync(1);
 
         await Assert.That(fetchCount).IsEqualTo(2);
     }
 
     [Test]
-    public async Task PrefetchQueryAsync_MultipleKeys_IndependentEntries()
+    public async Task PrefetchAsync_MultipleKeys_IndependentEntries()
     {
         using var client = CreateClient();
         var fetched = new List<int>();
@@ -127,17 +131,18 @@ public class PrefetchQueryTests
             }
         );
 
+        using var query = client.CreateQuery(options);
         await Task.WhenAll(
-            client.PrefetchQueryAsync(1, options),
-            client.PrefetchQueryAsync(2, options),
-            client.PrefetchQueryAsync(3, options)
+            query.PrefetchAsync(1),
+            query.PrefetchAsync(2),
+            query.PrefetchAsync(3)
         );
 
         await Assert.That(fetched.Order().ToList()).IsEquivalentTo([1, 2, 3]);
     }
 
     [Test]
-    public async Task PrefetchQueryAsync_CanBeCancelled()
+    public async Task PrefetchAsync_CanBeCancelled()
     {
         using var client = CreateClient();
         using var cts = new CancellationTokenSource();
@@ -153,15 +158,16 @@ public class PrefetchQueryTests
             }
         );
 
-        var prefetch = client.PrefetchQueryAsync(1, options, cts.Token);
+        using var query = client.CreateQuery(options);
+        var prefetch = query.PrefetchAsync(1, cts.Token);
         await fetchStarted.Task;
         cts.Cancel();
 
         await prefetch; // must not throw
 
-        using var query = client.CreateQuery(options);
-        query.SetArgs(1);
+        using var observer = client.CreateQuery(options);
+        observer.SetArgs(1);
 
-        await Assert.That(query.CurrentState.IsSuccess).IsFalse();
+        await Assert.That(observer.CurrentState.IsSuccess).IsFalse();
     }
 }
