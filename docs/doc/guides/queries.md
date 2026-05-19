@@ -240,6 +240,26 @@ query.Detach();
 
 This is different from `Dispose()`. Disposing also tears down all subscriptions and releases resources.
 
+### PrefetchAsync
+
+`PrefetchAsync` warms the cache for a given set of args before any component subscribes. If the cache already holds fresh data for the derived key, the fetch is skipped.
+
+```csharp
+await query.PrefetchAsync(userId);
+```
+
+This is useful for warming the cache during navigation — for example, when the user hovers over a list item — so the detail view appears instantly without a loading state. See the [Prefetching guide](prefetching.md) for full details.
+
+### SetData
+
+`SetData` directly writes data into the active cache entry as a success state, bypassing any in-flight fetch. All subscribers see the new value immediately.
+
+```csharp
+query.SetData(newValue);
+```
+
+The entry is stamped as fresh so stale-time is respected and an immediate re-fetch is not triggered. This is the primitive used to apply optimistic updates before a mutation completes. See the [Optimistic Updates guide](optimistic-updates.md) for the full pattern.
+
 ## Cleaning Up
 
 Queries implement `IDisposable`. Dispose the query when you are done with it:

@@ -8,6 +8,10 @@
       href: guides/queries.md
     - name: Mutations
       href: guides/mutations.md
+    - name: Prefetching
+      href: guides/prefetching.md
+    - name: Optimistic Updates
+      href: guides/optimistic-updates.md
     - name: Caching
       href: guides/caching.md
     - name: Blazor Components

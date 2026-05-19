@@ -42,6 +42,9 @@ new MutationOptions<CreateUserRequest, UserDto>
     // Invalidate these query keys automatically on success
     InvalidateKeys = [QueryKey.From("users")],
 
+    // Called synchronously before the mutator runs — use for optimistic updates
+    OnMutate = request => { /* snapshot + SetData */ },
+
     // Called after a successful execution, before OnSettled
     OnSuccess = (request, user) => logger.LogInformation("Created user {Id}", user.Id),
 
@@ -154,15 +157,41 @@ InvalidateKeys = [
 Callbacks let you react to mutation outcomes without subscribing to an observable:
 
 ```csharp
+OnMutate   = args  => { /* snapshot + apply optimistic update */ },
 OnSuccess  = (request, result) => toast.Show($"Created: {result.Name}"),
 OnFailure  = error => toast.Show($"Error: {error.Message}"),
 OnSettled  = () => form.Reset(),
 ```
 
 The execution order is always:
-1. `InvalidateKeys` invalidation (if applicable)
-2. `OnSuccess` or `OnFailure`
-3. `OnSettled`
+1. `OnMutate` (before the mutator runs)
+2. `InvalidateKeys` invalidation (if applicable, on success)
+3. `OnSuccess` or `OnFailure`
+4. `OnSettled`
+
+### OnMutate
+
+`OnMutate` is called synchronously with the mutation args immediately before the mutator starts. It is the entry point for optimistic updates: snapshot the current cache state, cancel any in-flight fetch, and write the predicted result via `query.SetData(...)`. If the mutation later fails, restore the snapshot in `OnFailure`.
+
+```csharp
+UserDto? _snapshot = null;
+
+OnMutate = user =>
+{
+    _snapshot = UserQuery.CurrentState.CurrentData;
+    UserQuery.Cancel();
+    UserQuery.SetData(user);
+},
+OnFailure = _ =>
+{
+    if (_snapshot is not null)
+    {
+        UserQuery.SetData(_snapshot);
+    }
+},
+```
+
+See the [Optimistic Updates guide](optimistic-updates.md) for the full pattern.
 
 `OnSettled` fires for success, failure, **and** cancellation. It is the right place for "always run" cleanup like hiding spinners or resetting form state.
 
