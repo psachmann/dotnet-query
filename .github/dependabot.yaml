@@ -12,10 +12,10 @@ updates:
     groups:
       microsoft:
         patterns:
-          - Microsoft.*
+          - Microsoft*
       tunit:
         patterns:
-          - TUnit.*
+          - TUnit*
 
   - package-ecosystem: github-actions
     directory: /
