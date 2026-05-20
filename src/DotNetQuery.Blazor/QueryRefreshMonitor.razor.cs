@@ -1,0 +1,63 @@
+namespace DotNetQuery.Blazor;
+
+using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
+
+/// <summary>
+/// A side-effect component that automatically invalidates stale queries when the browser
+/// comes back online or the user returns to the tab.
+/// Place it once near the root of your app (e.g. <c>App.razor</c>).
+/// </summary>
+/// <remarks>
+/// Invalidation respects each query's <c>StaleTime</c> — fresh data is never re-fetched.
+/// Only available in Blazor WASM; has no effect in Blazor Server.
+/// </remarks>
+public sealed partial class QueryRefreshMonitor : IAsyncDisposable
+{
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<QueryRefreshMonitor>? _dotnetRef;
+
+    /// <summary>When <c>true</c> (default), stale queries are invalidated when the browser tab regains focus.</summary>
+    [Parameter]
+    public bool RefetchOnFocus { get; set; } = true;
+
+    /// <summary>When <c>true</c> (default), stale queries are invalidated when network connectivity is restored.</summary>
+    [Parameter]
+    public bool RefetchOnReconnect { get; set; } = true;
+
+    /// <inheritdoc/>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _dotnetRef = DotNetObjectReference.Create(this);
+        _module = await JS.InvokeAsync<IJSObjectReference>(
+            "import",
+            "./_content/DotNetQuery.Blazor/dotnetquery-refresh.js"
+        );
+
+        await _module.InvokeVoidAsync("register", _dotnetRef, RefetchOnFocus, RefetchOnReconnect);
+    }
+
+    /// <summary>Called by the browser when the tab regains focus. Not intended for direct use.</summary>
+    [JSInvokable]
+    public void OnFocus() => QueryClient.Invalidate(_ => true);
+
+    /// <summary>Called by the browser when network connectivity is restored. Not intended for direct use.</summary>
+    [JSInvokable]
+    public void OnReconnect() => QueryClient.Invalidate(_ => true);
+
+    /// <inheritdoc/>
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.DisposeAsync();
+        }
+
+        _dotnetRef?.Dispose();
+    }
+}

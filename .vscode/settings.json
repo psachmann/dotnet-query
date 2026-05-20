@@ -16,6 +16,7 @@
     "dotnet",
     "dotnetquery",
     "github",
+    "Invokable",
     "netcoredbg",
     "nixd",
     "nixos",
@@ -25,6 +26,7 @@
     "psachmann",
     "roslyn",
     "snupkg",
-    "tanstack"
+    "tanstack",
+    "typeparam"
   ],
 }
