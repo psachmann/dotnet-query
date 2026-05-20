@@ -3,21 +3,22 @@ using TUnit.Mocks.Logging;
 
 namespace DotNetQuery.Core.Tests;
 
-// Metrics use static instruments shared across the process. The tests that record against
-// those instruments must not run in parallel with each other to prevent cross-test
-// measurement pollution.
-[NotInParallel(nameof(QueryInstrumentationTests))]
 public class QueryInstrumentationTests
 {
     private QueryInstrumentation _sut = default!;
     private MockLogger _logger = default!;
+    private Meter _meter = default!;
 
     [Before(Test)]
     public void Setup()
     {
         _logger = Mock.Logger();
-        _sut = new(_logger);
+        _meter = new Meter($"DotNetQuery-Test-{Guid.NewGuid()}");
+        _sut = new(_logger, _meter);
     }
+
+    [After(Test)]
+    public void Teardown() => _meter.Dispose();
 
     [Test]
     public async Task RecordFetchStart_LogsDebugWithKey()
@@ -307,7 +308,7 @@ public class QueryInstrumentationTests
     }
 
     /// <summary>Listens to a specific instrument and only fires the callback for the given query key.</summary>
-    private static MeterListener CreateKeyedMeterListener<T>(
+    private MeterListener CreateKeyedMeterListener<T>(
         string instrumentName,
         QueryKey key,
         Action<T, List<KeyValuePair<string, object?>>> onMeasurement
@@ -324,8 +325,7 @@ public class QueryInstrumentationTests
             }
         );
 
-    /// <summary>Listens to a specific instrument and only fires the callback for the given status tag value.</summary>
-    private static MeterListener CreateStatusMeterListener<T>(
+    private MeterListener CreateStatusMeterListener<T>(
         string instrumentName,
         string statusValue,
         Action<T, List<KeyValuePair<string, object?>>> onMeasurement
@@ -342,17 +342,18 @@ public class QueryInstrumentationTests
             }
         );
 
-    private static MeterListener CreateMeterListener<T>(
+    private MeterListener CreateMeterListener<T>(
         string instrumentName,
         Action<T, List<KeyValuePair<string, object?>>> onMeasurement
     )
         where T : struct
     {
+        var meter = _meter;
         var listener = new MeterListener
         {
             InstrumentPublished = (instrument, l) =>
             {
-                if (instrument.Meter.Name == QueryTelemetry.SourceName && instrument.Name == instrumentName)
+                if (ReferenceEquals(instrument.Meter, meter) && instrument.Name == instrumentName)
                 {
                     l.EnableMeasurementEvents(instrument);
                 }

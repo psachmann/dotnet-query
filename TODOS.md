@@ -8,10 +8,8 @@
 
 ## Blazor-Specific Gaps
 
-- [ ] **Network Reconnect Refetching** — Automatically refetch when network connectivity is restored
-- [ ] **Window Focus Refetching** — Automatically refetch stale queries when the browser tab/window regains focus (Blazor WASM)
-- [ ] **`<QueryBoundary>` Component** — Error boundary that catches and renders errors for a subtree of query components
-- [ ] **`<QueryProvider>` Component** — Scope a specific `IQueryClient` instance to a Blazor component subtree
+- [x] **Network Reconnect Refetching** — Automatically refetch when network connectivity is restored
+- [x] **Window Focus Refetching** — Automatically refetch stale queries when the browser tab/window regains focus (Blazor WASM)
 - [ ] **Streaming / Real-Time Updates** — Integrate with SSE or SignalR to push live data into the query cache
 
 ## .NET Ecosystem Integration
