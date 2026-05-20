@@ -10,11 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
@@ -78,14 +73,3 @@ jobs:
           files: ./artifacts/*
           prerelease: ${{ contains(github.ref_name, '-') }}
 
-      - name: Create docs
-        run: dotnet docfx ./docs/docfx.json
-
-      - name: Upload docs artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: ./docs/_site
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
