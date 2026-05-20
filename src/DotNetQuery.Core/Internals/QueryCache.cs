@@ -8,6 +8,7 @@ internal sealed class QueryCache : IDisposable
     private readonly IScheduler _scheduler;
     private readonly QueryInstrumentation _instrumentation;
     private readonly Lock _evictionLock = new();
+    private bool _disposed;
 
     public QueryCache(IScheduler scheduler, QueryInstrumentation instrumentation)
     {
@@ -93,6 +94,13 @@ internal sealed class QueryCache : IDisposable
 
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
         foreach (var subscription in _pendingRemovals.Values)
         {
             subscription.Dispose();
