@@ -79,9 +79,7 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
 
       - name: Create docs
-        run: |
-          dotnet docfx metadata ./docs/docfx.json
-          dotnet docfx build ./docs/docfx.json
+        run: dotnet docfx ./docs/docfx.json
 
       - name: Upload docs artifact
         uses: actions/upload-pages-artifact@v5
