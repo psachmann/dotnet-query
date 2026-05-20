@@ -181,7 +181,7 @@ public sealed class UserProfileQueries(IQueryClient queryClient, HttpClient http
 
 Invalidation respects each query's `StaleTime` — fresh data is never re-fetched. Only stale queries trigger a background refetch.
 
-> **Blazor WASM only.** `<QueryRefreshMonitor>` has no effect in Blazor Server because the browser events it relies on (`visibilitychange`, `online`) require JS interop that runs in the client.
+> **Requires an interactive render mode.** `<QueryRefreshMonitor>` works with both Blazor WASM and interactive Blazor Server — the browser events fire on the client and call back into .NET over SignalR. It has no effect under static SSR, where `OnAfterRenderAsync` never runs.
 
 ### Parameters
 

@@ -10,7 +10,7 @@ using Microsoft.JSInterop;
 /// </summary>
 /// <remarks>
 /// Invalidation respects each query's <c>StaleTime</c> — fresh data is never re-fetched.
-/// Only available in Blazor WASM; has no effect in Blazor Server.
+/// Requires an interactive render mode (Blazor WASM or interactive Blazor Server); has no effect under static SSR.
 /// </remarks>
 public sealed partial class QueryRefreshMonitor : IAsyncDisposable
 {
