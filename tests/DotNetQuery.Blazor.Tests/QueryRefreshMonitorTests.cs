@@ -119,4 +119,16 @@ public class QueryRefreshMonitorTests
 
         await Assert.That(predicate!(QueryKey.From("any-key"))).IsTrue();
     }
+
+    [Test]
+    public void OnSubsequentRender_DoesNotCallRegisterAgain()
+    {
+        SetupQueryClient();
+        var jsModule = SetupJsModule();
+
+        var cut = _context.Render<QueryRefreshMonitor>();
+        cut.Render();
+
+        jsModule.VerifyInvoke("register", calledTimes: 1);
+    }
 }
