@@ -441,4 +441,79 @@ public class QueryObserverTests
 
         await Assert.That(sut.Key).IsEqualTo(QueryKey.Default);
     }
+
+    [Test]
+    public async Task Inspector_Status_IsIdleInitially()
+    {
+        using var sut = CreateObserver();
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.Status).IsEqualTo(QueryStatus.Idle);
+    }
+
+    [Test]
+    public async Task Inspector_CurrentData_IsNullInitially()
+    {
+        using var sut = CreateObserver();
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.CurrentData).IsNull();
+    }
+
+    [Test]
+    public async Task Inspector_CurrentData_ReturnsDataAfterSuccess()
+    {
+        using var sut = CreateObserver(fetcher: (args, _) => Task.FromResult(args.ToString()));
+        var inspector = (IQueryInspector)sut;
+
+        using var _ = sut.State.Subscribe();
+        sut.SetArgs(42);
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(inspector.CurrentData).IsEqualTo("42");
+    }
+
+    [Test]
+    public async Task Inspector_LastUpdatedAt_IsNullBeforeFirstFetch()
+    {
+        using var sut = CreateObserver();
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.LastUpdatedAt).IsNull();
+    }
+
+    [Test]
+    public async Task Inspector_LastUpdatedAt_IsSetAfterSuccess()
+    {
+        using var sut = CreateObserver();
+        var inspector = (IQueryInspector)sut;
+
+        using var _ = sut.State.Subscribe();
+        sut.SetArgs(0);
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(inspector.LastUpdatedAt).IsNotNull();
+    }
+
+    [Test]
+    public async Task Inspector_ObserverCount_IsZeroWithoutActiveQuery()
+    {
+        using var sut = CreateObserver();
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.ObserverCount).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Inspector_ObserverCount_ReflectsActiveSubscriptions()
+    {
+        using var sut = CreateObserver();
+        var inspector = (IQueryInspector)sut;
+
+        using var sub = sut.State.Subscribe();
+        sut.SetArgs(0);
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(inspector.ObserverCount).IsEqualTo(1);
+    }
 }

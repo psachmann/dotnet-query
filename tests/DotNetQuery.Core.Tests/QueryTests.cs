@@ -587,4 +587,91 @@ public class QueryTests
             AppDomain.CurrentDomain.FirstChanceException -= handler;
         }
     }
+
+    [Test]
+    public async Task Inspector_Status_IsIdleInitially()
+    {
+        using var sut = CreateQuery();
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.Status).IsEqualTo(QueryStatus.Idle);
+    }
+
+    [Test]
+    public async Task Inspector_CurrentData_IsNullInitially()
+    {
+        using var sut = CreateQuery();
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.CurrentData).IsNull();
+    }
+
+    [Test]
+    public async Task Inspector_CurrentData_ReturnsDataAfterSuccess()
+    {
+        using var sut = CreateQuery();
+        var inspector = (IQueryInspector)sut;
+
+        var tcs = new TaskCompletionSource<QueryState<string>>();
+        using var _ = sut.State.Where(s => s.IsSuccess).Subscribe(s => tcs.TrySetResult(s));
+        sut.Refetch();
+        await tcs.Task;
+
+        await Assert.That(inspector.CurrentData).IsEqualTo("data");
+    }
+
+    [Test]
+    public async Task Inspector_LastUpdatedAt_IsNullInitially()
+    {
+        using var sut = CreateQuery();
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.LastUpdatedAt).IsNull();
+    }
+
+    [Test]
+    public async Task Inspector_LastUpdatedAt_IsSetAfterSuccess()
+    {
+        using var sut = CreateQuery();
+        var inspector = (IQueryInspector)sut;
+
+        var tcs = new TaskCompletionSource<QueryState<string>>();
+        using var _ = sut.State.Where(s => s.IsSuccess).Subscribe(s => tcs.TrySetResult(s));
+        sut.Refetch();
+        await tcs.Task;
+
+        await Assert.That(inspector.LastUpdatedAt).IsNotNull();
+    }
+
+    [Test]
+    public async Task Inspector_ObserverCount_IsZeroInitially()
+    {
+        using var sut = CreateQuery();
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.ObserverCount).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Inspector_ObserverCount_IncrementsOnSubscribe()
+    {
+        using var sut = CreateQuery();
+        var inspector = (IQueryInspector)sut;
+
+        using var sub = sut.State.Subscribe();
+
+        await Assert.That(inspector.ObserverCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Inspector_ObserverCount_DecrementsOnUnsubscribe()
+    {
+        using var sut = CreateQuery();
+        var inspector = (IQueryInspector)sut;
+
+        var sub = sut.State.Subscribe();
+        sub.Dispose();
+
+        await Assert.That(inspector.ObserverCount).IsEqualTo(0);
+    }
 }
