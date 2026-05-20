@@ -30,7 +30,5 @@
       href: examples/mutations.md
     - name: Blazor Integration
       href: examples/blazor.md
-- name: Project Structure
-  href: project-structure.md
 - name: Contributing
   href: contributing.md

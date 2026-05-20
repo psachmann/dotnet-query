@@ -65,10 +65,6 @@ The project uses [CSharpier](https://csharpier.com/) for formatting. It runs aut
 
 There is no extensive style guide beyond what CSharpier enforces — just try to follow the patterns already present in the codebase.
 
-## Project Structure
-
-See the [Project Structure](project-structure.md) page for a full map of the repository.
-
 ## Making Changes
 
 1. **Fork** the repository and create a branch from `main`.
