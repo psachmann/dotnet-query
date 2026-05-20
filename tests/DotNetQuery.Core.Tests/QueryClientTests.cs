@@ -221,6 +221,71 @@ public class QueryClientTests
     }
 
     [Test]
+    public async Task Inspector_CacheEntries_EmitsCurrentStateOnSubscribe()
+    {
+        var inspector = (IQueryClientInspector)_sut;
+
+        IReadOnlyDictionary<QueryKey, IQuery>? entries = null;
+        using var _ = inspector.CacheEntries.Subscribe(e => entries = e);
+
+        using var _2 = Assert.Multiple();
+        await Assert.That(entries).IsNotNull();
+        await Assert.That(entries!.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Inspector_CacheEntries_EmitsWhenEntryAdded()
+    {
+        var inspector = (IQueryClientInspector)_sut;
+
+        var emissions = new List<IReadOnlyDictionary<QueryKey, IQuery>>();
+        using var sub = inspector.CacheEntries.Subscribe(e => emissions.Add(e));
+
+        var query = _sut.CreateQuery(
+            new QueryOptions<int, string>
+            {
+                KeyFactory = _ => QueryKey.From("a"),
+                Fetcher = (_, _) => Task.FromResult("data"),
+            }
+        );
+
+        using var _ = query.State.Subscribe();
+        query.SetArgs(0);
+        await query.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(emissions.Count).IsGreaterThan(1);
+        await Assert.That(emissions[^1].ContainsKey(QueryKey.From("a"))).IsTrue();
+    }
+
+    [Test]
+    public async Task Inspector_CacheEntries_EmitsWhenEntryRemoved()
+    {
+        var inspector = (IQueryClientInspector)_sut;
+        var key = QueryKey.From("a");
+
+        var query = _sut.CreateQuery(
+            new QueryOptions<int, string>
+            {
+                KeyFactory = _ => key,
+                Fetcher = (_, _) => Task.FromResult("data"),
+                CacheTime = TimeSpan.FromTicks(1),
+            }
+        );
+
+        using var sub = query.State.Subscribe();
+        query.SetArgs(0);
+        await query.State.Where(s => s.IsSuccess).FirstAsync();
+
+        var emissions = new List<IReadOnlyDictionary<QueryKey, IQuery>>();
+        using var _ = inspector.CacheEntries.Subscribe(e => emissions.Add(e));
+
+        query.Detach();
+        _scheduler.AdvanceBy(1);
+
+        await Assert.That(emissions[^1].ContainsKey(key)).IsFalse();
+    }
+
+    [Test]
     public async Task Dispose_DisposingQueryObserver_CompletesStateObservable()
     {
         var query = _sut.CreateQuery(

@@ -1,6 +1,6 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class Query<TArgs, TData> : IQuery
+internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
 {
     private readonly QueryKey _key;
     private readonly TArgs _args;
@@ -50,6 +50,14 @@ internal sealed class Query<TArgs, TData> : IQuery
     public TimeSpan CacheTime => _options.CacheTime;
 
     public QueryState<TData> CurrentState => _state.Value;
+
+    public QueryStatus Status => _state.Value.Status;
+
+    public object? CurrentData => _state.Value.CurrentData;
+
+    public DateTimeOffset? LastUpdatedAt => _lastSuccessAt;
+
+    public int ObserverCount => _subscriberCount;
 
     public IObservable<QueryState<TData>> State =>
         Observable.Create<QueryState<TData>>(observer =>
