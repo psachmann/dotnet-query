@@ -25,6 +25,24 @@ builder.Services.AddScoped<UserMutations>();
 await builder.Build().RunAsync();
 ```
 
+## App.razor
+
+Add `<QueryRefreshMonitor>` once at the root so stale queries automatically refetch when the network comes back online or the user returns to the tab.
+
+```razor
+@using DotNetQuery.Blazor
+
+<QueryRefreshMonitor />
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />
+    </Found>
+    <NotFound>
+        <p>Page not found.</p>
+    </NotFound>
+</Router>
+```
+
 ## Service Layer
 
 Register queries and mutations in dedicated service classes and inject them into components. The services own the query and mutation instances and handle disposal — components stay focused on rendering.

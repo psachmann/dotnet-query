@@ -167,6 +167,36 @@ public sealed class UserProfileQueries(IQueryClient queryClient, HttpClient http
 }
 ```
 
+## QueryRefreshMonitor
+
+`<QueryRefreshMonitor>` is a side-effect component that automatically invalidates stale queries when the browser comes back online or the user returns to the tab. Place it once near the root of your app (e.g. `App.razor`) — it renders no markup.
+
+```razor
+<!-- App.razor -->
+<QueryRefreshMonitor />
+<Router AppAssembly="typeof(App).Assembly">
+    ...
+</Router>
+```
+
+Invalidation respects each query's `StaleTime` — fresh data is never re-fetched. Only stale queries trigger a background refetch.
+
+> **Blazor WASM only.** `<QueryRefreshMonitor>` has no effect in Blazor Server because the browser events it relies on (`visibilitychange`, `online`) require JS interop that runs in the client.
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `RefetchOnFocus` | `bool` | `true` | Invalidates stale queries when the browser tab regains focus. |
+| `RefetchOnReconnect` | `bool` | `true` | Invalidates stale queries when network connectivity is restored. |
+
+To disable one trigger, pass `false` for that parameter:
+
+```razor
+<QueryRefreshMonitor RefetchOnFocus="false" />      <!-- reconnect only -->
+<QueryRefreshMonitor RefetchOnReconnect="false" />  <!-- focus only -->
+```
+
 ## Tips
 
 - **Use service classes for queries and mutations.** Define queries and mutations in a dedicated service that implements `IDisposable`, register it with the DI container, and inject it into components. The service owns and disposes the instances — components stay focused on rendering.

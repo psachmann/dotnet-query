@@ -1,7 +1,6 @@
 namespace DotNetQuery.Blazor.Tests;
 
 using Microsoft.Extensions.DependencyInjection;
-using TUnit.Mocks.Arguments;
 
 public class QueryRefreshMonitorTests
 {
@@ -13,14 +12,18 @@ public class QueryRefreshMonitorTests
     private Mock<IQueryClient> SetupQueryClient()
     {
         var client = Mock.Of<IQueryClient>();
+
         _context.Services.AddSingleton(client.Object);
+
         return client;
     }
 
     private BunitJSModuleInterop SetupJsModule()
     {
         var module = _context.JSInterop.SetupModule("./_content/DotNetQuery.Blazor/dotnetquery-refresh.js");
+
         module.SetupVoid("register", _ => true);
+
         return module;
     }
 
@@ -44,8 +47,9 @@ public class QueryRefreshMonitorTests
         _context.Render<QueryRefreshMonitor>();
 
         var args = jsModule.Invocations["register"][0].Arguments;
-        await Assert.That((bool)args[1]!).IsTrue();  // onFocus
-        await Assert.That((bool)args[2]!).IsTrue();  // onReconnect
+        using var _ = Assert.Multiple();
+        await Assert.That((bool)args[1]!).IsTrue(); // onFocus
+        await Assert.That((bool)args[2]!).IsTrue(); // onReconnect
     }
 
     [Test]
@@ -57,6 +61,7 @@ public class QueryRefreshMonitorTests
         _context.Render<QueryRefreshMonitor>(p => p.Add(c => c.RefetchOnFocus, false));
 
         var args = jsModule.Invocations["register"][0].Arguments;
+        using var _ = Assert.Multiple();
         await Assert.That((bool)args[1]!).IsFalse();
         await Assert.That((bool)args[2]!).IsTrue();
     }
@@ -70,6 +75,7 @@ public class QueryRefreshMonitorTests
         _context.Render<QueryRefreshMonitor>(p => p.Add(c => c.RefetchOnReconnect, false));
 
         var args = jsModule.Invocations["register"][0].Arguments;
+        using var _ = Assert.Multiple();
         await Assert.That((bool)args[1]!).IsTrue();
         await Assert.That((bool)args[2]!).IsFalse();
     }
@@ -83,7 +89,7 @@ public class QueryRefreshMonitorTests
         var cut = _context.Render<QueryRefreshMonitor>();
         cut.Instance.OnFocus();
 
-        client.Invalidate(Arg.Any<Func<QueryKey, bool>>()).WasCalled();
+        client.Invalidate(Any<Func<QueryKey, bool>>()).WasCalled();
     }
 
     [Test]
@@ -95,7 +101,7 @@ public class QueryRefreshMonitorTests
         var cut = _context.Render<QueryRefreshMonitor>();
         cut.Instance.OnReconnect();
 
-        client.Invalidate(Arg.Any<Func<QueryKey, bool>>()).WasCalled();
+        client.Invalidate(Any<Func<QueryKey, bool>>()).WasCalled();
     }
 
     [Test]
