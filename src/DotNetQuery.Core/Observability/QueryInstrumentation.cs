@@ -1,30 +1,29 @@
 namespace DotNetQuery.Core.Observability;
 
-internal sealed class QueryInstrumentation(ILogger logger)
+internal sealed class QueryInstrumentation(ILogger logger, Meter? meter = null)
 {
-    // Instruments are static — created once on the shared Meter, no-op when no listener is attached.
-    private static readonly Histogram<double> FetchDuration = QueryTelemetry.Meter.CreateHistogram<double>(
+    private readonly Histogram<double> _fetchDuration = (meter ?? QueryTelemetry.Meter).CreateHistogram<double>(
         "dotnetquery.query.duration",
         "ms",
         "Duration of query fetch operations."
     );
 
-    private static readonly UpDownCounter<int> ActiveFetches = QueryTelemetry.Meter.CreateUpDownCounter<int>(
+    private readonly UpDownCounter<int> _activeFetches = (meter ?? QueryTelemetry.Meter).CreateUpDownCounter<int>(
         "dotnetquery.query.active",
         description: "Number of query fetch operations currently in flight."
     );
 
-    private static readonly Counter<long> CacheHits = QueryTelemetry.Meter.CreateCounter<long>(
+    private readonly Counter<long> _cacheHits = (meter ?? QueryTelemetry.Meter).CreateCounter<long>(
         "dotnetquery.cache.hits",
         description: "Number of query cache hits."
     );
 
-    private static readonly Counter<long> CacheMisses = QueryTelemetry.Meter.CreateCounter<long>(
+    private readonly Counter<long> _cacheMisses = (meter ?? QueryTelemetry.Meter).CreateCounter<long>(
         "dotnetquery.cache.misses",
         description: "Number of query cache misses."
     );
 
-    private static readonly Histogram<double> MutationDuration = QueryTelemetry.Meter.CreateHistogram<double>(
+    private readonly Histogram<double> _mutationDuration = (meter ?? QueryTelemetry.Meter).CreateHistogram<double>(
         "dotnetquery.mutation.duration",
         "ms",
         "Duration of mutation operations."
@@ -34,15 +33,15 @@ internal sealed class QueryInstrumentation(ILogger logger)
 
     internal void RecordFetchStart(QueryKey key)
     {
-        ActiveFetches.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
+        _activeFetches.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
         logger.LogDebug("Fetch started for key '{QueryKey}'", key);
     }
 
     internal void RecordFetchSuccess(QueryKey key, double durationMs)
     {
         var keyStr = key.ToString();
-        ActiveFetches.Add(-1, new TagList { { QueryTelemetryTags.TagQueryKey, keyStr } });
-        FetchDuration.Record(
+        _activeFetches.Add(-1, new TagList { { QueryTelemetryTags.TagQueryKey, keyStr } });
+        _fetchDuration.Record(
             durationMs,
             new TagList
             {
@@ -56,8 +55,8 @@ internal sealed class QueryInstrumentation(ILogger logger)
     internal void RecordFetchFailure(QueryKey key, double durationMs, Exception ex)
     {
         var keyStr = key.ToString();
-        ActiveFetches.Add(-1, new TagList { { QueryTelemetryTags.TagQueryKey, keyStr } });
-        FetchDuration.Record(
+        _activeFetches.Add(-1, new TagList { { QueryTelemetryTags.TagQueryKey, keyStr } });
+        _fetchDuration.Record(
             durationMs,
             new TagList
             {
@@ -70,7 +69,7 @@ internal sealed class QueryInstrumentation(ILogger logger)
 
     internal void RecordFetchCancelled(QueryKey key)
     {
-        ActiveFetches.Add(-1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
+        _activeFetches.Add(-1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
         logger.LogDebug("Fetch cancelled for key '{QueryKey}'", key);
     }
 
@@ -78,13 +77,13 @@ internal sealed class QueryInstrumentation(ILogger logger)
 
     internal void RecordCacheHit(QueryKey key)
     {
-        CacheHits.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
+        _cacheHits.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
         logger.LogDebug("Cache hit for key '{QueryKey}'", key);
     }
 
     internal void RecordCacheMiss(QueryKey key)
     {
-        CacheMisses.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
+        _cacheMisses.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
         logger.LogDebug("Cache miss for key '{QueryKey}'", key);
     }
 
@@ -97,7 +96,7 @@ internal sealed class QueryInstrumentation(ILogger logger)
 
     internal void RecordMutationSuccess(double durationMs)
     {
-        MutationDuration.Record(
+        _mutationDuration.Record(
             durationMs,
             new TagList { { QueryTelemetryTags.TagStatus, QueryTelemetryTags.StatusSuccess } }
         );
@@ -106,7 +105,7 @@ internal sealed class QueryInstrumentation(ILogger logger)
 
     internal void RecordMutationFailure(double durationMs, Exception ex)
     {
-        MutationDuration.Record(
+        _mutationDuration.Record(
             durationMs,
             new TagList { { QueryTelemetryTags.TagStatus, QueryTelemetryTags.StatusFailure } }
         );
