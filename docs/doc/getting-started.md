@@ -20,6 +20,9 @@ dotnet add package DotNetQuery.Extensions.DependencyInjection
 
 # Blazor components — if you use Blazor
 dotnet add package DotNetQuery.Blazor
+
+# Blazor DevTools — live cache inspector for development
+dotnet add package DotNetQuery.Blazor.DevTools
 ```
 
 ## Setting Up the Client

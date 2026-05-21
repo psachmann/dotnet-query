@@ -27,12 +27,16 @@ await builder.Build().RunAsync();
 
 ## App.razor
 
-Add `<QueryRefreshMonitor>` once at the root so stale queries automatically refetch when the network comes back online or the user returns to the tab.
+Add `<QueryRefreshMonitor>` once at the root so stale queries automatically refetch when the network comes back online or the user returns to the tab. Add `<QueryDevTools>` inside a `#if DEBUG` block to get a live cache inspector during development.
 
 ```razor
 @using DotNetQuery.Blazor
+@using DotNetQuery.Blazor.DevTools
 
 <QueryRefreshMonitor />
+#if DEBUG
+<QueryDevTools />
+#endif
 <Router AppAssembly="typeof(App).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />

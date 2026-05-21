@@ -197,6 +197,31 @@ To disable one trigger, pass `false` for that parameter:
 <QueryRefreshMonitor RefetchOnReconnect="false" />  <!-- focus only -->
 ```
 
+## QueryDevTools
+
+`<QueryDevTools>` is a live cache inspector panel shipped in a separate package. It shows every query in the cache with its current status, observer count, and data, and lets you invalidate or refetch individual queries directly from the browser.
+
+Install the package:
+
+```bash
+dotnet add package DotNetQuery.Blazor.DevTools
+```
+
+Add it once near the root of your app and wrap it in `#if DEBUG` to exclude it from Release builds:
+
+```razor
+@using DotNetQuery.Blazor.DevTools
+
+#if DEBUG
+<QueryDevTools />
+#endif
+<Router AppAssembly="typeof(App).Assembly">
+    ...
+</Router>
+```
+
+See the [DevTools guide](devtools.md) for the full feature reference.
+
 ## Tips
 
 - **Use service classes for queries and mutations.** Define queries and mutations in a dedicated service that implements `IDisposable`, register it with the DI container, and inject it into components. The service owns and disposes the instances — components stay focused on rendering.

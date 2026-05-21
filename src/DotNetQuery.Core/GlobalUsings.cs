@@ -11,3 +11,4 @@ global using DotNetQuery.Core.Observability;
 global using Microsoft.Extensions.Logging;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("DotNetQuery.Core.Tests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("DotNetQuery.Blazor.DevTools")]

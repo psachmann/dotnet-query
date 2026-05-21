@@ -1,0 +1,391 @@
+/* ──────────────────────────────────────────────────────────────
+   DotNetQuery DevTools — scoped component styles
+   All class names use the dnq- prefix to avoid collisions.
+   ────────────────────────────────────────────────────────────── */
+
+/* ── Shared font reset for all devtools elements ── */
+.dnq-fab,
+.dnq-panel,
+.dnq-panel * {
+    box-sizing: border-box;
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    margin: 0;
+    padding: 0;
+}
+
+/* ── Floating action button (collapsed state) ── */
+.dnq-fab {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #7c3aed;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+.dnq-fab:hover {
+    background: #334155;
+    transform: translateY(-3px);
+    color: #a78bfa;
+}
+
+/* ── Main panel (expanded state) ── */
+.dnq-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #0f172a;
+    border-top: 1px solid #334155;
+    z-index: 99998;
+    display: flex;
+    flex-direction: column;
+    color: #e2e8f0;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+    user-select: none;
+}
+
+/* ── Resize handle ── */
+.dnq-resize-handle {
+    height: 5px;
+    background: transparent;
+    cursor: ns-resize;
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+
+.dnq-resize-handle:hover {
+    background: #7c3aed;
+}
+
+/* ── Panel layout ── */
+.dnq-panel-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100% - 5px);
+}
+
+/* ── Header ── */
+.dnq-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    border-bottom: 1px solid #334155;
+    background: #1e293b;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.dnq-title {
+    font-size: 13px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #7c3aed, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.3px;
+    flex-shrink: 0;
+    margin-right: 4px;
+}
+
+.dnq-badges {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+/* ── Badges (header count indicators) ── */
+.dnq-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    flex-shrink: 0;
+    border: 1px solid transparent;
+}
+
+.dnq-badge-blue    { background: #1e3a5f; color: #60a5fa; border-color: #2563eb40; }
+.dnq-badge-green   { background: #052e16; color: #4ade80; border-color: #16a34a40; }
+.dnq-badge-gray    { background: #1e293b; color: #94a3b8; border-color: #33415540; }
+.dnq-badge-red     { background: #450a0a; color: #f87171; border-color: #dc262640; }
+.dnq-badge-default { background: #1e293b; color: #64748b; border-color: #33415540; }
+
+/* Coloured dots inside badges */
+.dnq-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.dnq-dot-blue  { background: #60a5fa; animation: dnq-pulse 1.2s ease-in-out infinite; }
+.dnq-dot-green { background: #4ade80; }
+.dnq-dot-gray  { background: #64748b; }
+.dnq-dot-red   { background: #f87171; }
+
+@keyframes dnq-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+}
+
+/* ── Close button ── */
+.dnq-close-btn {
+    margin-left: auto;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 3px 6px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+}
+
+.dnq-close-btn:hover {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+/* ── Toolbar ── */
+.dnq-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-bottom: 1px solid #1e293b;
+    background: #0f172a;
+    flex-shrink: 0;
+}
+
+.dnq-search {
+    width: 220px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    color: #e2e8f0;
+    padding: 3px 10px;
+    outline: none;
+    font-size: 11px;
+    transition: border-color 0.15s;
+}
+
+.dnq-search::placeholder { color: #475569; }
+.dnq-search:focus { border-color: #7c3aed; }
+
+/* ── Shared button style ── */
+.dnq-btn {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 3px 9px;
+    font-size: 11px;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.dnq-btn:hover {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+/* ── Body layout ── */
+.dnq-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ── Query list ── */
+.dnq-query-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.dnq-query-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 10px;
+    border-bottom: 1px solid #0f172a;
+    cursor: pointer;
+    transition: background 0.1s;
+    user-select: none;
+}
+
+.dnq-query-row:hover    { background: #1e293b; }
+.dnq-row-selected       { background: #1e293b !important; border-left: 2px solid #7c3aed; padding-left: 8px; }
+
+.dnq-key-text {
+    flex: 1;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+}
+
+.dnq-observer-pill {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 0 5px;
+    color: #475569;
+    font-size: 10px;
+    flex-shrink: 0;
+    min-width: 18px;
+    text-align: center;
+}
+
+.dnq-empty {
+    color: #475569;
+    text-align: center;
+    padding: 28px 12px;
+    font-size: 11px;
+}
+
+/* ── Status pills (in query rows and detail panel) ── */
+.dnq-status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+    width: 56px;
+    justify-content: center;
+}
+
+.dnq-status-idle     { background: #1e293b; color: #64748b; border: 1px solid #33415560; }
+.dnq-status-fetching { background: #1e3a5f; color: #60a5fa; border: 1px solid #2563eb60; }
+.dnq-status-success  { background: #052e16; color: #4ade80; border: 1px solid #16a34a60; }
+.dnq-status-failure  { background: #450a0a; color: #f87171; border: 1px solid #dc262660; }
+
+/* ── Detail panel ── */
+.dnq-detail {
+    width: 340px;
+    min-width: 260px;
+    border-left: 2px solid #7c3aed;
+    background: #0d1117;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.dnq-detail-key-header {
+    padding: 6px 10px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    color: #a78bfa;
+    font-size: 11px;
+    word-break: break-all;
+    flex-shrink: 0;
+}
+
+.dnq-detail-actions {
+    display: flex;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid #1e293b;
+    flex-shrink: 0;
+}
+
+.dnq-detail-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+}
+
+.dnq-detail-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dnq-detail-label {
+    color: #475569;
+    font-size: 11px;
+    min-width: 88px;
+    flex-shrink: 0;
+}
+
+.dnq-detail-value {
+    color: #94a3b8;
+    font-size: 11px;
+    word-break: break-all;
+}
+
+.dnq-section-title {
+    padding: 4px 10px;
+    color: #475569;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: #1e293b;
+    border-top: 1px solid #1e293b;
+    border-bottom: 1px solid #1e293b;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+.dnq-detail-data {
+    padding: 8px 10px;
+    color: #7dd3fc;
+    font-size: 11px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-y: auto;
+    flex: 1;
+    background: #0d1117;
+}
+
+/* ── Custom scrollbars ── */
+.dnq-query-list::-webkit-scrollbar,
+.dnq-detail::-webkit-scrollbar,
+.dnq-detail-data::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+.dnq-query-list::-webkit-scrollbar-thumb,
+.dnq-detail::-webkit-scrollbar-thumb,
+.dnq-detail-data::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 2px;
+}
+
+.dnq-query-list::-webkit-scrollbar-track,
+.dnq-detail::-webkit-scrollbar-track,
+.dnq-detail-data::-webkit-scrollbar-track {
+    background: transparent;
+}
