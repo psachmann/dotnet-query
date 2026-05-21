@@ -14,5 +14,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DotNetQuery.Blazor\DotNetQuery.Blazor.csproj" />
+    <ProjectReference Include="..\..\src\DotNetQuery.Blazor.DevTools\DotNetQuery.Blazor.DevTools.csproj" />
   </ItemGroup>
 </Project>

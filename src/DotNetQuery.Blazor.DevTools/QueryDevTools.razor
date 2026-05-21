@@ -1,0 +1,143 @@
+@if (!_isOpen)
+{
+    <button class="dnq-fab" @onclick="Open" title="Open DotNetQuery DevTools" aria-label="Open DotNetQuery DevTools">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <ellipse cx="12" cy="5" rx="9" ry="3" />
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+        </svg>
+    </button>
+}
+else
+{
+    <div class="dnq-panel" style="height: @(_panelHeight)px" @ref="_panelRef">
+        <div class="dnq-resize-handle" @onmousedown="OnResizeHandleMouseDown" title="Drag to resize"></div>
+
+        <div class="dnq-panel-content">
+
+            @* ── Header ── *@
+            <div class="dnq-header">
+                <span class="dnq-title">DotNetQuery DevTools</span>
+
+                <div class="dnq-badges">
+                    <span class="dnq-badge dnq-badge-blue">
+                        <span class="dnq-dot dnq-dot-blue"></span>Fetching @FetchingCount
+                    </span>
+                    <span class="dnq-badge dnq-badge-green">
+                        <span class="dnq-dot dnq-dot-green"></span>Success @SuccessCount
+                    </span>
+                    <span class="dnq-badge dnq-badge-gray">
+                        <span class="dnq-dot dnq-dot-gray"></span>Idle @IdleCount
+                    </span>
+                    <span class="dnq-badge dnq-badge-red">
+                        <span class="dnq-dot dnq-dot-red"></span>Failure @FailureCount
+                    </span>
+                    <span class="dnq-badge dnq-badge-default">Total @_cacheEntries.Count</span>
+                </div>
+
+                <button class="dnq-close-btn" @onclick="Close" title="Close DevTools" aria-label="Close">
+                    <svg width="13" height="13" viewBox="0 0 15 15" fill="currentColor" aria-hidden="true">
+                        <path d="M12.8536 2.85355C13.0488 2.65829 13.0488 2.34171 12.8536 2.14645C12.6583 1.95118 12.3417 1.95118 12.1464 2.14645L7.5 6.79289L2.85355 2.14645C2.65829 1.95118 2.34171 1.95118 2.14645 2.14645C1.95118 2.34171 1.95118 2.65829 2.14645 2.85355L6.79289 7.5L2.14645 12.1464C1.95118 12.3417 1.95118 12.6583 2.14645 12.8536C2.34171 13.0488 2.65829 13.0488 2.85355 12.8536L7.5 8.20711L12.1464 12.8536C12.3417 13.0488 12.6583 13.0488 12.8536 12.8536C13.0488 12.6583 13.0488 12.3417 12.8536 12.1464L8.20711 7.5L12.8536 2.85355Z"
+                              fill-rule="evenodd" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+
+            @* ── Toolbar ── *@
+            <div class="dnq-toolbar">
+                <input class="dnq-search"
+                       type="search"
+                       placeholder="Filter by key…"
+                       @bind="_filter"
+                       @bind:event="oninput"
+                       aria-label="Filter queries" />
+                <button class="dnq-btn" @onclick="InvalidateAll" title="Invalidate all queries">Invalidate All</button>
+            </div>
+
+            @* ── Body ── *@
+            <div class="dnq-body">
+
+                @* Query list *@
+                <div class="dnq-query-list" role="list">
+                    @if (!_cacheEntries.Any())
+                    {
+                        <div class="dnq-empty">No queries in cache</div>
+                    }
+                    else
+                    {
+                        @foreach (var entry in FilteredEntries)
+                        {
+                            var key      = entry.Key;
+                            var status   = GetStatus(entry.Value);
+                            var observers = GetObserverCount(entry.Value);
+
+                            <div class="dnq-query-row @(IsSelected(key) ? "dnq-row-selected" : "")"
+                                 @onclick="() => ToggleSelected(key)"
+                                 role="listitem"
+                                 title="@key.ToString()">
+                                <span class="dnq-status-pill @StatusCssClass(status)">@StatusLabel(status)</span>
+                                <span class="dnq-observer-pill" title="@observers observer(s)">@observers</span>
+                                <span class="dnq-key-text">@key.ToString()</span>
+                            </div>
+                        }
+
+                        @if (!FilteredEntries.Any())
+                        {
+                            <div class="dnq-empty">No matches for "@_filter"</div>
+                        }
+                    }
+                </div>
+
+                @* Detail panel (shown when a query row is selected) *@
+                @{
+                    var sel = SelectedQuery;
+                }
+                @if (sel is not null && _selectedKey is not null)
+                {
+                    var selStatus      = GetStatus(sel);
+                    var selObservers   = GetObserverCount(sel);
+                    var selLastUpdated = GetLastUpdated(sel);
+                    var selData        = SerializeData(GetData(sel));
+
+                    <div class="dnq-detail">
+
+                        <div class="dnq-detail-key-header">@_selectedKey.ToString()</div>
+
+                        <div class="dnq-detail-actions">
+                            <button class="dnq-btn" @onclick="() => sel.Invalidate()">Invalidate</button>
+                            <button class="dnq-btn" @onclick="() => sel.Refetch()">Refetch</button>
+                        </div>
+
+                        <div class="dnq-detail-rows">
+                            <div class="dnq-detail-row">
+                                <span class="dnq-detail-label">Status</span>
+                                <span class="dnq-status-pill @StatusCssClass(selStatus)">@StatusLabel(selStatus)</span>
+                            </div>
+                            <div class="dnq-detail-row">
+                                <span class="dnq-detail-label">Observers</span>
+                                <span class="dnq-detail-value">@selObservers</span>
+                            </div>
+                            <div class="dnq-detail-row">
+                                <span class="dnq-detail-label">Last Updated</span>
+                                <span class="dnq-detail-value">
+                                    @(selLastUpdated.HasValue
+                                        ? selLastUpdated.Value.LocalDateTime.ToString("HH:mm:ss.fff")
+                                        : "—")
+                                </span>
+                            </div>
+                            <div class="dnq-detail-row">
+                                <span class="dnq-detail-label">Cache Time</span>
+                                <span class="dnq-detail-value">@FormatDuration(sel.CacheTime)</span>
+                            </div>
+                        </div>
+
+                        <div class="dnq-section-title">Data</div>
+                        <pre class="dnq-detail-data">@selData</pre>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+}

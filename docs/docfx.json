@@ -9,7 +9,8 @@
             "**/*.csproj"
           ],
           "exclude": [
-            "DotNetQuery.Blazor/**"
+            "DotNetQuery.Blazor/**",
+            "DotNetQuery.Blazor.DevTools/**"
           ]
         }
       ],

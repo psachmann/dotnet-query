@@ -18,7 +18,7 @@
 
 ## Developer Experience
 
-- [ ] **DevTools Component** — Blazor component that renders a live view of the query cache (keys, status, data, staleness)
+- [x] **DevTools Component** — Blazor component that renders a live view of the query cache (keys, status, data, staleness)
 - [x] **Cache Inspector API** — Expose a cache snapshot via `IQueryClient` for custom tooling and debugging
 
 ## NuGet Publishing (optional / post-beta)

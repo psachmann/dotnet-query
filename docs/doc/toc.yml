@@ -16,6 +16,8 @@
       href: guides/caching.md
     - name: Blazor Components
       href: guides/blazor.md
+    - name: DevTools
+      href: guides/devtools.md
     - name: Retry Handling
       href: guides/retries.md
     - name: Observability
