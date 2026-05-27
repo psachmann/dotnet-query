@@ -23,6 +23,7 @@ public class QueryDevToolsTests
         _jsModule.Setup<string>("getTheme", _ => true).SetResult("dark");
         _jsModule.SetupVoid("setTheme", _ => true);
         _jsModule.SetupVoid("startResize", _ => true);
+        _jsModule.SetupVoid("startDetailResize", _ => true);
     }
 
     [After(Test)]
@@ -310,6 +311,7 @@ public class QueryDevToolsTests
         using var ctx = new BunitContext();
         var jsm = ctx.JSInterop.SetupModule("./_content/DotNetQuery.Blazor.DevTools/QueryDevTools.js");
         jsm.SetupVoid("init", _ => true);
+        jsm.Setup<string>("getTheme", _ => true).SetResult("dark");
         var mockClient = Mock.Of<IQueryClient>();
         ctx.Services.AddSingleton(mockClient.Object);
 
