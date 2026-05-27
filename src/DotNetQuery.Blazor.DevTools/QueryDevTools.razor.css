@@ -67,22 +67,32 @@
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: #7c3aed;
+    background: #7c3aed;
+    border: 1px solid #6d28d9;
+    color: #ffffff;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 99999;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 4px 16px rgba(124, 58, 237, 0.45);
     transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease;
 }
 
 .dnq-fab:hover {
-    background: #334155;
+    background: #6d28d9;
     transform: translateY(-3px);
-    color: #a78bfa;
+    color: #ffffff;
+}
+
+@media (prefers-color-scheme: light) {
+    .dnq-fab {
+        color: #1e1b4b;
+    }
+
+    .dnq-fab:hover {
+        color: #ffffff;
+    }
 }
 
 /* ── Main panel (expanded state) ── */
