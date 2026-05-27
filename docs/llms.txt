@@ -1,0 +1,626 @@
+# DotNet Query
+
+> A TanStack Query-inspired async data fetching and state management library for .NET and Blazor.
+
+DotNet Query brings TanStack Query's battle-tested patterns to the .NET ecosystem: predictable loading/error/success states, automatic caching, stale-while-revalidate, background refetching, and mutations with lifecycle callbacks — all built on Rx.NET observables.
+
+NuGet packages:
+- `DotNetQuery.Core` — always required
+- `DotNetQuery.Extensions.DependencyInjection` — `AddDotNetQuery()` for Microsoft DI
+- `DotNetQuery.Blazor` — `<Suspense>`, `<Transition>`, `<QueryRefreshMonitor>` Razor components
+- `DotNetQuery.Blazor.DevTools` — `<QueryDevTools>` live cache inspector (development only)
+
+Target framework: net10.0. All code is in C# with `nullable enable`.
+
+---
+
+## Core Concepts
+
+### QueryKey
+
+`QueryKey` is an immutable, equality-comparable key that identifies a cache entry. It wraps an ordered list of `object` parts whose equality is determined by `SequenceEqual`.
+
+```csharp
+// Create keys
+QueryKey.From("users")           // simple
+QueryKey.From("users", 42)       // parameterized — different entry per id
+QueryKey.From("users", 42, "posts") // compound/hierarchical
+
+// Sentinel for the uninitialized state
+QueryKey.Default  // returned by IQuery.Key before SetArgs is called
+```
+
+`QueryKey.ToString()` returns parts joined by `:`, e.g. `users:42`. Use this in predicate-based invalidation.
+
+### QueryState<TData>
+
+Immutable snapshot of a query's current state. Produced by `IQuery<TArgs,TData>.State`.
+
+```csharp
+public enum QueryStatus : byte { Idle, Fetching, Success, Failure }
+
+record QueryState<TData>
+{
+    QueryStatus Status      { get; }   // current lifecycle status
+    TData?      CurrentData { get; }   // data from the most recent successful fetch (null otherwise)
+    TData?      LastData    { get; }   // data carried forward from the previous successful fetch
+    Exception?  Error       { get; }   // exception from the most recent failed fetch (null otherwise)
+
+    bool IsIdle     { get; }
+    bool IsFetching { get; }
+    bool IsSuccess  { get; }
+    bool IsFailure  { get; }
+    bool HasData    { get; }  // CurrentData is not null
+    bool HasError   { get; }  // Error is not null
+}
+```
+
+`LastData` persists across all subsequent state transitions (Fetching, Failure, Idle). It is the foundation of stale-while-revalidate: while a background refetch is in progress, `LastData` holds the previous value so you can keep rendering meaningful content.
+
+### MutationState<TData>
+
+Immutable snapshot of a mutation's current state.
+
+```csharp
+public enum MutationStatus : byte { Idle, Running, Success, Failure }
+
+record MutationState<TData>
+{
+    MutationStatus Status      { get; }
+    TData?         CurrentData { get; }  // result of last successful execution
+    Exception?     Error       { get; }  // exception from last failed execution
+
+    bool IsIdle    { get; }
+    bool IsRunning { get; }
+    bool IsSuccess { get; }
+    bool IsFailure { get; }
+    bool HasData   { get; }
+    bool HasError  { get; }
+}
+```
+
+Unlike `QueryState`, mutation state does not replay to new subscribers — it only emits new transitions going forward.
+
+---
+
+## IQueryClient
+
+The central client. Owns the cache. All queries and mutations created through it share the same cache.
+
+```csharp
+public interface IQueryClient : IDisposable
+{
+    // Gets or creates a query. Queries with the same key share one cache entry.
+    IQuery<TArgs, TData> CreateQuery<TArgs, TData>(QueryOptions<TArgs, TData> options);
+
+    // Creates a mutation. InvalidateKeys are wired automatically on success.
+    IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options);
+
+    // Marks all matching cache entries as stale and triggers a refetch if they have subscribers.
+    void Invalidate(QueryKey key);
+    void Invalidate(Func<QueryKey, bool> predicate);
+}
+```
+
+### Creating a client without DI
+
+```csharp
+IQueryClient client = QueryClientFactory.Create(
+    new QueryClientOptions { StaleTime = TimeSpan.FromMinutes(1) },
+    scheduler: null,   // defaults to DefaultScheduler.Instance
+    logger:    null    // defaults to NullLogger
+);
+```
+
+### QueryClientOptions (global defaults)
+
+```csharp
+new QueryClientOptions
+{
+    StaleTime       = TimeSpan.Zero,           // default: stale immediately
+    CacheTime       = TimeSpan.FromMinutes(5), // default: evict 5 min after last subscriber
+    RefetchInterval = null,                    // default: no polling
+    RetryHandler    = new DefaultRetryHandler(), // default: no retry (single attempt)
+    ExecutionMode   = QueryExecutionMode.Csr,  // Csr = Singleton, Ssr = Scoped
+}
+```
+
+All per-query and per-mutation options override these globals.
+
+---
+
+## IQuery<TArgs, TData>
+
+Returned by `IQueryClient.CreateQuery`. Acts as a key-switching proxy over the cache: each `SetArgs` call derives a new `QueryKey` and switches the active cache entry.
+
+```csharp
+public interface IQuery<TArgs, TData> : IQuery, IDisposable
+{
+    QueryKey         Key          { get; }  // current key (QueryKey.Default until first SetArgs)
+    TimeSpan         CacheTime    { get; }
+    QueryState<TData> CurrentState { get; } // synchronous snapshot — no subscription needed
+
+    // Push new args. Derives a new key, switches the cache entry, triggers Invalidate().
+    void SetArgs(TArgs args);
+
+    // Write data directly into the cache as Success, bypassing any fetch. Marks entry as fresh.
+    void SetData(TData data);
+
+    // Enable/disable the query. When false, no fetches run even if invalidated.
+    // Re-enabling triggers an immediate Invalidate() if there are subscribers.
+    void SetEnabled(bool enabled);
+
+    // Observables — all replay the latest value to new subscribers (BehaviorSubject semantics)
+    IObservable<QueryState<TData>> State   { get; }  // all state transitions
+    IObservable<TData>             Success { get; }  // unwrapped data on each success
+    IObservable<Exception>         Failure { get; }  // exception on each failure
+    IObservable<QueryState<TData>> Settled { get; }  // after each fetch regardless of outcome
+
+    // Derived observable: applies selector to each success value, deduplicates by comparer
+    IObservable<TResult> Select<TResult>(Func<TData, TResult> selector, IEqualityComparer<TResult>? comparer = null);
+
+    // Trigger an immediate fetch, bypassing stale-time checks
+    void Refetch();
+
+    // Mark data as stale; fetch immediately if subscribers exist, else defer until first subscriber
+    // No-op if data was fetched within the StaleTime window — use Refetch() to force
+    void Invalidate();
+
+    // Cancel the current in-flight fetch; returns query to Idle; LastData is preserved
+    void Cancel();
+
+    // Remove from cache without tearing down subscriptions (vs Dispose which does both)
+    void Detach();
+
+    // Warm the cache for given args without subscribing. Skips if data is still fresh.
+    Task PrefetchAsync(TArgs args, CancellationToken cancellationToken = default);
+}
+```
+
+### QueryOptions<TArgs, TData>
+
+```csharp
+new QueryOptions<int, UserDto>
+{
+    // Required
+    KeyFactory = id => QueryKey.From("users", id),
+    Fetcher    = (id, ct) => httpClient.GetFromJsonAsync<UserDto>($"/api/users/{id}", ct)!,
+
+    // Optional overrides (null = use global default)
+    StaleTime       = TimeSpan.FromMinutes(5),
+    CacheTime       = TimeSpan.FromMinutes(30),
+    RefetchInterval = TimeSpan.FromSeconds(30),  // poll while subscribers exist
+    RetryHandler    = new MyRetryHandler(),
+    IsEnabled       = true,    // default; set false for conditional/lazy queries
+    InitialData     = null,    // pre-populate cache before first fetch; always treated as stale
+
+    // Comparer to suppress re-emissions when fetched data is structurally identical
+    DataComparer = EqualityComparer<UserDto>.Default,
+}
+```
+
+### Query lifecycle
+
+```
+[no args] → Idle → (SetArgs / Invalidate) → Fetching → Success
+                                                 └→ Failure
+```
+
+`Invalidate()` respects `StaleTime` (no-op within window). `Refetch()` always fetches.
+When invalidated with no active subscribers, fetch is deferred until the first subscriber joins.
+A new `SetArgs` while a fetch is in progress cancels the in-flight fetch (`.Switch()` semantics).
+
+---
+
+## IMutation<TArgs, TData>
+
+```csharp
+public interface IMutation<TArgs, TData> : IDisposable
+{
+    void SetEnabled(bool enabled);  // when false, Execute() is a no-op
+
+    IObservable<MutationState<TData>> State   { get; }
+    IObservable<TData>                Success { get; }
+    IObservable<Exception>            Failure { get; }
+    IObservable<MutationState<TData>> Settled { get; }
+
+    // Trigger the mutation. Cancels any previous in-flight execution (Switch semantics).
+    void Execute(TArgs args);
+
+    // Cancel the current execution; state returns to Idle; OnSettled fires but not OnSuccess/OnFailure
+    void Cancel();
+}
+```
+
+### MutationOptions<TArgs, TData>
+
+```csharp
+new MutationOptions<CreateUserRequest, UserDto>
+{
+    // Required
+    Mutator = (request, ct) => httpClient.PostAsJsonAsync<UserDto>("/api/users", request, ct),
+
+    // Optional
+    RetryHandler    = null,         // null = use global default
+    IsEnabled       = true,
+    InvalidateKeys  = [QueryKey.From("users")],  // invalidated automatically on success
+
+    // Lifecycle callbacks — execution order: OnMutate → mutator → InvalidateKeys → OnSuccess/OnFailure → OnSettled
+    OnMutate  = args  => { /* snapshot + apply optimistic update */ },
+    OnSuccess = (args, result) => toast.Show($"Created {result.Name}"),
+    OnFailure = error => toast.Show($"Error: {error.Message}"),
+    OnSettled = ()    => isBusy = false,  // fires for success, failure, AND cancellation
+}
+```
+
+`InvalidateKeys` fires immediately when the mutator's `Task` resolves. For eventually-consistent backends (read replicas, CQRS), use `OnSuccess` and call `queryClient.Invalidate(...)` manually to control timing.
+
+---
+
+## Caching
+
+The cache is owned by `IQueryClient` and keyed by `QueryKey`. All queries that produce the same key share one cache entry — only one fetch ever runs at a time for a given key (deduplication).
+
+**StaleTime** — how long fetched data is considered "fresh". Within this window `Invalidate()` is a no-op.
+- Default: `TimeSpan.Zero` (stale immediately after fetching)
+- `Refetch()` always bypasses stale time
+
+**CacheTime** — how long data is kept in memory after the last subscriber unsubscribes.
+- Default: 5 minutes
+- During this window a new subscriber gets the cached state immediately
+- After expiry the entry is evicted; the next subscriber starts fresh
+
+**RefetchInterval** — automatic polling while subscribers exist. Stops when the last subscriber unsubscribes.
+
+Invalidation via `IQueryClient`:
+```csharp
+client.Invalidate(QueryKey.From("users", 42));           // exact key match
+client.Invalidate(key => key.ToString().StartsWith("users")); // predicate
+client.Invalidate(_ => true);                            // everything
+```
+
+---
+
+## IRetryHandler
+
+```csharp
+public interface IRetryHandler
+{
+    Task<TData> ExecuteAsync<TData>(
+        Func<CancellationToken, Task<TData>> action,
+        CancellationToken cancellationToken = default);
+}
+```
+
+The built-in `DefaultRetryHandler` makes a single attempt with no retry. Implement `IRetryHandler` to add custom policies.
+
+Rules for custom implementations:
+1. Always rethrow `OperationCanceledException` immediately — never retry a cancellation.
+2. Use `ExceptionDispatchInfo.Throw(last)` to rethrow to preserve the original stack trace.
+3. Pass the `CancellationToken` to `Task.Delay` in backoff loops.
+
+Example — linear retry:
+```csharp
+public sealed class LinearRetryHandler(int attempts, TimeSpan delay) : IRetryHandler
+{
+    public async Task<TData> ExecuteAsync<TData>(
+        Func<CancellationToken, Task<TData>> action,
+        CancellationToken cancellationToken = default)
+    {
+        Exception? last = null;
+        for (var i = 0; i < attempts; i++)
+        {
+            try { return await action(cancellationToken); }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                last = ex;
+                if (i < attempts - 1)
+                    await Task.Delay(delay, cancellationToken);
+            }
+        }
+        ExceptionDispatchInfo.Throw(last!);
+        throw null!; // unreachable
+    }
+}
+```
+
+Polly integration:
+```csharp
+public sealed class PollyRetryHandler(ResiliencePipeline pipeline) : IRetryHandler
+{
+    public Task<TData> ExecuteAsync<TData>(
+        Func<CancellationToken, Task<TData>> action,
+        CancellationToken cancellationToken = default) =>
+        pipeline.ExecuteAsync(action, cancellationToken).AsTask();
+}
+```
+
+---
+
+## Dependency Injection
+
+```csharp
+// Program.cs
+builder.Services.AddDotNetQuery(options =>
+{
+    options.StaleTime       = TimeSpan.FromMinutes(1);
+    options.CacheTime       = TimeSpan.FromMinutes(10);
+    options.RetryHandler    = new MyRetryHandler();
+    options.ExecutionMode   = QueryExecutionMode.Csr;  // Singleton (default)
+    // or
+    options.ExecutionMode   = QueryExecutionMode.Ssr;  // Scoped (Blazor Server)
+});
+```
+
+`IQueryClient` is registered based on `ExecutionMode`:
+- `Csr` (Client-Side Rendering / WebAssembly) → **Singleton**
+- `Ssr` (Server-Side Rendering / Blazor Server) → **Scoped** (per SignalR circuit)
+
+For Blazor Auto render mode, register both:
+```csharp
+// Server project
+builder.Services.AddDotNetQuery(o => o.ExecutionMode = QueryExecutionMode.Ssr);
+
+// Client project (WebAssembly)
+builder.Services.AddDotNetQuery(o => o.ExecutionMode = QueryExecutionMode.Csr);
+```
+
+An optional `IScheduler` (from Rx.NET) can be registered in DI for testing — inject `TestScheduler` to control virtual time without real waits.
+
+---
+
+## Blazor Components
+
+Add to `_Imports.razor`:
+```razor
+@using DotNetQuery.Blazor
+```
+
+### `<Suspense>`
+
+Shows `Loading` while fetching (including background refetches), `Content` on success, `Failure` on error.
+
+```razor
+<Suspense Query="_userQuery">
+    <Content Context="user"><h1>@user.Name</h1></Content>
+    <Loading><p>Loading...</p></Loading>
+    <Failure Context="error"><p>Error: @error.Message</p></Failure>
+</Suspense>
+```
+
+Parameters: `Query` (required), `Content` (required), `Loading` (optional), `Failure` (optional).
+
+Use when: you want a clean loading state between navigations, or the data must be fresh before rendering.
+
+### `<Transition>`
+
+Applies **stale-while-revalidate**: keeps showing the last successful data during background refetches. Only shows `Loading` when there is no previous data at all.
+
+```razor
+<Transition Query="_listQuery">
+    <Content Context="items">
+        @foreach (var item in items) { <ItemCard Item="item" /> }
+    </Content>
+    <Loading><p>Loading...</p></Loading>
+    <Failure Context="error"><p>@error.Message</p></Failure>
+</Transition>
+```
+
+Same parameters as `<Suspense>`.
+
+Use when: data updates frequently and you want smooth background refreshes without spinner flicker.
+
+| Scenario | Suspense | Transition |
+|---|---|---|
+| Initial load (no data) | Loading | Loading |
+| Background refetch (has old data) | Loading | old Content |
+| Success | Content | Content |
+| Failure (has old data) | Failure | old Content |
+| Failure (no old data) | Failure | Failure |
+
+### `<QueryRefreshMonitor>`
+
+Side-effect component. Registers browser `visibilitychange` and `online` events. When the tab regains focus or network reconnects, calls `queryClient.Invalidate(_ => true)`. Respects `StaleTime` — fresh data is never re-fetched.
+
+```razor
+@* MainLayout.razor — place once near the root *@
+<QueryRefreshMonitor />
+<QueryRefreshMonitor RefetchOnFocus="false" />      @* reconnect only *@
+<QueryRefreshMonitor RefetchOnReconnect="false" />  @* focus only *@
+```
+
+Requires an interactive render mode (WASM or interactive Blazor Server). No-op under static SSR.
+
+### `<QueryDevTools>`
+
+Live cache inspector panel (separate package `DotNetQuery.Blazor.DevTools`). Shows every cache entry with its key, status, observer count, and data. Supports filtering, invalidation, and drag-to-resize.
+
+```razor
+@* MainLayout.razor *@
+@using DotNetQuery.Blazor.DevTools
+@inject IHostEnvironment Env
+
+@if (Env.IsDevelopment())
+{
+    <QueryDevTools />
+}
+```
+
+---
+
+## Recommended Patterns
+
+### Service/Facade class
+
+Define queries and mutations in a dedicated service class. Register it with DI. Components inject the service and only handle rendering + pushing args.
+
+```csharp
+public sealed class UserService(IQueryClient queryClient, HttpClient http) : IDisposable
+{
+    public readonly IQuery<int, UserDto> UserQuery = queryClient.CreateQuery(
+        new QueryOptions<int, UserDto>
+        {
+            KeyFactory = id => QueryKey.From("users", id),
+            Fetcher    = (id, ct) => http.GetFromJsonAsync<UserDto>($"/api/users/{id}", ct)!,
+            StaleTime  = TimeSpan.FromMinutes(5),
+        });
+
+    public readonly IMutation<UpdateUserRequest, UserDto> UpdateUser =
+        queryClient.CreateMutation(new MutationOptions<UpdateUserRequest, UserDto>
+        {
+            Mutator        = (req, ct) => http.PutAsJsonAsync<UserDto>($"/api/users/{req.Id}", req, ct),
+            InvalidateKeys = [QueryKey.From("users")],
+        });
+
+    public void Dispose()
+    {
+        UserQuery.Dispose();
+        UpdateUser.Dispose();
+    }
+}
+```
+
+```razor
+@page "/users/{Id:int}"
+@inject UserService Users
+
+<Suspense Query="Users.UserQuery">
+    <Content Context="user">
+        <h1>@user.Name</h1>
+        <button @onclick="() => Users.UserQuery.Refetch()">Refresh</button>
+    </Content>
+    <Loading><p>Loading...</p></Loading>
+    <Failure Context="e"><p>@e.Message</p></Failure>
+</Suspense>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    protected override void OnParametersSet() => Users.UserQuery.SetArgs(Id);
+}
+```
+
+### Optimistic Updates
+
+```csharp
+UserDto? _snapshot = null;
+
+UpdateUser = queryClient.CreateMutation(new MutationOptions<UserDto, UserDto>
+{
+    Mutator = (user, ct) => api.UpdateUserAsync(user, ct),
+
+    OnMutate = user =>
+    {
+        _snapshot = UserQuery.CurrentState.CurrentData;  // 1. snapshot
+        UserQuery.Cancel();                              // 2. stop in-flight fetch
+        UserQuery.SetData(user);                         // 3. apply optimistic value
+    },
+
+    OnFailure = _ =>
+    {
+        if (_snapshot is not null)
+            UserQuery.SetData(_snapshot);                // 4. roll back on error
+    },
+
+    // On success: replace optimistic data with the server-confirmed value
+    InvalidateKeys = [QueryKey.From("users", ...)],
+});
+```
+
+### Prefetching
+
+Warm the cache before a component mounts (e.g. on hover):
+
+```csharp
+private async Task OnItemHover(int userId)
+{
+    // Skipped if data is still fresh (within StaleTime)
+    await _userService.UserQuery.PrefetchAsync(userId);
+}
+```
+
+When the user clicks and the detail component mounts and calls `SetArgs(userId)`, data is already cached — no loading state.
+
+### Conditional Queries
+
+```csharp
+var query = queryClient.CreateQuery(new QueryOptions<int?, UserDto>
+{
+    KeyFactory = id => QueryKey.From("users", id),
+    Fetcher    = (id, ct) => api.GetUserAsync(id!.Value, ct),
+    IsEnabled  = false,  // start disabled
+});
+
+// Later, when user selects an ID:
+query.SetEnabled(true);
+query.SetArgs(selectedUserId);
+```
+
+### Data Selector (derived observable)
+
+```csharp
+// Subscribes to only the user's name, won't re-emit if name is unchanged
+IObservable<string> userName = query.Select(user => user.Name);
+```
+
+---
+
+## Observability
+
+All telemetry uses BCL APIs only (`ActivitySource`, `Meter`, `ILogger`). No OpenTelemetry package is required in the library.
+
+```csharp
+// Subscribe in your app project:
+builder.Services.AddOpenTelemetry()
+    .WithTracing(b => b.AddSource(QueryTelemetry.SourceName))    // "DotNetQuery"
+    .WithMetrics(b => b.AddMeter(QueryTelemetry.SourceName));
+```
+
+Activity spans:
+
+| Span name | When | Tags |
+|---|---|---|
+| `query.fetch` | Every query fetch | `query.key`, `otel.status_code`, `error.type` (on failure) |
+| `mutation.execute` | Every mutation execution | `otel.status_code`, `error.type` (on failure) |
+
+Metrics (meter name: `"DotNetQuery"`):
+
+| Instrument | Type | Unit | Tags |
+|---|---|---|---|
+| `dotnetquery.query.duration` | Histogram | ms | `query.key`, `status` |
+| `dotnetquery.query.active` | UpDownCounter | — | `query.key` |
+| `dotnetquery.cache.hits` | Counter | — | `query.key` |
+| `dotnetquery.cache.misses` | Counter | — | `query.key` |
+| `dotnetquery.mutation.duration` | Histogram | ms | `status` |
+
+Log category: `"DotNetQuery"`. Control verbosity:
+
+```json
+{ "Logging": { "LogLevel": { "DotNetQuery": "Warning" } } }
+```
+
+---
+
+## Caching Reference
+
+| Scenario | StaleTime | CacheTime | RefetchInterval |
+|---|---|---|---|
+| User profile (changes rarely) | 5–10 min | 30 min | — |
+| Live dashboard | 0 | 1 min | 10–30 s |
+| Config / feature flags | 1 h | 1 h | — |
+| Search results | 0 | 0 | — |
+| Notifications | 0 | 5 min | 30 s |
+
+---
+
+## Architecture Notes
+
+- `IQueryClient` is `QueryClient` internally, which owns a `QueryCache`.
+- `QueryCache` is a `ConcurrentDictionary<QueryKey, IQuery>` with timer-based eviction via `Observable.Timer`.
+- `CreateQuery` returns a `QueryObserver<TArgs, TData>` — a key-switching proxy. Each `SetArgs` call creates or retrieves a `Query<TArgs, TData>` from the cache and switches `_activeQuery` to it.
+- `Query<TArgs, TData>` is the actual cache entry. It uses a `BehaviorSubject<QueryState<TData>>` for state and `Observable.FromAsync(...).Switch()` so that a new invalidation cancels the previous in-flight fetch.
+- `Mutation<TArgs, TData>` uses the same `.Switch()` pattern — a new `Execute()` cancels the previous execution.
+- When `Invalidate()` is called with no active subscribers, `_isStale = true` is set. The fetch is deferred and triggered by the first subscriber that joins.
+- `IScheduler` is injected everywhere time is used (stale-time, cache eviction, refetch intervals). Production uses `DefaultScheduler.Instance` (real clock). Tests inject `TestScheduler` from `Microsoft.Reactive.Testing` for deterministic time control.
+- `IQueryClientInspector` is an internal interface on `QueryClient` that exposes `IObservable<IReadOnlyList<IQueryInspector>> CacheEntries`. `IQueryInspector` extends `IQuery` and adds `Status`, `CurrentData`, `LastUpdatedAt`, `ObserverCount`, and `StateChanged`. `QueryDevTools` casts `IQueryClient` to this interface at runtime and works directly with the typed list.
