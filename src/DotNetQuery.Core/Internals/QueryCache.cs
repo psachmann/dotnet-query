@@ -1,23 +1,19 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class QueryCache : IDisposable
+internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation instrumentation) : IDisposable
 {
     private readonly ConcurrentDictionary<QueryKey, IQuery> _entries = new();
     private readonly ConcurrentDictionary<QueryKey, IDisposable> _pendingRemovals = new();
-    private readonly BehaviorSubject<IReadOnlyDictionary<QueryKey, IQuery>> _entriesSubject;
-    private readonly IScheduler _scheduler;
-    private readonly QueryInstrumentation _instrumentation;
+    private readonly ConcurrentDictionary<QueryKey, IDisposable> _stateSubscriptions = new();
+    private readonly BehaviorSubject<IReadOnlyList<IQueryInspector>> _entriesSubject = new([]);
+    private readonly IScheduler _scheduler = scheduler;
+    private readonly QueryInstrumentation _instrumentation = instrumentation;
     private readonly Lock _evictionLock = new();
     private bool _disposed;
 
-    public QueryCache(IScheduler scheduler, QueryInstrumentation instrumentation)
-    {
-        _scheduler = scheduler;
-        _instrumentation = instrumentation;
-        _entriesSubject = new(_entries);
-    }
+    public IObservable<IReadOnlyList<IQueryInspector>> Entries => _entriesSubject.AsObservable();
 
-    public IObservable<IReadOnlyDictionary<QueryKey, IQuery>> Entries => _entriesSubject.AsObservable();
+    private IReadOnlyList<IQueryInspector> Snapshot() => [.. _entries.Values.Cast<IQueryInspector>()];
 
     public Query<TArgs, TData> GetOrCreate<TArgs, TData>(QueryKey key, Query<TArgs, TData> query)
     {
@@ -26,7 +22,7 @@ internal sealed class QueryCache : IDisposable
             if (_pendingRemovals.TryRemove(key, out var pending))
             {
                 pending.Dispose();
-                _entriesSubject.OnNext(_entries);
+                _entriesSubject.OnNext(Snapshot());
             }
 
             var result = (Query<TArgs, TData>)_entries.GetOrAdd(key, query);
@@ -34,7 +30,8 @@ internal sealed class QueryCache : IDisposable
             if (ReferenceEquals(result, query))
             {
                 _instrumentation.RecordCacheMiss(key);
-                _entriesSubject.OnNext(_entries);
+                _stateSubscriptions[key] = query.StateChanged.Subscribe(_ => _entriesSubject.OnNext(Snapshot()));
+                _entriesSubject.OnNext(Snapshot());
             }
             else
             {
@@ -60,14 +57,18 @@ internal sealed class QueryCache : IDisposable
 
                 lock (_evictionLock)
                 {
-                    if (_pendingRemovals.TryRemove(key, out IDisposable? _) && _entries.TryRemove(key, out var query))
+                    if (_pendingRemovals.TryRemove(key, out IDisposable? _) && _entries.TryRemove(key, out var removed))
                     {
-                        toDispose = query;
+                        toDispose = removed;
+                        if (_stateSubscriptions.TryRemove(key, out var stateSub))
+                        {
+                            stateSub.Dispose();
+                        }
                     }
                 }
 
                 toDispose?.Dispose();
-                _entriesSubject.OnNext(_entries);
+                _entriesSubject.OnNext(Snapshot());
             });
 
         _pendingRemovals[key] = subscription;
@@ -107,6 +108,13 @@ internal sealed class QueryCache : IDisposable
         }
 
         _pendingRemovals.Clear();
+
+        foreach (var subscription in _stateSubscriptions.Values)
+        {
+            subscription.Dispose();
+        }
+
+        _stateSubscriptions.Clear();
 
         foreach (var query in _entries.Values)
         {

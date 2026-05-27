@@ -20,7 +20,7 @@ public class QueryRefreshMonitorTests
 
     private BunitJSModuleInterop SetupJsModule()
     {
-        var module = _context.JSInterop.SetupModule("./_content/DotNetQuery.Blazor/dotnetquery-refresh.js");
+        var module = _context.JSInterop.SetupModule("./_content/DotNetQuery.Blazor/QueryRefreshMonitor.js");
 
         module.SetupVoid("register", _ => true);
 

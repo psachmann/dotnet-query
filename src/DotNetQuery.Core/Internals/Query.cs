@@ -59,6 +59,8 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
 
     public int ObserverCount => _subscriberCount;
 
+    public IObservable<Unit> StateChanged => _state.Select(_ => Unit.Default);
+
     public IObservable<QueryState<TData>> State =>
         Observable.Create<QueryState<TData>>(observer =>
         {

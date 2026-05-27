@@ -36,7 +36,7 @@ public sealed partial class QueryRefreshMonitor : IAsyncDisposable
         _dotnetRef = DotNetObjectReference.Create(this);
         _module = await JS.InvokeAsync<IJSObjectReference>(
             "import",
-            "./_content/DotNetQuery.Blazor/dotnetquery-refresh.js"
+            "./_content/DotNetQuery.Blazor/QueryRefreshMonitor.js"
         );
 
         await _module.InvokeVoidAsync("register", _dotnetRef, RefetchOnFocus, RefetchOnReconnect);

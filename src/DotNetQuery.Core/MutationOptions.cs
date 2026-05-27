@@ -26,6 +26,13 @@ public sealed record MutationOptions<TArgs, TData>
     /// A list of <see cref="QueryKey"/> values to invalidate automatically after a successful execution.
     /// <c>null</c> skips automatic invalidation.
     /// </summary>
+    /// <remarks>
+    /// Invalidation fires immediately when the <see cref="Mutator"/> task resolves.
+    /// For eventually-consistent backends — read replicas, CQRS read models, async side-effects —
+    /// the re-fetch may arrive before the write is visible and return stale data.
+    /// In those cases use <see cref="OnSuccess"/> instead, where you control when to call
+    /// <c>QueryClient.Invalidate(...)</c>.
+    /// </remarks>
     public IReadOnlyList<QueryKey>? InvalidateKeys { get; init; }
 
     /// <summary>
