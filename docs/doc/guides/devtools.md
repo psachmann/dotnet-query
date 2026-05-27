@@ -47,7 +47,7 @@ That is the only change required. No configuration, no DI registration — the c
 
 When the panel is closed, a floating button appears in the bottom-right corner. Click it to open the panel.
 
-![DevTools toggle button in the bottom-right corner](../../../images/dotnet-query-blazor-devtools-button.png)
+![DevTools toggle button in the bottom-right corner](../../images/dotnet-query-blazor-devtools-button.png)
 
 The panel header shows live badge counts for each status:
 
@@ -83,7 +83,7 @@ Click any row to open the detail panel on the right. It shows:
 | **Cache Time** | How long data stays in cache after all subscribers leave. |
 | **Data** | The current cached data, pretty-printed as JSON. |
 
-![DevTools panel showing the query list and detail view](../../../images/dotnet-query-blazor-devtools-panel.png)
+![DevTools panel showing the query list and detail view](../../images/dotnet-query-blazor-devtools-panel.png)
 
 Two action buttons are available:
 
