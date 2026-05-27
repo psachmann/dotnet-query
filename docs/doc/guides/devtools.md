@@ -12,7 +12,7 @@ dotnet add package DotNetQuery.Blazor.DevTools
 
 Then add the namespace to your `_Imports.razor`:
 
-```razor
+```html
 @using DotNetQuery.Blazor.DevTools
 ```
 
@@ -20,7 +20,7 @@ Then add the namespace to your `_Imports.razor`:
 
 Place `<QueryDevTools>` in your `MainLayout.razor`. Use `IHostEnvironment` to limit it to development so it is excluded from production:
 
-```razor
+```html
 @* MainLayout.razor *@
 @inherits LayoutComponentBase
 

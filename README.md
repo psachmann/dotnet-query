@@ -80,7 +80,7 @@ var mutation = queryClient.CreateMutation(new MutationOptions<CreateUserRequest,
 mutation.Execute(new CreateUserRequest { Name = "Alice" });
 ```
 
-```razor
+```html
 <!-- Blazor -->
 <Suspense Query="query">
     <Content Context="user"><p>Hello, @user.Name!</p></Content>

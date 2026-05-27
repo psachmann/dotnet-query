@@ -3,6 +3,10 @@ name: Docs
 on:
   push:
     branches: [main]
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - '.github/workflows/docs.yaml'
 
 jobs:
   docs:

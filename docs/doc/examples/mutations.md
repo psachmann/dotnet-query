@@ -53,7 +53,7 @@ public sealed class UserMutations(IQueryClient queryClient, UserApiClient api) :
 
 ## Create User Form
 
-```razor
+```html
 @inject UserMutations Mutations
 @implements IDisposable
 
@@ -112,7 +112,7 @@ public sealed class UserMutations(IQueryClient queryClient, UserApiClient api) :
 
 ## Delete with Optimistic Feedback
 
-```razor
+```html
 @inject UserMutations Mutations
 
 <button @onclick="() => HandleDelete(user.Id)"
@@ -174,7 +174,7 @@ public sealed class ProfileWorkflow(IQueryClient queryClient, UserApiClient api)
 }
 ```
 
-```razor
+```html
 @inject ProfileWorkflow Workflow
 @implements IDisposable
 

@@ -170,7 +170,7 @@ builder.Services.AddScoped<UserMutations>();
 
 Render query state declaratively with `<Suspense>`:
 
-```razor
+```html
 @inject UserQueries Queries
 
 <Suspense Query="Queries.UserQuery">
@@ -195,7 +195,7 @@ Render query state declaratively with `<Suspense>`:
 
 Subscribe to mutation state directly for form handling. The component only disposes its own subscription — the mutation itself is owned by the injected service:
 
-```razor
+```html
 @inject UserMutations Mutations
 @inject NavigationManager Nav
 @implements IDisposable

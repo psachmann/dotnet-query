@@ -31,7 +31,7 @@ Add `<QueryRefreshMonitor>` so stale queries automatically refetch when the netw
 
 Both components require an interactive render mode — placing them in `MainLayout.razor` rather than `App.razor` ensures they run under the correct render context. If your app has multiple layouts, add the components to each one or extract them into a shared parent layout.
 
-```razor
+```html
 @* MainLayout.razor *@
 @inherits LayoutComponentBase
 
@@ -107,7 +107,7 @@ public sealed class UserMutations(IQueryClient queryClient, HttpClient http) : I
 
 ## User List Page
 
-```razor
+```html
 @page "/users"
 @inject UserQueries Queries
 @inject NavigationManager Nav
@@ -161,7 +161,7 @@ public sealed class UserMutations(IQueryClient queryClient, HttpClient http) : I
 
 ## User Detail Page
 
-```razor
+```html
 @page "/users/{Id:int}"
 @inject UserQueries Queries
 @inject NavigationManager Nav
@@ -200,7 +200,7 @@ public sealed class UserMutations(IQueryClient queryClient, HttpClient http) : I
 
 The component only disposes its own state subscription — the mutation itself is owned and disposed by the injected service.
 
-```razor
+```html
 @page "/users/new"
 @inject UserMutations Mutations
 @inject NavigationManager Nav
@@ -266,7 +266,7 @@ The component only disposes its own state subscription — the mutation itself i
 
 Uses `Settled.Take(1)` to track per-click state without holding a long-lived subscription. Because `DeleteUser` declares `InvalidateKeys`, the users list refetches automatically on success.
 
-```razor
+```html
 @* Components/DeleteButton.razor *@
 @inject UserMutations Mutations
 

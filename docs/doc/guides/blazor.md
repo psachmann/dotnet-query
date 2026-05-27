@@ -12,7 +12,7 @@ dotnet add package DotNetQuery.Blazor
 
 Then add the namespace to your `_Imports.razor`:
 
-```razor
+```html
 @using DotNetQuery.Blazor
 ```
 
@@ -20,7 +20,7 @@ Then add the namespace to your `_Imports.razor`:
 
 `<Suspense>` is the straightforward component. It shows a loading indicator while fetching, the data when successful, and an error template on failure. While a background refetch is in progress, it shows the loading template — the old data is hidden.
 
-```razor
+```html
 <Suspense Query="_userQuery">
     <Content Context="user">
         <h1>@user.Name</h1>
@@ -55,7 +55,7 @@ Use `<Suspense>` when:
 
 `<Transition>` applies **stale-while-revalidate** semantics: while a background fetch is in progress it keeps showing the last successful data instead of switching to a loading indicator. Only when there is no previous data at all does it fall back to the loading template.
 
-```razor
+```html
 <Transition Query="_productListQuery">
     <Content Context="products">
         @foreach (var product in products)
@@ -130,7 +130,7 @@ public sealed class UserProfileQueries(IQueryClient queryClient, HttpClient http
 }
 ```
 
-```razor
+```html
 @page "/users/{Id:int}"
 @inject UserProfileQueries Queries
 
@@ -171,7 +171,7 @@ public sealed class UserProfileQueries(IQueryClient queryClient, HttpClient http
 
 `<QueryRefreshMonitor>` is a side-effect component that automatically invalidates stale queries when the browser comes back online or the user returns to the tab. Place it in your `MainLayout.razor` — it renders no markup.
 
-```razor
+```html
 @* MainLayout.razor *@
 @inherits LayoutComponentBase
 
@@ -197,7 +197,7 @@ Invalidation respects each query's `StaleTime` — fresh data is never re-fetche
 
 To disable one trigger, pass `false` for that parameter:
 
-```razor
+```html
 <QueryRefreshMonitor RefetchOnFocus="false" />      <!-- reconnect only -->
 <QueryRefreshMonitor RefetchOnReconnect="false" />  <!-- focus only -->
 ```
@@ -214,7 +214,7 @@ dotnet add package DotNetQuery.Blazor.DevTools
 
 Add it in `MainLayout.razor` and use `IHostEnvironment` to limit it to development:
 
-```razor
+```html
 @* MainLayout.razor *@
 @inherits LayoutComponentBase
 

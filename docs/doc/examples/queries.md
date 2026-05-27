@@ -51,7 +51,7 @@ public sealed class UserQueries(IQueryClient queryClient, UserApiClient api) : I
 
 ## Blazor Component
 
-```razor
+```html
 @page "/users/{Id:int}"
 @inject UserQueries Queries
 @implements IDisposable
