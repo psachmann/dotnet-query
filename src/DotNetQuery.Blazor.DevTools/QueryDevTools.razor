@@ -118,7 +118,8 @@ else
                     var selLastUpdated = GetLastUpdated(sel);
                     var selData        = SerializeData(GetData(sel));
 
-                    <div class="dnq-detail">
+                    <div class="dnq-detail-resize-handle" @onmousedown="OnDetailResizeHandleMouseDown" @onmousedown:preventDefault title="Drag to resize"></div>
+                    <div class="dnq-detail" style="width: @(_detailWidth)px" @ref="_detailRef">
 
                         <div class="dnq-detail-key-header">@_selectedKey.ToString()</div>
 

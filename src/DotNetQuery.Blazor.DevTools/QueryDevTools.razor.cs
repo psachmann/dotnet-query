@@ -3,14 +3,17 @@ namespace DotNetQuery.Blazor.DevTools;
 /// <summary>
 /// A Blazor component that renders a live view of the DotNetQuery cache,
 /// showing each cached query's key, status, observer count, and current data.
-/// Add it once near the root of your app (e.g. <c>App.razor</c>).
-/// Wrap it in <c>#if DEBUG</c> at the call site to exclude it from Release builds.
+/// Add it once in <c>MainLayout.razor</c> and guard it with <c>IHostEnvironment.IsDevelopment()</c>
+/// to limit it to development environments.
 /// </summary>
 /// <example>
 /// <code>
-/// #if DEBUG
-/// &lt;QueryDevTools /&gt;
-/// #endif
+/// @inject IHostEnvironment Env
+///
+/// @if (Env.IsDevelopment())
+/// {
+///     &lt;QueryDevTools /&gt;
+/// }
 /// </code>
 /// </example>
 public sealed partial class QueryDevTools : IAsyncDisposable
@@ -25,12 +28,14 @@ public sealed partial class QueryDevTools : IAsyncDisposable
     private bool _isDarkMode = true;
     private string _filter = "";
     private int _panelHeight = 350;
+    private int _detailWidth = 340;
     private IReadOnlyDictionary<QueryKey, IQuery> _cacheEntries = new Dictionary<QueryKey, IQuery>();
     private QueryKey? _selectedKey;
     private IDisposable? _cacheSubscription;
     private IJSObjectReference? _module;
     private DotNetObjectReference<QueryDevTools>? _dotnetRef;
     private ElementReference _panelRef;
+    private ElementReference _detailRef;
 
     /// <inheritdoc/>
     protected override void OnInitialized()
@@ -91,11 +96,28 @@ public sealed partial class QueryDevTools : IAsyncDisposable
         await _module.InvokeVoidAsync("startResize", _panelRef, (int)e.ClientY, _panelHeight);
     }
 
-    /// <summary>Called from JS when the user finishes dragging the resize handle.</summary>
+    /// <summary>Called from JS when the user finishes dragging the panel height resize handle.</summary>
     [JSInvokable]
     public void OnResizeEnd(int height)
     {
         _panelHeight = Math.Max(150, height);
+    }
+
+    private async Task OnDetailResizeHandleMouseDown(MouseEventArgs e)
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        await _module.InvokeVoidAsync("startDetailResize", _detailRef, (int)e.ClientX, _detailWidth);
+    }
+
+    /// <summary>Called from JS when the user finishes dragging the detail panel width resize handle.</summary>
+    [JSInvokable]
+    public void OnDetailResizeEnd(int width)
+    {
+        _detailWidth = Math.Max(200, width);
     }
 
     private IReadOnlyList<KeyValuePair<QueryKey, IQuery>> FilteredEntries
