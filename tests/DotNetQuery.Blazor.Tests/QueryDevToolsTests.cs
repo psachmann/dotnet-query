@@ -18,9 +18,12 @@ public class QueryDevToolsTests
         _client = QueryClientFactory.Create(new QueryClientOptions());
         _context.Services.AddSingleton(_client);
 
-        _jsModule = _context.JSInterop.SetupModule("./_content/DotNetQuery.Blazor.DevTools/dotnetquery-devtools.js");
+        _jsModule = _context.JSInterop.SetupModule("./_content/DotNetQuery.Blazor.DevTools/QueryDevTools.js");
         _jsModule.SetupVoid("init", _ => true);
+        _jsModule.Setup<string>("getTheme", _ => true).SetResult("dark");
+        _jsModule.SetupVoid("setTheme", _ => true);
         _jsModule.SetupVoid("startResize", _ => true);
+        _jsModule.SetupVoid("startDetailResize", _ => true);
     }
 
     [After(Test)]
@@ -306,8 +309,9 @@ public class QueryDevToolsTests
         // Mock<IQueryClient> does not implement IQueryClientInspector,
         // so OnInitialized hits the early return at line 39.
         using var ctx = new BunitContext();
-        var jsm = ctx.JSInterop.SetupModule("./_content/DotNetQuery.Blazor.DevTools/dotnetquery-devtools.js");
+        var jsm = ctx.JSInterop.SetupModule("./_content/DotNetQuery.Blazor.DevTools/QueryDevTools.js");
         jsm.SetupVoid("init", _ => true);
+        jsm.Setup<string>("getTheme", _ => true).SetResult("dark");
         var mockClient = Mock.Of<IQueryClient>();
         ctx.Services.AddSingleton(mockClient.Object);
 

@@ -15,7 +15,7 @@ internal sealed class QueryClient : IQueryClient, IQueryClientInspector
         _cache = new(_scheduler, _instrumentation);
     }
 
-    public IObservable<IReadOnlyDictionary<QueryKey, IQuery>> CacheEntries => _cache.Entries;
+    public IObservable<IReadOnlyList<IQueryInspector>> CacheEntries => _cache.Entries;
 
     public IQuery<TArgs, TData> CreateQuery<TArgs, TData>(QueryOptions<TArgs, TData> options) =>
         new QueryObserver<TArgs, TData>(options, _globalOptions, _cache, _scheduler, _instrumentation);
