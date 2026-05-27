@@ -29,7 +29,7 @@ public sealed partial class QueryDevTools : IAsyncDisposable
     private string _filter = "";
     private int _panelHeight = 350;
     private int _detailWidth = 340;
-    private IReadOnlyDictionary<QueryKey, IQuery> _cacheEntries = new Dictionary<QueryKey, IQuery>();
+    private IReadOnlyList<IQueryInspector> _cacheEntries = [];
     private QueryKey? _selectedKey;
     private IDisposable? _cacheSubscription;
     private IJSObjectReference? _module;
@@ -47,7 +47,7 @@ public sealed partial class QueryDevTools : IAsyncDisposable
 
         _cacheSubscription = inspector.CacheEntries.Subscribe(entries =>
         {
-            if (_selectedKey is not null && !entries.ContainsKey(_selectedKey))
+            if (_selectedKey is not null && !entries.Any(q => q.Key == _selectedKey))
             {
                 _selectedKey = null;
             }
@@ -120,32 +120,30 @@ public sealed partial class QueryDevTools : IAsyncDisposable
         _detailWidth = Math.Max(200, width);
     }
 
-    private IReadOnlyList<KeyValuePair<QueryKey, IQuery>> FilteredEntries
+    private IReadOnlyList<IQueryInspector> FilteredEntries
     {
         get
         {
-            var all = _cacheEntries;
-
             if (string.IsNullOrWhiteSpace(_filter))
             {
-                return [.. all];
+                return _cacheEntries;
             }
 
             var lower = _filter.Trim();
 
-            return all.Where(e => e.Key.ToString().Contains(lower, StringComparison.OrdinalIgnoreCase)).ToList();
+            return [.. _cacheEntries.Where(q => q.Key.ToString().Contains(lower, StringComparison.OrdinalIgnoreCase))];
         }
     }
 
-    private IQuery? SelectedQuery =>
-        _selectedKey is not null && _cacheEntries.TryGetValue(_selectedKey, out var q) ? q : null;
+    private IQueryInspector? SelectedQuery =>
+        _selectedKey is not null ? _cacheEntries.FirstOrDefault(q => q.Key == _selectedKey) : null;
 
-    private int FetchingCount => CountByStatus(QueryStatus.Fetching);
-    private int SuccessCount => CountByStatus(QueryStatus.Success);
-    private int IdleCount => CountByStatus(QueryStatus.Idle);
-    private int FailureCount => CountByStatus(QueryStatus.Failure);
+    private static int FetchingCount => CountByStatus(QueryStatus.Fetching);
+    private static int SuccessCount => CountByStatus(QueryStatus.Success);
+    private static int IdleCount => CountByStatus(QueryStatus.Idle);
+    private static int FailureCount => CountByStatus(QueryStatus.Failure);
 
-    private int CountByStatus(QueryStatus status) => _cacheEntries.Values.Count(q => GetStatus(q) == status);
+    private int CountByStatus(QueryStatus status) => _cacheEntries.Count(q => q.Status == status);
 
     private void Open() => _isOpen = true;
 
@@ -160,16 +158,6 @@ public sealed partial class QueryDevTools : IAsyncDisposable
     private bool IsSelected(QueryKey key) => _selectedKey == key;
 
     private void InvalidateAll() => QueryClient.Invalidate(_ => true);
-
-    private static QueryStatus GetStatus(IQuery query) =>
-        query is IQueryInspector insp ? insp.Status : QueryStatus.Idle;
-
-    private static object? GetData(IQuery query) => query is IQueryInspector insp ? insp.CurrentData : null;
-
-    private static DateTimeOffset? GetLastUpdated(IQuery query) =>
-        query is IQueryInspector insp ? insp.LastUpdatedAt : null;
-
-    private static int GetObserverCount(IQuery query) => query is IQueryInspector insp ? insp.ObserverCount : 0;
 
     private static string StatusCssClass(QueryStatus status) =>
         status switch

@@ -87,8 +87,8 @@ else
                         @foreach (var entry in FilteredEntries)
                         {
                             var key      = entry.Key;
-                            var status   = GetStatus(entry.Value);
-                            var observers = GetObserverCount(entry.Value);
+                            var status   = entry.Status;
+                            var observers = entry.ObserverCount;
 
                             <div class="dnq-query-row @(IsSelected(key) ? "dnq-row-selected" : "")"
                                  @onclick="() => ToggleSelected(key)"
@@ -113,10 +113,10 @@ else
                 }
                 @if (sel is not null && _selectedKey is not null)
                 {
-                    var selStatus      = GetStatus(sel);
-                    var selObservers   = GetObserverCount(sel);
-                    var selLastUpdated = GetLastUpdated(sel);
-                    var selData        = SerializeData(GetData(sel));
+                    var selStatus      = sel.Status;
+                    var selObservers   = sel.ObserverCount;
+                    var selLastUpdated = sel.LastUpdatedAt;
+                    var selData        = SerializeData(sel.CurrentData);
 
                     <div class="dnq-detail-resize-handle" @onmousedown="OnDetailResizeHandleMouseDown" @onmousedown:preventDefault title="Drag to resize"></div>
                     <div class="dnq-detail" style="width: @(_detailWidth)px" @ref="_detailRef">

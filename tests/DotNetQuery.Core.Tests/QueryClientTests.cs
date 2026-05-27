@@ -225,7 +225,7 @@ public class QueryClientTests
     {
         var inspector = (IQueryClientInspector)_sut;
 
-        IReadOnlyDictionary<QueryKey, IQuery>? entries = null;
+        IReadOnlyList<IQueryInspector>? entries = null;
         using var _ = inspector.CacheEntries.Subscribe(e => entries = e);
 
         using var _2 = Assert.Multiple();
@@ -238,7 +238,7 @@ public class QueryClientTests
     {
         var inspector = (IQueryClientInspector)_sut;
 
-        var emissions = new List<IReadOnlyDictionary<QueryKey, IQuery>>();
+        var emissions = new List<IReadOnlyList<IQueryInspector>>();
         using var sub = inspector.CacheEntries.Subscribe(e => emissions.Add(e));
 
         var query = _sut.CreateQuery(
@@ -254,7 +254,7 @@ public class QueryClientTests
         await query.State.Where(s => s.IsSuccess).FirstAsync();
 
         await Assert.That(emissions.Count).IsGreaterThan(1);
-        await Assert.That(emissions[^1].ContainsKey(QueryKey.From("a"))).IsTrue();
+        await Assert.That(emissions[^1].Any(q => q.Key == QueryKey.From("a"))).IsTrue();
     }
 
     [Test]
@@ -276,13 +276,13 @@ public class QueryClientTests
         query.SetArgs(0);
         await query.State.Where(s => s.IsSuccess).FirstAsync();
 
-        var emissions = new List<IReadOnlyDictionary<QueryKey, IQuery>>();
+        var emissions = new List<IReadOnlyList<IQueryInspector>>();
         using var _ = inspector.CacheEntries.Subscribe(e => emissions.Add(e));
 
         query.Detach();
         _scheduler.AdvanceBy(1);
 
-        await Assert.That(emissions[^1].ContainsKey(key)).IsFalse();
+        await Assert.That(emissions[^1].Any(q => q.Key == key)).IsFalse();
     }
 
     [Test]

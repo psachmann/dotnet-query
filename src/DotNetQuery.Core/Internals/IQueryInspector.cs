@@ -1,6 +1,6 @@
 namespace DotNetQuery.Core.Internals;
 
-internal interface IQueryInspector
+internal interface IQueryInspector : IQuery
 {
     public QueryStatus Status { get; }
 
@@ -9,4 +9,6 @@ internal interface IQueryInspector
     public DateTimeOffset? LastUpdatedAt { get; }
 
     public int ObserverCount { get; }
+
+    public IObservable<Unit> StateChanged { get; }
 }
