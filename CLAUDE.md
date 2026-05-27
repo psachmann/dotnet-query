@@ -61,7 +61,7 @@ The solution has four projects under `src/` and three test projects under `tests
 
 **`IRetryHandler`** — `DefaultRetryHandler` is a no-op pass-through (single attempt, no retry). Users supply their own implementation for actual retry logic.
 
-**`IQueryClientInspector`** — internal interface implemented by `QueryClient` that exposes `IObservable<IReadOnlyDictionary<QueryKey, IQuery>> CacheEntries`. `QueryDevTools` casts `IQueryClient` to this interface at runtime.
+**`IQueryClientInspector`** — internal interface implemented by `QueryClient` that exposes `IObservable<IReadOnlyList<IQueryInspector>> CacheEntries`. `IQueryInspector` extends `IQuery` and adds `Status`, `CurrentData`, `LastUpdatedAt`, `ObserverCount`, and `StateChanged`. `QueryDevTools` casts `IQueryClient` to this interface at runtime.
 
 ### Blazor layer
 

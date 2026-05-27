@@ -623,4 +623,4 @@ Log category: `"DotNetQuery"`. Control verbosity:
 - `Mutation<TArgs, TData>` uses the same `.Switch()` pattern — a new `Execute()` cancels the previous execution.
 - When `Invalidate()` is called with no active subscribers, `_isStale = true` is set. The fetch is deferred and triggered by the first subscriber that joins.
 - `IScheduler` is injected everywhere time is used (stale-time, cache eviction, refetch intervals). Production uses `DefaultScheduler.Instance` (real clock). Tests inject `TestScheduler` from `Microsoft.Reactive.Testing` for deterministic time control.
-- `IQueryClientInspector` is an internal interface on `QueryClient` that exposes `IObservable<IReadOnlyDictionary<QueryKey, IQuery>> CacheEntries`. `QueryDevTools` casts `IQueryClient` to this at runtime.
+- `IQueryClientInspector` is an internal interface on `QueryClient` that exposes `IObservable<IReadOnlyList<IQueryInspector>> CacheEntries`. `IQueryInspector` extends `IQuery` and adds `Status`, `CurrentData`, `LastUpdatedAt`, `ObserverCount`, and `StateChanged`. `QueryDevTools` casts `IQueryClient` to this interface at runtime and works directly with the typed list.
