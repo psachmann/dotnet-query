@@ -20,6 +20,8 @@ public class QueryDevToolsTests
 
         _jsModule = _context.JSInterop.SetupModule("./_content/DotNetQuery.Blazor.DevTools/QueryDevTools.js");
         _jsModule.SetupVoid("init", _ => true);
+        _jsModule.Setup<string>("getTheme", _ => true).SetResult("dark");
+        _jsModule.SetupVoid("setTheme", _ => true);
         _jsModule.SetupVoid("startResize", _ => true);
     }
 

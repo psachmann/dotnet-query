@@ -22,6 +22,7 @@ public sealed partial class QueryDevTools : IAsyncDisposable
     private IJSRuntime JS { get; set; } = default!;
 
     private bool _isOpen;
+    private bool _isDarkMode = true;
     private string _filter = "";
     private int _panelHeight = 350;
     private IReadOnlyDictionary<QueryKey, IQuery> _cacheEntries = new Dictionary<QueryKey, IQuery>();
@@ -62,9 +63,22 @@ public sealed partial class QueryDevTools : IAsyncDisposable
         _dotnetRef = DotNetObjectReference.Create(this);
         _module = await JS.InvokeAsync<IJSObjectReference>(
             "import",
-            "./_content/DotNetQuery.Blazor.DevTools/dotnetquery-devtools.js"
+            "./_content/DotNetQuery.Blazor.DevTools/QueryDevTools.js"
         );
         await _module.InvokeVoidAsync("init", _dotnetRef);
+
+        var theme = await _module.InvokeAsync<string>("getTheme");
+        _isDarkMode = theme != "light";
+        StateHasChanged();
+    }
+
+    private async Task ToggleTheme()
+    {
+        _isDarkMode = !_isDarkMode;
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("setTheme", _isDarkMode ? "dark" : "light");
+        }
     }
 
     private async Task OnResizeHandleMouseDown(MouseEventArgs e)
