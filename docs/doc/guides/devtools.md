@@ -18,20 +18,28 @@ Then add the namespace to your `_Imports.razor`:
 
 ## Adding the Component
 
-Place `<QueryDevTools>` once near the root of your app (e.g. `App.razor`). Wrap it in `#if DEBUG` so it is compiled out of Release builds:
+Place `<QueryDevTools>` in your `MainLayout.razor`. Use `IHostEnvironment` to limit it to development so it is excluded from production:
 
 ```razor
-@using DotNetQuery.Blazor.DevTools
+@* MainLayout.razor *@
+@inherits LayoutComponentBase
 
-#if DEBUG
-<QueryDevTools />
-#endif
-<Router AppAssembly="typeof(App).Assembly">
-    ...
-</Router>
+@using DotNetQuery.Blazor.DevTools
+@inject IHostEnvironment Env
+
+@if (Env.IsDevelopment())
+{
+    <QueryDevTools />
+}
+
+<div class="page">
+    @Body
+</div>
 ```
 
 That is the only change required. No configuration, no DI registration — the component reads from the `IQueryClient` that is already registered in your container.
+
+> **Multi-layout apps:** If your app has more than one layout, add `<QueryDevTools>` to each one, or extract it into a shared parent layout that the others inherit from.
 
 ## Features
 

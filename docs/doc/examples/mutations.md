@@ -44,11 +44,12 @@ public sealed class UserMutations(IQueryClient queryClient, UserApiClient api) :
 }
 ```
 
-> **Note on `InvalidateKeys`:** `InvalidateKeys` is evaluated when the mutation is *created*, not when it is *executed*. If you need to invalidate a key based on the args (e.g. `QueryKey.From("users", req.Id)`), do it in `OnSuccess` instead:
->
-> ```csharp
-> OnSuccess = (req, _) => queryClient.Invalidate(QueryKey.From("users", req.Id))
-> ```
+> **Notes on `InvalidateKeys`:**
+> - Keys are evaluated when the mutation is *created*, not when it is *executed*. To invalidate a key based on the args (e.g. `QueryKey.From("users", req.Id)`), use `OnSuccess` instead:
+>   ```csharp
+>   OnSuccess = (req, _) => queryClient.Invalidate(QueryKey.From("users", req.Id))
+>   ```
+> - Invalidation fires immediately when the mutator's `Task` resolves. For eventually-consistent backends (read replicas, CQRS read models), the re-fetch may return stale data. Use `OnSuccess` when you need to delay or conditionally invalidate.
 
 ## Create User Form
 

@@ -25,26 +25,30 @@ builder.Services.AddScoped<UserMutations>();
 await builder.Build().RunAsync();
 ```
 
-## App.razor
+## MainLayout.razor
 
-Add `<QueryRefreshMonitor>` once at the root so stale queries automatically refetch when the network comes back online or the user returns to the tab. Add `<QueryDevTools>` inside a `#if DEBUG` block to get a live cache inspector during development.
+Add `<QueryRefreshMonitor>` so stale queries automatically refetch when the network comes back online or the user returns to the tab. Use `IHostEnvironment` to limit `<QueryDevTools>` to development.
+
+Both components require an interactive render mode — placing them in `MainLayout.razor` rather than `App.razor` ensures they run under the correct render context. If your app has multiple layouts, add the components to each one or extract them into a shared parent layout.
 
 ```razor
+@* MainLayout.razor *@
+@inherits LayoutComponentBase
+
 @using DotNetQuery.Blazor
 @using DotNetQuery.Blazor.DevTools
+@inject IHostEnvironment Env
 
 <QueryRefreshMonitor />
-#if DEBUG
-<QueryDevTools />
-#endif
-<Router AppAssembly="typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />
-    </Found>
-    <NotFound>
-        <p>Page not found.</p>
-    </NotFound>
-</Router>
+
+@if (Env.IsDevelopment())
+{
+    <QueryDevTools />
+}
+
+<div class="page">
+    @Body
+</div>
 ```
 
 ## Service Layer

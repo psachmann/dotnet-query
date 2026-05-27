@@ -152,6 +152,22 @@ InvalidateKeys = [
 ],
 ```
 
+> **Timing note:** `InvalidateKeys` invalidates immediately when the mutator's `Task` resolves. For eventually-consistent backends — read replicas, CQRS read models, async side-effects — the re-fetch may arrive before the write is visible and return stale data. In those cases use `OnSuccess` instead, where you control when to invalidate:
+>
+> ```csharp
+> OnSuccess = (req, _) => queryClient.Invalidate(QueryKey.From("users"))
+> ```
+>
+> If you need a delay before re-fetching, make `OnSuccess` an `async` lambda:
+>
+> ```csharp
+> OnSuccess = async (req, _) =>
+> {
+>     await Task.Delay(500); // allow replica to catch up
+>     queryClient.Invalidate(QueryKey.From("users"));
+> }
+> ```
+
 ## Lifecycle Callbacks
 
 Callbacks let you react to mutation outcomes without subscribing to an observable:

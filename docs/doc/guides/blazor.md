@@ -169,19 +169,24 @@ public sealed class UserProfileQueries(IQueryClient queryClient, HttpClient http
 
 ## QueryRefreshMonitor
 
-`<QueryRefreshMonitor>` is a side-effect component that automatically invalidates stale queries when the browser comes back online or the user returns to the tab. Place it once near the root of your app (e.g. `App.razor`) — it renders no markup.
+`<QueryRefreshMonitor>` is a side-effect component that automatically invalidates stale queries when the browser comes back online or the user returns to the tab. Place it in your `MainLayout.razor` — it renders no markup.
 
 ```razor
-<!-- App.razor -->
+@* MainLayout.razor *@
+@inherits LayoutComponentBase
+
 <QueryRefreshMonitor />
-<Router AppAssembly="typeof(App).Assembly">
-    ...
-</Router>
+
+<div class="page">
+    @Body
+</div>
 ```
 
 Invalidation respects each query's `StaleTime` — fresh data is never re-fetched. Only stale queries trigger a background refetch.
 
 > **Requires an interactive render mode.** `<QueryRefreshMonitor>` works with both Blazor WASM and interactive Blazor Server — the browser events fire on the client and call back into .NET over SignalR. It has no effect under static SSR, where `OnAfterRenderAsync` never runs.
+
+> **Multi-layout apps:** If your app has more than one layout, add `<QueryRefreshMonitor>` to each one, or extract it into a shared parent layout that the others inherit from.
 
 ### Parameters
 
@@ -207,17 +212,23 @@ Install the package:
 dotnet add package DotNetQuery.Blazor.DevTools
 ```
 
-Add it once near the root of your app and wrap it in `#if DEBUG` to exclude it from Release builds:
+Add it in `MainLayout.razor` and use `IHostEnvironment` to limit it to development:
 
 ```razor
-@using DotNetQuery.Blazor.DevTools
+@* MainLayout.razor *@
+@inherits LayoutComponentBase
 
-#if DEBUG
-<QueryDevTools />
-#endif
-<Router AppAssembly="typeof(App).Assembly">
-    ...
-</Router>
+@using DotNetQuery.Blazor.DevTools
+@inject IHostEnvironment Env
+
+@if (Env.IsDevelopment())
+{
+    <QueryDevTools />
+}
+
+<div class="page">
+    @Body
+</div>
 ```
 
 See the [DevTools guide](devtools.md) for the full feature reference.
