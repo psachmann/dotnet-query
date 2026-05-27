@@ -138,10 +138,10 @@ public sealed partial class QueryDevTools : IAsyncDisposable
     private IQueryInspector? SelectedQuery =>
         _selectedKey is not null ? _cacheEntries.FirstOrDefault(q => q.Key == _selectedKey) : null;
 
-    private static int FetchingCount => CountByStatus(QueryStatus.Fetching);
-    private static int SuccessCount => CountByStatus(QueryStatus.Success);
-    private static int IdleCount => CountByStatus(QueryStatus.Idle);
-    private static int FailureCount => CountByStatus(QueryStatus.Failure);
+    private int FetchingCount => CountByStatus(QueryStatus.Fetching);
+    private int SuccessCount => CountByStatus(QueryStatus.Success);
+    private int IdleCount => CountByStatus(QueryStatus.Idle);
+    private int FailureCount => CountByStatus(QueryStatus.Failure);
 
     private int CountByStatus(QueryStatus status) => _cacheEntries.Count(q => q.Status == status);
 
