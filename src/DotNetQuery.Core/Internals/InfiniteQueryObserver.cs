@@ -143,5 +143,6 @@ internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam>
             IsEnabled = options.IsEnabled,
             RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
             DataComparer = options.DataComparer ?? EqualityComparer<TData>.Default,
+            InitialData = options.InitialData,
         };
 }

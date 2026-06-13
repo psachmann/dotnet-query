@@ -11,8 +11,7 @@ internal sealed record EffectiveInfiniteQueryOptions<TArgs, TData, TPageParam>
     public required Func<
         InfinitePageInfo<TData, TPageParam>,
         PageParam<TPageParam>
-    >? GetPreviousPageParam
-    { get; init; }
+    >? GetPreviousPageParam { get; init; }
 
     public required int? MaxPages { get; init; }
 
@@ -27,4 +26,6 @@ internal sealed record EffectiveInfiniteQueryOptions<TArgs, TData, TPageParam>
     public required TimeSpan? RefetchInterval { get; init; }
 
     public required IEqualityComparer<TData> DataComparer { get; init; }
+
+    public required TData? InitialData { get; init; }
 }

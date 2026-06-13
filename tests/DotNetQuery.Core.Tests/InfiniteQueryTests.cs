@@ -15,7 +15,8 @@ public class InfiniteQueryTests
         TimeSpan? staleTime = null,
         TimeSpan? cacheTime = null,
         TimeSpan? refetchInterval = null,
-        int args = 0
+        int args = 0,
+        string? initialData = null
     )
     {
         var options = new EffectiveInfiniteQueryOptions<int, string, int>
@@ -31,6 +32,7 @@ public class InfiniteQueryTests
             RetryHandler = new DefaultRetryHandler(),
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
+            InitialData = initialData,
         };
 
         return new InfiniteQuery<int, string, int>(QueryKey.From("test"), args, options, _scheduler, _instrumentation);
@@ -481,5 +483,58 @@ public class InfiniteQueryTests
         var state = await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
         await Assert.That(state.HasPreviousPage).IsFalse();
+    }
+
+    [Test]
+    public async Task InitialData_StartsInSuccessStateWithFirstPage()
+    {
+        using var sut = CreateQuery(initialData: "seed-page", initialPageParam: 1);
+
+        using var _ = Assert.Multiple();
+        await Assert.That(sut.CurrentState.IsSuccess).IsTrue();
+        await Assert.That(sut.CurrentState.Pages.Count).IsEqualTo(1);
+        await Assert.That(sut.CurrentState.Pages[0]).IsEqualTo("seed-page");
+        await Assert.That(sut.CurrentState.PageParams[0]).IsEqualTo(1);
+        await Assert.That(sut.CurrentState.HasData).IsTrue();
+    }
+
+    [Test]
+    public async Task InitialData_ComputesHasNextPage()
+    {
+        using var sut = CreateQuery(
+            initialData: "seed-page",
+            initialPageParam: 1,
+            getNextPageParam: info => PageParam<int>.Some(info.PageParam + 1)
+        );
+
+        await Assert.That(sut.CurrentState.HasNextPage).IsTrue();
+    }
+
+    [Test]
+    public async Task InitialData_HasNextPage_IsFalse_WhenGetNextPageParamReturnsNone()
+    {
+        using var sut = CreateQuery(
+            initialData: "seed-page",
+            initialPageParam: 1,
+            getNextPageParam: _ => PageParam<int>.None
+        );
+
+        await Assert.That(sut.CurrentState.HasNextPage).IsFalse();
+    }
+
+    [Test]
+    public async Task InitialData_IsReplacedAfterRefetch()
+    {
+        using var sut = CreateQuery(
+            fetcher: (_, page, _) => Task.FromResult($"fetched:{page}"),
+            initialData: "seed-page",
+            initialPageParam: 1
+        );
+
+        using var sub = sut.State.Subscribe();
+        sut.Refetch();
+
+        var state = await sut.State.Where(s => s.IsSuccess && s.Pages[0].StartsWith("fetched")).FirstAsync();
+        await Assert.That(state.Pages[0]).IsEqualTo("fetched:1");
     }
 }

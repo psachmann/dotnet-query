@@ -6,6 +6,8 @@
   items:
     - name: Queries
       href: guides/queries.md
+    - name: Infinite Queries
+      href: guides/infinite-queries.md
     - name: Mutations
       href: guides/mutations.md
     - name: Prefetching
@@ -24,13 +26,5 @@
       href: guides/observability.md
     - name: Server-Side Rendering
       href: guides/ssr.md
-- name: Examples
-  items:
-    - name: Fetching Data
-      href: examples/queries.md
-    - name: Creating & Updating Data
-      href: examples/mutations.md
-    - name: Blazor Integration
-      href: examples/blazor.md
 - name: Contributing
   href: contributing.md

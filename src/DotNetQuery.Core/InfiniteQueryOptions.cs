@@ -62,4 +62,12 @@ public sealed record InfiniteQueryOptions<TArgs, TData, TPageParam>
     /// Defaults to <see cref="EqualityComparer{T}.Default"/>.
     /// </summary>
     public IEqualityComparer<TData>? DataComparer { get; init; }
+
+    /// <summary>
+    /// Pre-seeds the first page so the query starts in a <c>Success</c> state without an initial
+    /// network fetch. The seeded page is immediately displayed while a background fetch refreshes
+    /// it. Only the first page is seeded; subsequent pages require
+    /// <see cref="IInfiniteQuery{TArgs,TData,TPageParam}.FetchNextPage"/>.
+    /// </summary>
+    public TData? InitialData { get; init; }
 }

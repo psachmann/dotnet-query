@@ -39,9 +39,21 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, IQueryIn
         _options = options;
         _scheduler = scheduler;
         _instrumentation = instrumentation;
-        _state = new BehaviorSubject<InfiniteQueryState<TData, TPageParam>>(
-            InfiniteQueryState<TData, TPageParam>.CreateIdle()
-        );
+        if (options.InitialData is { } initialData)
+        {
+            _pages.Add(initialData);
+            _pageParams.Add(options.InitialPageParam);
+            var (hasNext, hasPrev) = ComputeHasMorePages(_pages, _pageParams);
+            _state = new BehaviorSubject<InfiniteQueryState<TData, TPageParam>>(
+                InfiniteQueryState<TData, TPageParam>.CreateSuccess([.. _pages], [.. _pageParams], hasNext, hasPrev)
+            );
+        }
+        else
+        {
+            _state = new BehaviorSubject<InfiniteQueryState<TData, TPageParam>>(
+                InfiniteQueryState<TData, TPageParam>.CreateIdle()
+            );
+        }
 
         _subscriptions.Add(
             _command.Select(cmd => Observable.FromAsync(ct => ExecuteAsync(cmd, ct))).Switch().Subscribe()
@@ -328,8 +340,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, IQueryIn
             return;
         }
 
-        var paramsToFetch =
-            snapshotParams.Count > 0 ? snapshotParams : [_options.InitialPageParam];
+        var paramsToFetch = snapshotParams.Count > 0 ? snapshotParams : [_options.InitialPageParam];
 
         _state.OnNext(
             InfiniteQueryState<TData, TPageParam>.CreateFetching(
