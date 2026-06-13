@@ -181,4 +181,39 @@ public class QueryKeyTests
         await Assert.That(key.Parts[0]).IsEqualTo("users");
         await Assert.That(key.Parts[1]).IsEqualTo(42);
     }
+
+    [Test]
+    public async Task GetEnumerator_Generic_IteratesOverParts()
+    {
+        QueryKey key = ["users", 42];
+        var parts = new List<object>();
+
+        foreach (var part in key)
+        {
+            parts.Add(part);
+        }
+
+        using var _ = Assert.Multiple();
+        await Assert.That(parts.Count).IsEqualTo(2);
+        await Assert.That(parts[0]).IsEqualTo("users");
+        await Assert.That(parts[1]).IsEqualTo(42);
+    }
+
+    [Test]
+    public async Task GetEnumerator_NonGeneric_IteratesOverParts()
+    {
+        QueryKey key = ["users", 42];
+        var parts = new List<object>();
+
+        var enumerator = ((System.Collections.IEnumerable)key).GetEnumerator();
+        while (enumerator.MoveNext())
+        {
+            parts.Add(enumerator.Current);
+        }
+
+        using var _ = Assert.Multiple();
+        await Assert.That(parts.Count).IsEqualTo(2);
+        await Assert.That(parts[0]).IsEqualTo("users");
+        await Assert.That(parts[1]).IsEqualTo(42);
+    }
 }
