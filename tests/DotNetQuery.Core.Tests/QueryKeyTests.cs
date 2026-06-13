@@ -128,4 +128,92 @@ public class QueryKeyTests
         var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentNullException>();
         await Assert.That(ex?.ParamName).IsEqualTo("parts");
     }
+
+    [Test]
+    public async Task CollectionExpression_StoresParts()
+    {
+        QueryKey key = ["users", 42];
+
+        using var _ = Assert.Multiple();
+        await Assert.That(key.Parts.Count).IsEqualTo(2);
+        await Assert.That(key.Parts[0]).IsEqualTo("users");
+        await Assert.That(key.Parts[1]).IsEqualTo(42);
+    }
+
+    [Test]
+    public async Task CollectionExpression_EqualsFrom()
+    {
+        QueryKey collectionExpression = ["users", 1];
+        var from = QueryKey.From("users", 1);
+
+        using var _ = Assert.Multiple();
+        await Assert.That(collectionExpression).IsEqualTo(from);
+        await Assert.That(collectionExpression.GetHashCode()).IsEqualTo(from.GetHashCode());
+    }
+
+    [Test]
+    public async Task CollectionExpression_Empty_StoresNoParts()
+    {
+        QueryKey key = [];
+
+        await Assert.That(key.Parts.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task CollectionExpression_NullElement_ThrowsArgumentException()
+    {
+        var act = () =>
+        {
+            QueryKey _ = ["users", null!];
+        };
+
+        var ex = await Assert.That(act).ThrowsException().And.IsTypeOf<ArgumentException>();
+        await Assert.That(ex?.ParamName).IsEqualTo("parts");
+    }
+
+    [Test]
+    public async Task FromSpan_StoresParts()
+    {
+        var key = QueryKey.From((ReadOnlySpan<object>)["users", 42]);
+
+        using var _ = Assert.Multiple();
+        await Assert.That(key.Parts.Count).IsEqualTo(2);
+        await Assert.That(key.Parts[0]).IsEqualTo("users");
+        await Assert.That(key.Parts[1]).IsEqualTo(42);
+    }
+
+    [Test]
+    public async Task GetEnumerator_Generic_IteratesOverParts()
+    {
+        QueryKey key = ["users", 42];
+        var parts = new List<object>();
+
+        foreach (var part in key)
+        {
+            parts.Add(part);
+        }
+
+        using var _ = Assert.Multiple();
+        await Assert.That(parts.Count).IsEqualTo(2);
+        await Assert.That(parts[0]).IsEqualTo("users");
+        await Assert.That(parts[1]).IsEqualTo(42);
+    }
+
+    [Test]
+    public async Task GetEnumerator_NonGeneric_IteratesOverParts()
+    {
+        QueryKey key = ["users", 42];
+        var parts = new List<object>();
+
+        var enumerator = ((System.Collections.IEnumerable)key).GetEnumerator();
+        while (enumerator.MoveNext())
+        {
+            parts.Add(enumerator.Current);
+        }
+
+        using var _ = Assert.Multiple();
+        await Assert.That(parts.Count).IsEqualTo(2);
+        await Assert.That(parts[0]).IsEqualTo("users");
+        await Assert.That(parts[1]).IsEqualTo(42);
+    }
 }
