@@ -34,7 +34,7 @@ internal sealed class QueryInstrumentation(ILogger logger, Meter? meter = null)
     internal void RecordFetchStart(QueryKey key)
     {
         _activeFetches.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
-        logger.LogDebug("Fetch started for key '{QueryKey}'", key);
+        logger.LogDebug("Fetch started for key '{QueryKey}'", key.ToString());
     }
 
     internal void RecordFetchSuccess(QueryKey key, double durationMs)
@@ -70,7 +70,7 @@ internal sealed class QueryInstrumentation(ILogger logger, Meter? meter = null)
     internal void RecordFetchCancelled(QueryKey key)
     {
         _activeFetches.Add(-1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
-        logger.LogDebug("Fetch cancelled for key '{QueryKey}'", key);
+        logger.LogDebug("Fetch cancelled for key '{QueryKey}'", key.ToString());
     }
 
     // ── Cache ─────────────────────────────────────────────────────────────────
@@ -78,13 +78,13 @@ internal sealed class QueryInstrumentation(ILogger logger, Meter? meter = null)
     internal void RecordCacheHit(QueryKey key)
     {
         _cacheHits.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
-        logger.LogDebug("Cache hit for key '{QueryKey}'", key);
+        logger.LogDebug("Cache hit for key '{QueryKey}'", key.ToString());
     }
 
     internal void RecordCacheMiss(QueryKey key)
     {
         _cacheMisses.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
-        logger.LogDebug("Cache miss for key '{QueryKey}'", key);
+        logger.LogDebug("Cache miss for key '{QueryKey}'", key.ToString());
     }
 
     // ── Mutation ──────────────────────────────────────────────────────────────

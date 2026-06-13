@@ -1,10 +1,15 @@
+using System.Collections;
+using System.Runtime.CompilerServices;
+
 namespace DotNetQuery.Core;
 
 /// <summary>
 /// An immutable, equality-comparable key used to identify and share query cache entries.
-/// Create instances via <see cref="From"/> or use <see cref="Default"/> as a sentinel for the uninitialized state.
+/// Create instances via <see cref="From(object[])"/> or use <see cref="Default"/> as a sentinel for the uninitialized state.
+/// Supports collection expression syntax: <c>QueryKey key = ["users", id];</c>
 /// </summary>
-public sealed record QueryKey
+[CollectionBuilder(typeof(QueryKey), nameof(From))]
+public sealed record QueryKey : IEnumerable<object>
 {
     private QueryKey(IReadOnlyList<object> parts)
     {
@@ -18,7 +23,7 @@ public sealed record QueryKey
     /// A sentinel key representing the uninitialized state.
     /// Returned by <see cref="IQuery.Key"/> before args have been pushed for the first time.
     /// </summary>
-    public static QueryKey Default { get; } = new(["\0"]);
+    public static QueryKey Default { get; } = From("\0");
 
     /// <summary>
     /// Creates a <see cref="QueryKey"/> from the given parts.
@@ -37,6 +42,25 @@ public sealed record QueryKey
         }
 
         return new(parts);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="QueryKey"/> from a span of parts. Enables collection expression syntax.
+    /// </summary>
+    /// <param name="parts">The values that make up the key. Must not contain <c>null</c> elements.</param>
+    /// <returns>A new <see cref="QueryKey"/> composed of the given parts.</returns>
+    /// <exception cref="ArgumentException">Thrown when any element in <paramref name="parts"/> is <c>null</c>.</exception>
+    public static QueryKey From(ReadOnlySpan<object> parts)
+    {
+        foreach (var part in parts)
+        {
+            if (part is null)
+            {
+                throw new ArgumentException("QueryKey parts must not contain null elements.", nameof(parts));
+            }
+        }
+
+        return new(parts.ToArray());
     }
 
     /// <inheritdoc/>
@@ -65,4 +89,9 @@ public sealed record QueryKey
 
         return hash.ToHashCode();
     }
+
+    /// <summary>Enables the collection-expression element type and iteration over <see cref="Parts"/>.</summary>
+    public IEnumerator<object> GetEnumerator() => Parts.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => Parts.GetEnumerator();
 }
