@@ -15,7 +15,8 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
 
     private IReadOnlyList<IQueryInspector> Snapshot() => [.. _entries.Values.Cast<IQueryInspector>()];
 
-    public Query<TArgs, TData> GetOrCreate<TArgs, TData>(QueryKey key, Query<TArgs, TData> query)
+    public TEntry GetOrCreate<TEntry>(QueryKey key, TEntry entry)
+        where TEntry : class, IQueryInspector
     {
         lock (_evictionLock)
         {
@@ -25,12 +26,12 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
                 _entriesSubject.OnNext(Snapshot());
             }
 
-            var result = (Query<TArgs, TData>)_entries.GetOrAdd(key, query);
+            var result = (TEntry)_entries.GetOrAdd(key, entry);
 
-            if (ReferenceEquals(result, query))
+            if (ReferenceEquals(result, entry))
             {
                 _instrumentation.RecordCacheMiss(key);
-                _stateSubscriptions[key] = query.StateChanged.Subscribe(_ => _entriesSubject.OnNext(Snapshot()));
+                _stateSubscriptions[key] = entry.StateChanged.Subscribe(_ => _entriesSubject.OnNext(Snapshot()));
                 _entriesSubject.OnNext(Snapshot());
             }
             else

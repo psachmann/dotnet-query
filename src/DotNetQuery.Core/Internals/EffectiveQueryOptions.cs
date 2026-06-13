@@ -1,6 +1,6 @@
 namespace DotNetQuery.Core.Internals;
 
-internal record EffectiveQueryOptions<TArgs, TData>
+internal sealed record EffectiveQueryOptions<TArgs, TData>
 {
     public required Func<TArgs, CancellationToken, Task<TData>> Fetcher { get; init; }
 

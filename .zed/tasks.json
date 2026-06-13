@@ -1,0 +1,18 @@
+[
+  {
+    "label": "restore",
+    "command": "dotnet tool restore && dotnet restore",
+  },
+  {
+    "label": "build",
+    "command": "dotnet build",
+  },
+  {
+    "label": "test",
+    "command": "dotnet test",
+  },
+  {
+    "label": "format",
+    "command": "dotnet csharpier format .",
+  },
+]

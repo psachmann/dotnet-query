@@ -1,0 +1,8 @@
+words = [
+    "Blazor",
+    "MVVM",
+    "cref",
+    "paramref",
+    "typeparam",
+    "typeparamref",
+]

@@ -20,6 +20,17 @@ internal sealed class QueryClient : IQueryClient, IQueryClientInspector
     public IQuery<TArgs, TData> CreateQuery<TArgs, TData>(QueryOptions<TArgs, TData> options) =>
         new QueryObserver<TArgs, TData>(options, _globalOptions, _cache, _scheduler, _instrumentation);
 
+    public IInfiniteQuery<TArgs, TData, TPageParam> CreateInfiniteQuery<TArgs, TData, TPageParam>(
+        InfiniteQueryOptions<TArgs, TData, TPageParam> options
+    ) =>
+        new InfiniteQueryObserver<TArgs, TData, TPageParam>(
+            options,
+            _globalOptions,
+            _cache,
+            _scheduler,
+            _instrumentation
+        );
+
     public IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options)
     {
         var mutation = new Mutation<TArgs, TData>(options, _globalOptions, _instrumentation);
