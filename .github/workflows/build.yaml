@@ -81,7 +81,7 @@ jobs:
           echo "files=$FILES" >> $GITHUB_OUTPUT
 
       - name: Upload Test Results to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ steps.coverage.outputs.files }}
