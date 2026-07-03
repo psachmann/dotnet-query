@@ -28,7 +28,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json') }}
           restore-keys: |
             nuget-${{ runner.os }}
             nuget
@@ -37,7 +37,7 @@ jobs:
         run: dotnet tool restore
 
       - name: Restore packages
-        run: dotnet restore
+        run: dotnet restore --locked-mode
 
       - name: Build
         run: dotnet build --configuration Release --no-restore

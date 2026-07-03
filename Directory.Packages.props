@@ -4,14 +4,14 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="bunit" Version="2.7.2" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Reactive.Testing" Version="6.1.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.300" />
     <PackageVersion Include="MinVer" Version="7.0.0" />
     <PackageVersion Include="System.Reactive" Version="6.1.0" />
-    <PackageVersion Include="TUnit" Version="1.50.0" />
-    <PackageVersion Include="TUnit.Mocks" Version="1.50.0" />
-    <PackageVersion Include="TUnit.Mocks.Logging" Version="1.50.0" />
+    <PackageVersion Include="TUnit" Version="1.56.35" />
+    <PackageVersion Include="TUnit.Mocks" Version="1.56.35" />
+    <PackageVersion Include="TUnit.Mocks.Logging" Version="1.56.35" />
   </ItemGroup>
 </Project>
