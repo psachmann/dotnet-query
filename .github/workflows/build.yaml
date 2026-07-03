@@ -32,6 +32,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          filter: tree:0
 
       - name: Setup DotNet
         uses: actions/setup-dotnet@v5
@@ -42,7 +46,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json') }}
           restore-keys: |
             nuget-${{ runner.os }}
             nuget
@@ -51,7 +55,7 @@ jobs:
         run: dotnet tool restore
 
       - name: Restore packages
-        run: dotnet restore
+        run: dotnet restore --locked-mode
 
       - name: Format
         id: csharpier
