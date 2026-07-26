@@ -5,8 +5,9 @@ namespace DotNetQuery.Core;
 /// Per-query settings override the global defaults set on <see cref="QueryClientOptions"/>.
 /// </summary>
 /// <typeparam name="TArgs">The type of the arguments passed to the fetcher.</typeparam>
-/// <typeparam name="TData">The type of the data returned by the fetcher.</typeparam>
+/// <typeparam name="TData">The type of the data returned by the fetcher. Constrained to reference types.</typeparam>
 public sealed record QueryOptions<TArgs, TData>
+    where TData : class
 {
     /// <summary>
     /// A function that derives a <see cref="QueryKey"/> from the given args.

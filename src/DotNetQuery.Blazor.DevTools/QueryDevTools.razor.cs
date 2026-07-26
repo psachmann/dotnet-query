@@ -197,6 +197,8 @@ public sealed partial class QueryDevTools : IAsyncDisposable
         return $"{ts.TotalHours:0.#}h";
     }
 
+    private static readonly JsonSerializerOptions _serializerOptions = new() { WriteIndented = true };
+
     private static string SerializeData(object? data)
     {
         if (data is null)
@@ -206,7 +208,7 @@ public sealed partial class QueryDevTools : IAsyncDisposable
 
         try
         {
-            return JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
+            return JsonSerializer.Serialize(data, _serializerOptions);
         }
         catch
         {
@@ -215,11 +217,21 @@ public sealed partial class QueryDevTools : IAsyncDisposable
     }
 
     /// <inheritdoc/>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         _cacheSubscription?.Dispose();
         _dotnetRef?.Dispose();
 
-        return _module?.DisposeAsync() ?? ValueTask.CompletedTask;
+        try
+        {
+            if (_module is not null)
+            {
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone during normal Blazor Server teardown — nothing left to clean up.
+        }
     }
 }

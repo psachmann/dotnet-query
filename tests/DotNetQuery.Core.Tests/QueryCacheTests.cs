@@ -85,6 +85,49 @@ public class QueryCacheTests
     }
 
     [Test]
+    public async Task GetOrCreate_SameKeyDifferentDataType_ThrowsInvalidOperationException()
+    {
+        var key = QueryKey.From("a");
+        using var stringQuery = CreateQuery(key);
+        _sut.GetOrCreate(key, stringQuery);
+
+        var objectOptions = new EffectiveQueryOptions<int, object>
+        {
+            Fetcher = (_, _) => Task.FromResult<object>("data"),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+            DataComparer = EqualityComparer<object>.Default,
+            InitialData = null,
+        };
+        using var objectQuery = new Query<int, object>(key, 0, objectOptions, _scheduler, _instrumentation);
+
+        await Assert.That(() => _sut.GetOrCreate(key, objectQuery)).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task Remove_CalledTwiceBeforeTimerFires_StillEvictsAfterCacheTime()
+    {
+        // Regression: a double-Detach (or Detach racing an auto-eviction) used to overwrite the first
+        // pending-removal subscription without disposing it, leaking a timer.
+        var key = QueryKey.From("a");
+        using var query = CreateQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        _sut.Remove(key);
+        _sut.Remove(key);
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(5).Ticks + 1);
+
+        using var fresh = CreateQuery(key);
+        var result = _sut.GetOrCreate(key, fresh);
+
+        await Assert.That(result).IsEqualTo(fresh);
+    }
+
+    [Test]
     public async Task Remove_NonExistentKey_DoesNothing()
     {
         var key = QueryKey.From("missing");
@@ -128,6 +171,48 @@ public class QueryCacheTests
         var result = _sut.GetOrCreate(key, fresh);
 
         await Assert.That(result).IsEqualTo(fresh);
+    }
+
+    [Test]
+    public async Task LastSubscriberUnsubscribing_SchedulesEviction()
+    {
+        // Regression: previously, nothing started the eviction timer when the last State subscriber
+        // left — only an explicit Detach() did — so cache entries accumulated forever.
+        var key = QueryKey.From("a");
+        using var query = CreateQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        var subscription = query.State.Subscribe();
+        subscription.Dispose(); // last (only) subscriber leaves
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(5).Ticks + 1);
+
+        // Query should have been evicted automatically — GetOrCreate for the same key returns a fresh instance
+        using var fresh = CreateQuery(key);
+        var result = _sut.GetOrCreate(key, fresh);
+
+        await Assert.That(result).IsEqualTo(fresh);
+    }
+
+    [Test]
+    public async Task SubscriberRejoiningBeforeEvictionTimerFires_CancelsEviction()
+    {
+        var key = QueryKey.From("a");
+        using var query = CreateQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        var subscription = query.State.Subscribe();
+        subscription.Dispose();
+
+        // Rejoin directly against the Query (not via GetOrCreate) before the CacheTime timer fires
+        using var rejoin = query.State.Subscribe();
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(10).Ticks);
+
+        using var late = CreateQuery(key);
+        var result = _sut.GetOrCreate(key, late);
+
+        await Assert.That(result).IsEqualTo(query);
     }
 
     [Test]

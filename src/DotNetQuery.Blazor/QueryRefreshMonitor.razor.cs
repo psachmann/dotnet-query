@@ -53,9 +53,17 @@ public sealed partial class QueryRefreshMonitor : IAsyncDisposable
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
-        if (_module is not null)
+        try
         {
-            await _module.DisposeAsync();
+            if (_module is not null)
+            {
+                await _module.InvokeVoidAsync("unregister");
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone during normal Blazor Server teardown — nothing left to clean up.
         }
 
         _dotnetRef?.Dispose();
