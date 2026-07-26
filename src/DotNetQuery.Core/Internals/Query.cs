@@ -81,7 +81,7 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
         Observable.Create<QueryState<TData>>(observer =>
         {
             var subscription = _state.Subscribe(observer);
-            bool becameActive;
+            var becameActive = false;
 
             lock (_syncRoot)
             {
@@ -104,7 +104,7 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
             {
                 subscription.Dispose();
 
-                bool becameIdle;
+                var becameIdle = false;
 
                 lock (_syncRoot)
                 {
