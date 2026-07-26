@@ -229,6 +229,38 @@ public class QueryTests
     }
 
     [Test]
+    public async Task Cancel_ThenRefetch_FetchesSuccessfully()
+    {
+        var gate = new TaskCompletionSource();
+        var callCount = 0;
+        using var sut = CreateQuery(
+            fetcher: async (_, ct) =>
+            {
+                if (++callCount == 1)
+                {
+                    await gate.Task.WaitAsync(ct);
+                }
+
+                return "data";
+            }
+        );
+        using var sub = sut.State.Subscribe();
+
+        sut.Refetch();
+        await sut.State.Where(s => s.IsFetching).FirstAsync();
+
+        sut.Cancel();
+        await sut.State.Where(s => s.IsIdle).FirstAsync();
+
+        // Regression: Cancel() used to permanently cancel the query's shared CancellationTokenSource,
+        // so every fetch afterwards — including this one — would abort instantly instead of completing.
+        sut.Refetch();
+        var state = await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(state.CurrentData).IsEqualTo("data");
+    }
+
+    [Test]
     public async Task Invalidate_WithActiveSubscriber_TriggersRefetch()
     {
         using var sut = CreateQuery();
@@ -393,6 +425,28 @@ public class QueryTests
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
         await Assert.That(fetchCount).IsGreaterThanOrEqualTo(2);
+    }
+
+    [Test]
+    public async Task RefetchInterval_WithNoSubscribers_DoesNotFetch()
+    {
+        var fetchCount = 0;
+        using var sut = CreateQuery(
+            fetcher: (_, _) =>
+            {
+                fetchCount++;
+
+                return Task.FromResult("data");
+            },
+            refetchInterval: TimeSpan.FromMinutes(1)
+        );
+
+        // Regression: the interval used to push straight into the fetch pipeline, bypassing the
+        // subscriber-count gate that Invalidate() enforces — ticking forever with nobody listening.
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(3).Ticks);
+        await Task.Delay(50);
+
+        await Assert.That(fetchCount).IsEqualTo(0);
     }
 
     [Test]

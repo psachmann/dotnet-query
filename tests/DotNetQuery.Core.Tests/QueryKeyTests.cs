@@ -14,11 +14,19 @@ public class QueryKeyTests
     }
 
     [Test]
-    public async Task Default_HasSingleNullTerminatorPart()
+    public async Task Default_HasSingleMarkerPart()
     {
-        using var _ = Assert.Multiple();
         await Assert.That(QueryKey.Default.Parts.Count).IsEqualTo(1);
-        await Assert.That(QueryKey.Default.Parts[0]).IsEqualTo("\0");
+    }
+
+    [Test]
+    public async Task Default_DoesNotCollideWithUserConstructedKey()
+    {
+        // QueryKey.Default is built from a private marker type, so no user-constructed
+        // QueryKey — including one that happens to reuse the old "\0" sentinel value — can equal it.
+        var key = QueryKey.From("\0");
+
+        await Assert.That(key).IsNotEqualTo(QueryKey.Default);
     }
 
     [Test]

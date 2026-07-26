@@ -34,10 +34,13 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>, IQuery
             _args.Subscribe(args =>
             {
                 var key = options.KeyFactory(args);
-                var query = _cache.GetOrCreate(
-                    key,
-                    new Query<TArgs, TData>(key, args, _options, _scheduler, _instrumentation)
-                );
+                var candidate = new Query<TArgs, TData>(key, args, _options, _scheduler, _instrumentation);
+                var query = _cache.GetOrCreate(key, candidate);
+
+                if (!ReferenceEquals(query, candidate))
+                {
+                    candidate.Dispose();
+                }
 
                 _currentKey = key;
 

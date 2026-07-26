@@ -22,8 +22,14 @@ public sealed record QueryKey : IEnumerable<object>
     /// <summary>
     /// A sentinel key representing the uninitialized state.
     /// Returned by <see cref="IQuery.Key"/> before args have been pushed for the first time.
+    /// Built from a private marker type, so no user-constructed <see cref="QueryKey"/> can ever equal it.
     /// </summary>
-    public static QueryKey Default { get; } = From("\0");
+    public static QueryKey Default { get; } = new(new object[] { new UninitializedMarker() });
+
+    private sealed record UninitializedMarker
+    {
+        public override string ToString() => "<uninitialized>";
+    }
 
     /// <summary>
     /// Creates a <see cref="QueryKey"/> from the given parts.

@@ -23,6 +23,7 @@ public class QueryRefreshMonitorTests
         var module = _context.JSInterop.SetupModule("./_content/DotNetQuery.Blazor/QueryRefreshMonitor.js");
 
         module.SetupVoid("register", _ => true);
+        module.SetupVoid("unregister", _ => true);
 
         return module;
     }

@@ -43,8 +43,10 @@ public sealed record QueryOptions<TArgs, TData>
     /// The query is always treated as immediately stale when initial data is present,
     /// so a background fetch begins as soon as the first subscriber joins.
     /// Has no effect if the cache already holds a real entry for the derived key.
+    /// Assign a plain <typeparamref name="TData"/> value directly — it converts implicitly;
+    /// <c>default(TData)</c> (e.g. <c>0</c> for <c>int</c>) is tracked as present, distinct from leaving this unset.
     /// </summary>
-    public TData? InitialData { get; init; }
+    public Optional<TData> InitialData { get; init; }
 
     /// <summary>
     /// Comparer used to determine whether newly fetched data is structurally equal to the previously cached value.

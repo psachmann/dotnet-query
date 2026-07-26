@@ -16,5 +16,5 @@ internal record EffectiveQueryOptions<TArgs, TData>
 
     public required IEqualityComparer<TData> DataComparer { get; init; }
 
-    public required TData? InitialData { get; init; }
+    public required Optional<TData> InitialData { get; init; }
 }

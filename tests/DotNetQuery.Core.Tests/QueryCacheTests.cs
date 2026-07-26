@@ -131,6 +131,48 @@ public class QueryCacheTests
     }
 
     [Test]
+    public async Task LastSubscriberUnsubscribing_SchedulesEviction()
+    {
+        // Regression: previously, nothing started the eviction timer when the last State subscriber
+        // left — only an explicit Detach() did — so cache entries accumulated forever.
+        var key = QueryKey.From("a");
+        using var query = CreateQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        var subscription = query.State.Subscribe();
+        subscription.Dispose(); // last (only) subscriber leaves
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(5).Ticks + 1);
+
+        // Query should have been evicted automatically — GetOrCreate for the same key returns a fresh instance
+        using var fresh = CreateQuery(key);
+        var result = _sut.GetOrCreate(key, fresh);
+
+        await Assert.That(result).IsEqualTo(fresh);
+    }
+
+    [Test]
+    public async Task SubscriberRejoiningBeforeEvictionTimerFires_CancelsEviction()
+    {
+        var key = QueryKey.From("a");
+        using var query = CreateQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        var subscription = query.State.Subscribe();
+        subscription.Dispose();
+
+        // Rejoin directly against the Query (not via GetOrCreate) before the CacheTime timer fires
+        using var rejoin = query.State.Subscribe();
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(10).Ticks);
+
+        using var late = CreateQuery(key);
+        var result = _sut.GetOrCreate(key, late);
+
+        await Assert.That(result).IsEqualTo(query);
+    }
+
+    [Test]
     public async Task Invalidate_ExistingKey_TriggersRefetch()
     {
         var key = QueryKey.From("a");
