@@ -30,6 +30,12 @@ public class QueryKeyTests
     }
 
     [Test]
+    public async Task Default_ToString_DoesNotThrow()
+    {
+        await Assert.That(QueryKey.Default.ToString()).IsEqualTo("<uninitialized>");
+    }
+
+    [Test]
     public async Task Equals_SameParts_ReturnsTrue()
     {
         var a = QueryKey.From("users", 1);

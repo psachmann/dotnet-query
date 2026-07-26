@@ -1,6 +1,7 @@
 namespace DotNetQuery.Blazor.Tests;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 
 public class QueryRefreshMonitorTests
 {
@@ -22,8 +23,8 @@ public class QueryRefreshMonitorTests
     {
         var module = _context.JSInterop.SetupModule("./_content/DotNetQuery.Blazor/QueryRefreshMonitor.js");
 
-        module.SetupVoid("register", _ => true);
-        module.SetupVoid("unregister", _ => true);
+        module.SetupVoid("register", _ => true).SetVoidResult();
+        module.SetupVoid("unregister", _ => true).SetVoidResult();
 
         return module;
     }
@@ -131,5 +132,30 @@ public class QueryRefreshMonitorTests
         cut.Render();
 
         jsModule.VerifyInvoke("register", calledTimes: 1);
+    }
+
+    [Test]
+    public async Task DisposeAsync_UnregistersAndDisposesModule()
+    {
+        SetupQueryClient();
+        var jsModule = SetupJsModule();
+
+        var cut = _context.Render<QueryRefreshMonitor>();
+        await cut.Instance.DisposeAsync();
+
+        jsModule.VerifyInvoke("unregister", calledTimes: 1);
+    }
+
+    [Test]
+    public async Task DisposeAsync_WhenJSDisconnected_DoesNotThrow()
+    {
+        SetupQueryClient();
+        var module = _context.JSInterop.SetupModule("./_content/DotNetQuery.Blazor/QueryRefreshMonitor.js");
+        module.SetupVoid("register", _ => true).SetVoidResult();
+        module.SetupVoid("unregister", _ => true).SetException(new JSDisconnectedException("circuit disconnected"));
+
+        var cut = _context.Render<QueryRefreshMonitor>();
+
+        await Assert.That(async () => await cut.Instance.DisposeAsync()).ThrowsNothing();
     }
 }

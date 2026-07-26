@@ -507,6 +507,24 @@ public class QueryTests
     }
 
     [Test]
+    public async Task Invalidate_AfterDispose_DoesNotThrow()
+    {
+        var sut = CreateQuery();
+        sut.Dispose();
+
+        await Assert.That(sut.Invalidate).ThrowsNothing();
+    }
+
+    [Test]
+    public async Task Cancel_AfterDispose_DoesNotThrow()
+    {
+        var sut = CreateQuery();
+        sut.Dispose();
+
+        await Assert.That(sut.Cancel).ThrowsNothing();
+    }
+
+    [Test]
     public async Task Refetch_OnSuccess_RecordsActivityWithQueryKeyTag()
     {
         var key = QueryKey.From("activity-fetch-success");
