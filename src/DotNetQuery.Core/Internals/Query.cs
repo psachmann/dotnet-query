@@ -1,6 +1,7 @@
 namespace DotNetQuery.Core.Internals;
 
 internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
+    where TData : class
 {
     private readonly QueryKey _key;
     private readonly TArgs _args;
@@ -33,8 +34,8 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
         _scheduler = scheduler;
         _instrumentation = instrumentation;
 
-        _state = options.InitialData.HasValue
-            ? new BehaviorSubject<QueryState<TData>>(QueryState<TData>.CreateSuccess(options.InitialData.Value!))
+        _state = options.InitialData is { } initial
+            ? new BehaviorSubject<QueryState<TData>>(QueryState<TData>.CreateSuccess(initial))
             : new BehaviorSubject<QueryState<TData>>(QueryState<TData>.CreateIdle());
 
         _subscriptions.Add(_invalidate.Select(_ => Observable.FromAsync(FetchAsync)).Switch().Subscribe());
@@ -139,8 +140,7 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
 
         if (!_disposed)
         {
-            var priorState = _state.Value;
-            _state.OnNext(QueryState<TData>.CreateSuccess(data, priorState.CurrentData, priorState.HasData));
+            _state.OnNext(QueryState<TData>.CreateSuccess(data, _state.Value.CurrentData));
         }
     }
 
@@ -251,16 +251,14 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
             return;
         }
 
-        var priorState = _state.Value;
-        var lastData = priorState.CurrentData;
-        var hasLastData = priorState.HasData;
+        var lastData = _state.Value.CurrentData;
 
         using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityQueryFetch);
         activity?.SetTag(QueryTelemetryTags.TagQueryKey, _key.ToString());
 
         var stopwatch = Stopwatch.StartNew();
 
-        _state.OnNext(QueryState<TData>.CreateFetching(lastData, hasLastData));
+        _state.OnNext(QueryState<TData>.CreateFetching(lastData));
         _instrumentation.RecordFetchStart(_key);
 
         try
@@ -279,8 +277,8 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
 
             if (!_disposed)
             {
-                var emitData = hasLastData && _options.DataComparer.Equals(data, lastData) ? lastData! : data;
-                _state.OnNext(QueryState<TData>.CreateSuccess(emitData, lastData, hasLastData));
+                var emitData = lastData is not null && _options.DataComparer.Equals(data, lastData) ? lastData : data;
+                _state.OnNext(QueryState<TData>.CreateSuccess(emitData, lastData));
             }
         }
         catch (OperationCanceledException) when (linkedToken.IsCancellationRequested)
@@ -294,7 +292,7 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
             // which is already driving _state — emitting here would stomp its Fetching/Success state.
             if (!_disposed && !cancellationToken.IsCancellationRequested)
             {
-                _state.OnNext(QueryState<TData>.CreateIdle(lastData, hasLastData));
+                _state.OnNext(QueryState<TData>.CreateIdle(lastData));
             }
         }
         catch (Exception error)
@@ -307,7 +305,7 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
 
             if (!_disposed)
             {
-                _state.OnNext(QueryState<TData>.CreateFailure(error, lastData, hasLastData));
+                _state.OnNext(QueryState<TData>.CreateFailure(error, lastData));
             }
         }
     }

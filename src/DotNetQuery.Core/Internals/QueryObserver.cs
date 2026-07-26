@@ -1,6 +1,7 @@
 namespace DotNetQuery.Core.Internals;
 
 internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>, IQueryInspector
+    where TData : class
 {
     private readonly QueryCache _cache;
     private readonly EffectiveQueryOptions<TArgs, TData> _options;

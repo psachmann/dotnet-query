@@ -18,6 +18,7 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
     private IReadOnlyList<IQueryInspector> Snapshot() => [.. _entries.Values.Cast<IQueryInspector>()];
 
     public Query<TArgs, TData> GetOrCreate<TArgs, TData>(QueryKey key, Query<TArgs, TData> query)
+        where TData : class
     {
         Query<TArgs, TData> result;
         var changed = false;

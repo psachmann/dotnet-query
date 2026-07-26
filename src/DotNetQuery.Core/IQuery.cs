@@ -44,8 +44,12 @@ public interface IQuery : IDisposable
 /// Inherits all lifecycle members from <see cref="IQuery"/>.
 /// </summary>
 /// <typeparam name="TArgs">The type of the parameters passed to the fetcher.</typeparam>
-/// <typeparam name="TData">The type of the data returned by the fetcher.</typeparam>
+/// <typeparam name="TData">
+/// The type of the data returned by the fetcher. Constrained to reference types because the library
+/// uses <c>null</c> to represent "no data yet" — a non-nullable value type has no way to express that.
+/// </typeparam>
 public interface IQuery<TArgs, TData> : IQuery
+    where TData : class
 {
     /// <summary>
     /// The current state snapshot. Can be read synchronously without subscribing.

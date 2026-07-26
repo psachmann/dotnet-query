@@ -11,5 +11,6 @@ namespace DotNetQuery.Blazor;
 /// For stale-while-revalidate semantics, use <see cref="Transition{TArgs,TData}"/> instead.
 /// </remarks>
 /// <typeparam name="TArgs">The type of arguments passed to the query fetcher.</typeparam>
-/// <typeparam name="TData">The type of data returned by the query fetcher.</typeparam>
-public partial class Suspense<TArgs, TData>;
+/// <typeparam name="TData">The type of data returned by the query fetcher. Constrained to reference types.</typeparam>
+public partial class Suspense<TArgs, TData>
+    where TData : class;

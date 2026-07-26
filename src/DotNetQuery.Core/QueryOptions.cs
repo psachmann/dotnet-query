@@ -5,8 +5,9 @@ namespace DotNetQuery.Core;
 /// Per-query settings override the global defaults set on <see cref="QueryClientOptions"/>.
 /// </summary>
 /// <typeparam name="TArgs">The type of the arguments passed to the fetcher.</typeparam>
-/// <typeparam name="TData">The type of the data returned by the fetcher.</typeparam>
+/// <typeparam name="TData">The type of the data returned by the fetcher. Constrained to reference types.</typeparam>
 public sealed record QueryOptions<TArgs, TData>
+    where TData : class
 {
     /// <summary>
     /// A function that derives a <see cref="QueryKey"/> from the given args.
@@ -43,10 +44,8 @@ public sealed record QueryOptions<TArgs, TData>
     /// The query is always treated as immediately stale when initial data is present,
     /// so a background fetch begins as soon as the first subscriber joins.
     /// Has no effect if the cache already holds a real entry for the derived key.
-    /// Assign a plain <typeparamref name="TData"/> value directly — it converts implicitly;
-    /// <c>default(TData)</c> (e.g. <c>0</c> for <c>int</c>) is tracked as present, distinct from leaving this unset.
     /// </summary>
-    public Optional<TData> InitialData { get; init; }
+    public TData? InitialData { get; init; }
 
     /// <summary>
     /// Comparer used to determine whether newly fetched data is structurally equal to the previously cached value.

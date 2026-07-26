@@ -1,10 +1,10 @@
 @typeparam TArgs
-@typeparam TData
+@typeparam TData where TData : class
 @implements IDisposable
 
-@if (_hasDisplayData)
+@if (_displayData is { } data)
 {
-    @Content(_displayData!)
+    @Content(data)
 }
 else if (_state.IsFailure && _state.Error is { } error)
 {
@@ -18,8 +18,7 @@ else
 @code
 {
     private QueryState<TData> _state = QueryState<TData>.CreateIdle();
-    private bool _hasDisplayData => _state.HasData || _state.HasLastData;
-    private TData? _displayData => _state.HasData ? _state.CurrentData : _state.LastData;
+    private TData? _displayData => _state.CurrentData ?? _state.LastData;
     private IDisposable? _subscription;
     private IQuery<TArgs, TData>? _subscribedQuery;
 
