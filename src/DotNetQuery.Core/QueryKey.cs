@@ -19,6 +19,8 @@ public sealed record QueryKey : IEnumerable<object>
     /// <summary>The ordered list of values that make up this key.</summary>
     public IReadOnlyList<object> Parts { get; private set; }
 
+    private string? _stringValue;
+
     /// <summary>
     /// A sentinel key representing the uninitialized state.
     /// Returned by <see cref="IQuery.Key"/> before args have been pushed for the first time.
@@ -70,7 +72,7 @@ public sealed record QueryKey : IEnumerable<object>
     }
 
     /// <inheritdoc/>
-    public override string ToString() => string.Join(":", Parts.Select(p => p?.ToString() ?? "null"));
+    public override string ToString() => _stringValue ??= string.Join(":", Parts.Select(p => p?.ToString() ?? "null"));
 
     /// <inheritdoc/>
     public bool Equals(QueryKey? other)

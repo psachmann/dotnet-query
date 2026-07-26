@@ -47,6 +47,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         return new()
         {
             Mutator = options.Mutator,
+            Name = options.Name ?? typeof(TArgs).Name,
             RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
             IsEnabled = options.IsEnabled,
             InvalidateKeys = options.InvalidateKeys ?? [],
@@ -93,11 +94,13 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
     private async Task ExecuteAsync(TArgs args, CancellationToken cancellationToken)
     {
         using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityMutationExecute);
+        activity?.SetTag(QueryTelemetryTags.TagMutationName, _options.Name);
         var stopwatch = Stopwatch.StartNew();
+        var attempts = 0;
 
         _options.OnMutate.Invoke(args);
         _state.OnNext(MutationState<TData>.CreateRunning());
-        _instrumentation.RecordMutationStart();
+        _instrumentation.RecordMutationStart(_options.Name);
 
         TData data = default!;
         Exception? error = null;
@@ -105,11 +108,23 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 
         try
         {
-            data = await _options.RetryHandler.ExecuteAsync(ct => _options.Mutator(args, ct), cancellationToken);
+            data = await _options.RetryHandler.ExecuteAsync(
+                ct =>
+                {
+                    if (Interlocked.Increment(ref attempts) > 1)
+                    {
+                        activity?.AddEvent(new ActivityEvent("retry"));
+                    }
+
+                    return _options.Mutator(args, ct);
+                },
+                cancellationToken
+            );
             stopwatch.Stop();
 
+            activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetStatus(ActivityStatusCode.Ok);
-            _instrumentation.RecordMutationSuccess(stopwatch.Elapsed.TotalMilliseconds);
+            _instrumentation.RecordMutationSuccess(_options.Name, stopwatch.Elapsed.TotalMilliseconds, attempts);
 
             if (!_disposed)
             {
@@ -121,7 +136,9 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
             stopwatch.Stop();
             cancelled = true;
 
-            _instrumentation.RecordMutationCancelled();
+            activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
+            activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
+            _instrumentation.RecordMutationCancelled(_options.Name, stopwatch.Elapsed.TotalMilliseconds);
 
             if (!_disposed)
             {
@@ -133,9 +150,10 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
             stopwatch.Stop();
             error = ex;
 
+            activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetTag(QueryTelemetryTags.TagErrorType, ex.GetType().Name);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            _instrumentation.RecordMutationFailure(stopwatch.Elapsed.TotalMilliseconds, ex);
+            _instrumentation.RecordMutationFailure(_options.Name, stopwatch.Elapsed.TotalMilliseconds, ex, attempts);
 
             if (!_disposed)
             {

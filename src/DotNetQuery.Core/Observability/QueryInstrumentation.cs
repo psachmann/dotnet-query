@@ -1,6 +1,10 @@
 namespace DotNetQuery.Core.Observability;
 
-internal sealed class QueryInstrumentation(ILogger logger, Meter? meter = null)
+internal sealed partial class QueryInstrumentation(
+    ILogger logger,
+    Meter? meter = null,
+    bool includeQueryKeyInMetrics = false
+)
 {
     private readonly Histogram<double> _fetchDuration = (meter ?? QueryTelemetry.Meter).CreateHistogram<double>(
         "dotnetquery.query.duration",
@@ -15,12 +19,27 @@ internal sealed class QueryInstrumentation(ILogger logger, Meter? meter = null)
 
     private readonly Counter<long> _cacheHits = (meter ?? QueryTelemetry.Meter).CreateCounter<long>(
         "dotnetquery.cache.hits",
-        description: "Number of query cache hits."
+        description: "Number of query cache lookups that found an existing entry."
     );
 
     private readonly Counter<long> _cacheMisses = (meter ?? QueryTelemetry.Meter).CreateCounter<long>(
         "dotnetquery.cache.misses",
-        description: "Number of query cache misses."
+        description: "Number of query cache lookups that created a new entry."
+    );
+
+    private readonly UpDownCounter<int> _cacheEntries = (meter ?? QueryTelemetry.Meter).CreateUpDownCounter<int>(
+        "dotnetquery.cache.entries",
+        description: "Number of entries currently held in the query cache."
+    );
+
+    private readonly Counter<long> _cacheEvictions = (meter ?? QueryTelemetry.Meter).CreateCounter<long>(
+        "dotnetquery.cache.evictions",
+        description: "Number of query cache entries automatically evicted after CacheTime elapsed."
+    );
+
+    private readonly Counter<long> _queryRetries = (meter ?? QueryTelemetry.Meter).CreateCounter<long>(
+        "dotnetquery.query.retries",
+        description: "Number of retry attempts made by query fetches beyond the first."
     );
 
     private readonly Histogram<double> _mutationDuration = (meter ?? QueryTelemetry.Meter).CreateHistogram<double>(
@@ -29,91 +48,211 @@ internal sealed class QueryInstrumentation(ILogger logger, Meter? meter = null)
         "Duration of mutation operations."
     );
 
+    private readonly Counter<long> _mutationRetries = (meter ?? QueryTelemetry.Meter).CreateCounter<long>(
+        "dotnetquery.mutation.retries",
+        description: "Number of retry attempts made by mutations beyond the first."
+    );
+
+    private TagList BuildTags(
+        string name,
+        QueryKey? key = null,
+        string? status = null,
+        string? errorType = null,
+        FetchTrigger? trigger = null
+    )
+    {
+        var tags = new TagList { { QueryTelemetryTags.TagQueryName, name } };
+
+        if (status is not null)
+        {
+            tags.Add(QueryTelemetryTags.TagStatus, status);
+        }
+
+        if (errorType is not null)
+        {
+            tags.Add(QueryTelemetryTags.TagErrorType, errorType);
+        }
+
+        if (trigger is { } t)
+        {
+            tags.Add(QueryTelemetryTags.TagTrigger, t.ToTagValue());
+        }
+
+        if (includeQueryKeyInMetrics && key is not null)
+        {
+            tags.Add(QueryTelemetryTags.TagQueryKey, key.ToString());
+        }
+
+        return tags;
+    }
+
     // ── Query fetch ──────────────────────────────────────────────────────────
 
-    internal void RecordFetchStart(QueryKey key)
+    internal void RecordFetchStart(QueryKey key, string name)
     {
-        _activeFetches.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
-        logger.LogDebug("Fetch started for key '{QueryKey}'", key.ToString());
+        _activeFetches.Add(1, BuildTags(name, key));
+        LogFetchStarted(key.ToString());
     }
 
-    internal void RecordFetchSuccess(QueryKey key, double durationMs)
+    internal void RecordFetchSuccess(QueryKey key, string name, double durationMs, int attempts, FetchTrigger trigger)
     {
-        var keyStr = key.ToString();
-        _activeFetches.Add(-1, new TagList { { QueryTelemetryTags.TagQueryKey, keyStr } });
+        _activeFetches.Add(-1, BuildTags(name, key));
+        _fetchDuration.Record(durationMs, BuildTags(name, key, QueryTelemetryTags.StatusSuccess, trigger: trigger));
+
+        if (attempts > 1)
+        {
+            _queryRetries.Add(attempts - 1, BuildTags(name, key));
+        }
+
+        LogFetchSucceeded(key.ToString(), durationMs);
+    }
+
+    internal void RecordFetchFailure(
+        QueryKey key,
+        string name,
+        double durationMs,
+        Exception ex,
+        int attempts,
+        FetchTrigger trigger
+    )
+    {
+        _activeFetches.Add(-1, BuildTags(name, key));
         _fetchDuration.Record(
             durationMs,
-            new TagList
-            {
-                { QueryTelemetryTags.TagQueryKey, keyStr },
-                { QueryTelemetryTags.TagStatus, QueryTelemetryTags.StatusSuccess },
-            }
+            BuildTags(name, key, QueryTelemetryTags.StatusFailure, ex.GetType().Name, trigger)
         );
-        logger.LogDebug("Fetch succeeded for key '{QueryKey}' in {Duration}ms", keyStr, durationMs);
+
+        if (attempts > 1)
+        {
+            _queryRetries.Add(attempts - 1, BuildTags(name, key));
+        }
+
+        LogFetchFailed(ex, key.ToString(), durationMs);
     }
 
-    internal void RecordFetchFailure(QueryKey key, double durationMs, Exception ex)
+    internal void RecordFetchCancelled(QueryKey key, string name, double durationMs, FetchTrigger trigger)
     {
-        var keyStr = key.ToString();
-        _activeFetches.Add(-1, new TagList { { QueryTelemetryTags.TagQueryKey, keyStr } });
-        _fetchDuration.Record(
-            durationMs,
-            new TagList
-            {
-                { QueryTelemetryTags.TagQueryKey, keyStr },
-                { QueryTelemetryTags.TagStatus, QueryTelemetryTags.StatusFailure },
-            }
-        );
-        logger.LogWarning(ex, "Fetch failed for key '{QueryKey}' after {Duration}ms", keyStr, durationMs);
-    }
-
-    internal void RecordFetchCancelled(QueryKey key)
-    {
-        _activeFetches.Add(-1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
-        logger.LogDebug("Fetch cancelled for key '{QueryKey}'", key.ToString());
+        _activeFetches.Add(-1, BuildTags(name, key));
+        _fetchDuration.Record(durationMs, BuildTags(name, key, QueryTelemetryTags.StatusCancelled, trigger: trigger));
+        LogFetchCancelled(key.ToString());
     }
 
     // ── Cache ─────────────────────────────────────────────────────────────────
 
-    internal void RecordCacheHit(QueryKey key)
+    internal void RecordCacheHit(QueryKey key, string name)
     {
-        _cacheHits.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
-        logger.LogDebug("Cache hit for key '{QueryKey}'", key.ToString());
+        _cacheHits.Add(1, BuildTags(name, key));
+        LogCacheHit(key.ToString());
     }
 
-    internal void RecordCacheMiss(QueryKey key)
+    internal void RecordCacheMiss(QueryKey key, string name)
     {
-        _cacheMisses.Add(1, new TagList { { QueryTelemetryTags.TagQueryKey, key.ToString() } });
-        logger.LogDebug("Cache miss for key '{QueryKey}'", key.ToString());
+        _cacheMisses.Add(1, BuildTags(name, key));
+        _cacheEntries.Add(1, BuildTags(name, key));
+        LogCacheMiss(key.ToString());
+    }
+
+    internal void RecordCacheEviction(QueryKey key, string name)
+    {
+        _cacheEntries.Add(-1, BuildTags(name, key));
+        _cacheEvictions.Add(1, BuildTags(name, key));
+        LogCacheEvicted(key.ToString());
     }
 
     // ── Mutation ──────────────────────────────────────────────────────────────
 
-    internal void RecordMutationStart()
+    internal void RecordMutationStart(string name)
     {
-        logger.LogDebug("Mutation started");
+        LogMutationStarted(name);
     }
 
-    internal void RecordMutationSuccess(double durationMs)
+    internal void RecordMutationSuccess(string name, double durationMs, int attempts)
     {
         _mutationDuration.Record(
             durationMs,
-            new TagList { { QueryTelemetryTags.TagStatus, QueryTelemetryTags.StatusSuccess } }
+            new TagList
+            {
+                { QueryTelemetryTags.TagMutationName, name },
+                { QueryTelemetryTags.TagStatus, QueryTelemetryTags.StatusSuccess },
+            }
         );
-        logger.LogDebug("Mutation succeeded in {Duration}ms", durationMs);
+
+        if (attempts > 1)
+        {
+            _mutationRetries.Add(attempts - 1, new TagList { { QueryTelemetryTags.TagMutationName, name } });
+        }
+
+        LogMutationSucceeded(name, durationMs);
     }
 
-    internal void RecordMutationFailure(double durationMs, Exception ex)
+    internal void RecordMutationFailure(string name, double durationMs, Exception ex, int attempts)
     {
         _mutationDuration.Record(
             durationMs,
-            new TagList { { QueryTelemetryTags.TagStatus, QueryTelemetryTags.StatusFailure } }
+            new TagList
+            {
+                { QueryTelemetryTags.TagMutationName, name },
+                { QueryTelemetryTags.TagStatus, QueryTelemetryTags.StatusFailure },
+                { QueryTelemetryTags.TagErrorType, ex.GetType().Name },
+            }
         );
-        logger.LogWarning(ex, "Mutation failed after {Duration}ms", durationMs);
+
+        if (attempts > 1)
+        {
+            _mutationRetries.Add(attempts - 1, new TagList { { QueryTelemetryTags.TagMutationName, name } });
+        }
+
+        LogMutationFailed(ex, name, durationMs);
     }
 
-    internal void RecordMutationCancelled()
+    internal void RecordMutationCancelled(string name, double durationMs)
     {
-        logger.LogDebug("Mutation cancelled");
+        _mutationDuration.Record(
+            durationMs,
+            new TagList
+            {
+                { QueryTelemetryTags.TagMutationName, name },
+                { QueryTelemetryTags.TagStatus, QueryTelemetryTags.StatusCancelled },
+            }
+        );
+        LogMutationCancelled(name);
     }
+
+    // ── Source-generated log messages ────────────────────────────────────────
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Fetch started for key '{QueryKey}'")]
+    private partial void LogFetchStarted(string queryKey);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Fetch succeeded for key '{QueryKey}' in {Duration}ms")]
+    private partial void LogFetchSucceeded(string queryKey, double duration);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Fetch failed for key '{QueryKey}' after {Duration}ms")]
+    private partial void LogFetchFailed(Exception exception, string queryKey, double duration);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Fetch cancelled for key '{QueryKey}'")]
+    private partial void LogFetchCancelled(string queryKey);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Cache hit for key '{QueryKey}'")]
+    private partial void LogCacheHit(string queryKey);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Cache miss for key '{QueryKey}'")]
+    private partial void LogCacheMiss(string queryKey);
+
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "Cache entry for key '{QueryKey}' evicted after CacheTime elapsed"
+    )]
+    private partial void LogCacheEvicted(string queryKey);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Mutation '{MutationName}' started")]
+    private partial void LogMutationStarted(string mutationName);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Mutation '{MutationName}' succeeded in {Duration}ms")]
+    private partial void LogMutationSucceeded(string mutationName, double duration);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Mutation '{MutationName}' failed after {Duration}ms")]
+    private partial void LogMutationFailed(Exception exception, string mutationName, double duration);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Mutation '{MutationName}' cancelled")]
+    private partial void LogMutationCancelled(string mutationName);
 }

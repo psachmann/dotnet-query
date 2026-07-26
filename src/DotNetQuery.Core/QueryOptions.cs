@@ -34,6 +34,16 @@ public sealed record QueryOptions<TArgs, TData>
     public IRetryHandler? RetryHandler { get; init; }
 
     /// <summary>
+    /// A short, low-cardinality name used to tag metrics for this query (e.g. <c>"users"</c>, <c>"todos"</c>).
+    /// Metrics are never tagged with the full <see cref="QueryKey"/> — which typically includes per-entity
+    /// arguments such as an id — because that would produce one time series per distinct argument value.
+    /// When <c>null</c>, the first part of the derived <see cref="QueryKey"/> is used instead.
+    /// Traces and log messages always carry the full key regardless of this setting.
+    /// See <see cref="QueryClientOptions.IncludeQueryKeyInMetrics"/> to opt back into per-key metrics.
+    /// </summary>
+    public string? Name { get; init; }
+
+    /// <summary>
     /// Whether the query is initially enabled. Defaults to <c>true</c>.
     /// Set to <c>false</c> to create a disabled-by-default query without needing to call <see cref="IQuery{TArgs,TData}.SetEnabled"/>.
     /// </summary>
