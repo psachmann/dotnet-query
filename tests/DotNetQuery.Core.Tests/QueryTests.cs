@@ -818,6 +818,57 @@ public class QueryTests
     }
 
     [Test]
+    public async Task Inspector_MetricName_UsesExplicitNameWhenSet()
+    {
+        var options = new EffectiveQueryOptions<int, string>
+        {
+            Fetcher = (_, _) => Task.FromResult("data"),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
+            Name = "custom-name",
+        };
+        using var sut = new Query<int, string>(QueryKey.From("test"), 0, options, _scheduler, _instrumentation);
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.MetricName).IsEqualTo("custom-name");
+    }
+
+    [Test]
+    public async Task Inspector_MetricName_FallsBackToFirstKeyPartWhenNameNotSet()
+    {
+        using var sut = CreateQuery();
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.MetricName).IsEqualTo("test");
+    }
+
+    [Test]
+    public async Task Inspector_MetricName_FallsBackToUnknownWhenKeyHasNoParts()
+    {
+        var options = new EffectiveQueryOptions<int, string>
+        {
+            Fetcher = (_, _) => Task.FromResult("data"),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
+            Name = null,
+        };
+        using var sut = new Query<int, string>(QueryKey.From(), 0, options, _scheduler, _instrumentation);
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.MetricName).IsEqualTo("unknown");
+    }
+
+    [Test]
     public async Task Inspector_CurrentData_IsNullInitially()
     {
         using var sut = CreateQuery();

@@ -278,6 +278,52 @@ public class QueryInstrumentationTests
     }
 
     [Test]
+    public async Task RecordFetchFailure_WithRetries_RecordsQueryRetriesCounter()
+    {
+        var key = QueryKey.From("inst-failure-retries");
+        long? recorded = null;
+
+        using var listener = CreateNamedMeterListener<long>(
+            "dotnetquery.query.retries",
+            "inst-failure-retries",
+            (m, _) => recorded = m
+        );
+
+        _sut.RecordFetchStart(key, "inst-failure-retries");
+        _sut.RecordFetchFailure(
+            key,
+            "inst-failure-retries",
+            12.0,
+            new InvalidOperationException("err"),
+            attempts: 3,
+            FetchTrigger.Manual
+        );
+
+        await Assert.That(recorded).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task RecordMutationFailure_WithRetries_RecordsMutationRetriesCounter()
+    {
+        long? recorded = null;
+
+        using var listener = CreateMeterListener<long>(
+            "dotnetquery.mutation.retries",
+            (m, tags) =>
+            {
+                if (tags.Any(t => t.Key == QueryTelemetryTags.TagMutationName && Equals(t.Value, "createTodo")))
+                {
+                    recorded = m;
+                }
+            }
+        );
+
+        _sut.RecordMutationFailure("createTodo", 33.0, new InvalidOperationException("fail"), attempts: 4);
+
+        await Assert.That(recorded).IsEqualTo(3);
+    }
+
+    [Test]
     public async Task RecordFetchSuccess_SingleAttempt_DoesNotRecordRetries()
     {
         var key = QueryKey.From("inst-no-retries");
