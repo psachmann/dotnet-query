@@ -452,6 +452,26 @@ public class QueryObserverTests
     }
 
     [Test]
+    public async Task Inspector_MetricName_IsUnknownBeforeArgsSet()
+    {
+        using var sut = CreateObserver();
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.MetricName).IsEqualTo("unknown");
+    }
+
+    [Test]
+    public async Task Inspector_MetricName_FallsBackToFirstKeyPartAfterArgsSet()
+    {
+        using var sut = CreateObserver(keyFactory: id => QueryKey.From("users", id));
+        var inspector = (IQueryInspector)sut;
+
+        sut.SetArgs(42);
+
+        await Assert.That(inspector.MetricName).IsEqualTo("users");
+    }
+
+    [Test]
     public async Task Inspector_CurrentData_IsNullInitially()
     {
         using var sut = CreateObserver();

@@ -48,7 +48,7 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
 
             if (ReferenceEquals(result, query))
             {
-                _instrumentation.RecordCacheMiss(key);
+                _instrumentation.RecordCacheMiss(key, result.MetricName);
                 _stateSubscriptions[key] = query.StateChanged.Subscribe(_ => _entriesSubject.OnNext(Snapshot()));
                 _unsubscribedSubscriptions[key] = query.Unsubscribed.Subscribe(_ => Remove(key));
                 _subscribedSubscriptions[key] = query.Subscribed.Subscribe(_ => CancelPendingRemoval(key));
@@ -56,7 +56,7 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
             }
             else
             {
-                _instrumentation.RecordCacheHit(key);
+                _instrumentation.RecordCacheHit(key, result.MetricName);
             }
         }
 
@@ -119,6 +119,7 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
                             )
                             {
                                 toDispose = removed;
+                                _instrumentation.RecordCacheEviction(key, ((IQueryInspector)removed).MetricName);
                                 if (_stateSubscriptions.TryRemove(key, out var stateSub))
                                 {
                                     stateSub.Dispose();

@@ -27,7 +27,10 @@ public static class QueryClientFactory
 
         logger ??= NullLogger.Instance;
         scheduler ??= Scheduler.Default;
-        var instrumentation = new QueryInstrumentation(logger);
+        var instrumentation = new QueryInstrumentation(
+            logger,
+            includeQueryKeyInMetrics: options.IncludeQueryKeyInMetrics
+        );
 
         return new QueryClient(options, scheduler, instrumentation);
     }
