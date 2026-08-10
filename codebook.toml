@@ -1,5 +1,6 @@
 words = [
     "Blazor",
+    "dotnetquery",
     "MVVM",
     "cref",
     "paramref",

@@ -17,7 +17,8 @@ internal sealed class QueryClient : IQueryClient, IQueryClientInspector
 
     public IObservable<IReadOnlyList<IQueryInspector>> CacheEntries => _cache.Entries;
 
-    public IQuery<TArgs, TData> CreateQuery<TArgs, TData>(QueryOptions<TArgs, TData> options) =>
+    public IQuery<TArgs, TData> CreateQuery<TArgs, TData>(QueryOptions<TArgs, TData> options)
+        where TData : class =>
         new QueryObserver<TArgs, TData>(options, _globalOptions, _cache, _scheduler, _instrumentation);
 
     public IInfiniteQuery<TArgs, TData, TPageParam> CreateInfiniteQuery<TArgs, TData, TPageParam>(

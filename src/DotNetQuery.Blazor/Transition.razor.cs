@@ -11,5 +11,6 @@ namespace DotNetQuery.Blazor;
 /// For an explicit loading state on every fetch, use <see cref="Suspense{TArgs,TData}"/> instead.
 /// </remarks>
 /// <typeparam name="TArgs">The type of arguments passed to the query fetcher.</typeparam>
-/// <typeparam name="TData">The type of data returned by the query fetcher.</typeparam>
-public partial class Transition<TArgs, TData>;
+/// <typeparam name="TData">The type of data returned by the query fetcher. Constrained to reference types.</typeparam>
+public partial class Transition<TArgs, TData>
+    where TData : class;

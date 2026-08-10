@@ -1,7 +1,11 @@
 # DotNet Query
 
-[![Build](https://github.com/psachmann/dotnet-query/actions/workflows/build.yaml/badge.svg)](https://github.com/psachmann/dotnet-query/actions/workflows/build.yaml)
-[![codecov](https://codecov.io/gh/psachmann/dotnet-query/graph/badge.svg)](https://codecov.io/gh/psachmann/dotnet-query)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/psachmann/dotnet-query/build.yaml)
+](https://github.com/psachmann/dotnet-query/actions/workflows/build.yaml)
+[![Codecov (with branch)](https://img.shields.io/codecov/c/github/psachmann/dotnet-query/main)](https://codecov.io/gh/psachmann/dotnet-query)
+[![NuGet Version](https://img.shields.io/nuget/v/dotnetquery.core)
+](https://www.nuget.org/packages?q=dotnetquery+psachmann)
+[![GitHub License](https://img.shields.io/github/license/psachmann/dotnet-query)](https://github.com/psachmann/dotnet-query/blob/main/LICENSE.md)
 
 > A [TanStack Query](https://tanstack.com/query)-inspired async data fetching and state management library for .NET and Blazor.
 

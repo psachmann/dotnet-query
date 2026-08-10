@@ -36,6 +36,9 @@ new MutationOptions<CreateUserRequest, UserDto>
     // Override the global retry handler for this mutation
     RetryHandler = new NoRetryHandler(),
 
+    // Name used to tag metrics, traces, and log messages — defaults to typeof(TArgs).Name
+    Name = "createUser",
+
     // Start disabled — Execute() calls are silently ignored until enabled
     IsEnabled = false,
 

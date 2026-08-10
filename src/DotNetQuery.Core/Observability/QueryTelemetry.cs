@@ -27,8 +27,8 @@ public static class QueryTelemetry
     public static readonly ActivitySource ActivitySource = new(SourceName);
 
     /// <summary>
-    /// The <see cref="System.Diagnostics.Metrics.Meter"/> that emits fetch durations, cache hits/misses,
-    /// retry counts, and mutation durations.
+    /// The <see cref="System.Diagnostics.Metrics.Meter"/> that emits fetch durations, cache hits/misses/entries/evictions,
+    /// query and mutation retry counts, and mutation durations.
     /// </summary>
     public static readonly Meter Meter = new(SourceName);
 }

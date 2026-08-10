@@ -24,6 +24,7 @@ public class QueryTests
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
             InitialData = null,
+            Name = null,
         };
 
         return new Query<int, string>(QueryKey.From("test"), args, options, _scheduler, _instrumentation);
@@ -43,6 +44,7 @@ public class QueryTests
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
             InitialData = null,
+            Name = null,
         };
         using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
 
@@ -229,6 +231,38 @@ public class QueryTests
     }
 
     [Test]
+    public async Task Cancel_ThenRefetch_FetchesSuccessfully()
+    {
+        var gate = new TaskCompletionSource();
+        var callCount = 0;
+        using var sut = CreateQuery(
+            fetcher: async (_, ct) =>
+            {
+                if (++callCount == 1)
+                {
+                    await gate.Task.WaitAsync(ct);
+                }
+
+                return "data";
+            }
+        );
+        using var sub = sut.State.Subscribe();
+
+        sut.Refetch();
+        await sut.State.Where(s => s.IsFetching).FirstAsync();
+
+        sut.Cancel();
+        await sut.State.Where(s => s.IsIdle).FirstAsync();
+
+        // Regression: Cancel() used to permanently cancel the query's shared CancellationTokenSource,
+        // so every fetch afterwards — including this one — would abort instantly instead of completing.
+        sut.Refetch();
+        var state = await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(state.CurrentData).IsEqualTo("data");
+    }
+
+    [Test]
     public async Task Invalidate_WithActiveSubscriber_TriggersRefetch()
     {
         using var sut = CreateQuery();
@@ -396,6 +430,28 @@ public class QueryTests
     }
 
     [Test]
+    public async Task RefetchInterval_WithNoSubscribers_DoesNotFetch()
+    {
+        var fetchCount = 0;
+        using var sut = CreateQuery(
+            fetcher: (_, _) =>
+            {
+                fetchCount++;
+
+                return Task.FromResult("data");
+            },
+            refetchInterval: TimeSpan.FromMinutes(1)
+        );
+
+        // Regression: the interval used to push straight into the fetch pipeline, bypassing the
+        // subscriber-count gate that Invalidate() enforces — ticking forever with nobody listening.
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(3).Ticks);
+        await Task.Delay(50);
+
+        await Assert.That(fetchCount).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task NoRefetchInterval_DoesNotFetchAutomatically()
     {
         var fetchCount = 0;
@@ -453,6 +509,24 @@ public class QueryTests
     }
 
     [Test]
+    public async Task Invalidate_AfterDispose_DoesNotThrow()
+    {
+        var sut = CreateQuery();
+        sut.Dispose();
+
+        await Assert.That(sut.Invalidate).ThrowsNothing();
+    }
+
+    [Test]
+    public async Task Cancel_AfterDispose_DoesNotThrow()
+    {
+        var sut = CreateQuery();
+        sut.Dispose();
+
+        await Assert.That(sut.Cancel).ThrowsNothing();
+    }
+
+    [Test]
     public async Task Refetch_OnSuccess_RecordsActivityWithQueryKeyTag()
     {
         var key = QueryKey.From("activity-fetch-success");
@@ -482,6 +556,7 @@ public class QueryTests
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
             InitialData = null,
+            Name = null,
         };
         using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
         using var sub = sut.State.Subscribe();
@@ -524,6 +599,7 @@ public class QueryTests
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
             InitialData = null,
+            Name = null,
         };
         using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
         using var sub = sut.State.Subscribe();
@@ -537,6 +613,150 @@ public class QueryTests
         await Assert
             .That(recorded.GetTagItem(QueryTelemetryTags.TagErrorType))
             .IsEqualTo(nameof(InvalidOperationException));
+    }
+
+    [Test]
+    public async Task Refetch_RecordsActivityWithManualTrigger()
+    {
+        var key = QueryKey.From("activity-trigger-manual");
+        Activity? recorded = null;
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == QueryTelemetry.SourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = a =>
+            {
+                if (Equals(a.GetTagItem(QueryTelemetryTags.TagQueryKey), key.ToString()))
+                {
+                    recorded = a;
+                }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var options = new EffectiveQueryOptions<int, string>
+        {
+            Fetcher = (_, _) => Task.FromResult("ok"),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
+            Name = null,
+        };
+        using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
+        using var sub = sut.State.Subscribe();
+
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(recorded!.GetTagItem(QueryTelemetryTags.TagTrigger)).IsEqualTo("manual");
+    }
+
+    [Test]
+    public async Task RefetchInterval_RecordsActivityWithIntervalTrigger()
+    {
+        var key = QueryKey.From("activity-trigger-interval");
+        Activity? recorded = null;
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == QueryTelemetry.SourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = a =>
+            {
+                if (Equals(a.GetTagItem(QueryTelemetryTags.TagQueryKey), key.ToString()))
+                {
+                    recorded = a;
+                }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var options = new EffectiveQueryOptions<int, string>
+        {
+            Fetcher = (_, _) => Task.FromResult("ok"),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = TimeSpan.FromMinutes(1),
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
+            Name = null,
+        };
+        using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
+        using var sub = sut.State.Subscribe();
+
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+        recorded = null;
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(1).Ticks + 1);
+
+        await Assert.That(recorded!.GetTagItem(QueryTelemetryTags.TagTrigger)).IsEqualTo("interval");
+    }
+
+    [Test]
+    public async Task Refetch_WithRetryingHandler_RecordsAttemptsOnActivity()
+    {
+        var key = QueryKey.From("activity-attempts");
+        Activity? recorded = null;
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == QueryTelemetry.SourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = a =>
+            {
+                if (Equals(a.GetTagItem(QueryTelemetryTags.TagQueryKey), key.ToString()))
+                {
+                    recorded = a;
+                }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var options = new EffectiveQueryOptions<int, string>
+        {
+            Fetcher = (_, _) => Task.FromResult("ok"),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new InvokeNTimesRetryHandler(3),
+            IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
+            Name = null,
+        };
+        using var sut = new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
+        using var sub = sut.State.Subscribe();
+
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(recorded!.GetTagItem(QueryTelemetryTags.TagAttempts)).IsEqualTo(3);
+    }
+
+    private sealed class InvokeNTimesRetryHandler(int times) : IRetryHandler
+    {
+        public async Task<TResult> ExecuteAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> action,
+            CancellationToken cancellationToken = default
+        )
+        {
+            TResult result = default!;
+
+            for (var i = 0; i < times; i++)
+            {
+                result = await action(cancellationToken);
+            }
+
+            return result;
+        }
     }
 
     [Test]
@@ -595,6 +815,57 @@ public class QueryTests
         var inspector = (IQueryInspector)sut;
 
         await Assert.That(inspector.Status).IsEqualTo(QueryStatus.Idle);
+    }
+
+    [Test]
+    public async Task Inspector_MetricName_UsesExplicitNameWhenSet()
+    {
+        var options = new EffectiveQueryOptions<int, string>
+        {
+            Fetcher = (_, _) => Task.FromResult("data"),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
+            Name = "custom-name",
+        };
+        using var sut = new Query<int, string>(QueryKey.From("test"), 0, options, _scheduler, _instrumentation);
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.MetricName).IsEqualTo("custom-name");
+    }
+
+    [Test]
+    public async Task Inspector_MetricName_FallsBackToFirstKeyPartWhenNameNotSet()
+    {
+        using var sut = CreateQuery();
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.MetricName).IsEqualTo("test");
+    }
+
+    [Test]
+    public async Task Inspector_MetricName_FallsBackToUnknownWhenKeyHasNoParts()
+    {
+        var options = new EffectiveQueryOptions<int, string>
+        {
+            Fetcher = (_, _) => Task.FromResult("data"),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
+            Name = null,
+        };
+        using var sut = new Query<int, string>(QueryKey.From(), 0, options, _scheduler, _instrumentation);
+        var inspector = (IQueryInspector)sut;
+
+        await Assert.That(inspector.MetricName).IsEqualTo("unknown");
     }
 
     [Test]

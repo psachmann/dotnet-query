@@ -3,8 +3,9 @@ namespace DotNetQuery.Core;
 /// <summary>
 /// An immutable snapshot of a query's current state. Use the static factory methods to create instances.
 /// </summary>
-/// <typeparam name="TData">The type of data returned by the query.</typeparam>
+/// <typeparam name="TData">The type of data returned by the query. Constrained to reference types.</typeparam>
 public sealed record QueryState<TData>
+    where TData : class
 {
     /// <summary>The current lifecycle status of the query.</summary>
     public QueryStatus Status { get; private set; }

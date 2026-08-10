@@ -10,7 +10,8 @@ public interface IQueryClient : IDisposable
     /// Gets or creates a query that accepts parameters for the given key.
     /// If a query with the same key already exists in the cache, it is returned as-is.
     /// </summary>
-    IQuery<TArgs, TData> CreateQuery<TArgs, TData>(QueryOptions<TArgs, TData> options);
+    IQuery<TArgs, TData> CreateQuery<TArgs, TData>(QueryOptions<TArgs, TData> options)
+        where TData : class;
 
     /// <summary>
     /// Gets or creates an infinite (paginated) query. Queries with the same key share one cache entry.

@@ -37,6 +37,16 @@ public sealed record QueryClientOptions
     public QueryExecutionMode ExecutionMode { get; set; } = QueryExecutionMode.Csr;
 
     /// <summary>
+    /// When <c>true</c>, metrics are additionally tagged with the full <see cref="QueryKey"/> string
+    /// (e.g. <c>"users:42"</c>) alongside the low-cardinality <c>query.name</c> tag.
+    /// Defaults to <c>false</c>: query keys commonly include per-entity arguments, and tagging metrics
+    /// with them produces one time series per distinct argument value, which exceeds the cardinality
+    /// limits most metrics backends enforce. Traces and log messages always carry the full key regardless
+    /// of this setting. Only enable this when your <see cref="QueryKey"/> values are drawn from a bounded set.
+    /// </summary>
+    public bool IncludeQueryKeyInMetrics { get; set; }
+
+    /// <summary>
     /// Validates all option values, throwing <see cref="ArgumentOutOfRangeException"/> or
     /// <see cref="ArgumentNullException"/> with a descriptive message for any invalid value.
     /// Called automatically by <see cref="QueryClientFactory"/> and the DI extension.

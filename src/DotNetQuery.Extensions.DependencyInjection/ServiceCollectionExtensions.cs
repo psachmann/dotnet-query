@@ -27,7 +27,7 @@ public static class ServiceCollectionExtensions
 
         options.Validate();
 
-        services.Add(
+        services.TryAdd(
             new ServiceDescriptor(
                 typeof(IQueryClient),
                 serviceProvider =>
