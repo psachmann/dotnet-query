@@ -16,7 +16,8 @@ public class InfiniteQueryTests
         TimeSpan? cacheTime = null,
         TimeSpan? refetchInterval = null,
         int args = 0,
-        string? initialData = null
+        string? initialData = null,
+        string? name = null
     )
     {
         var options = new EffectiveInfiniteQueryOptions<int, string, int>
@@ -33,6 +34,7 @@ public class InfiniteQueryTests
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
             InitialData = initialData,
+            Name = name,
         };
 
         return new InfiniteQuery<int, string, int>(QueryKey.From("test"), args, options, _scheduler, _instrumentation);
@@ -536,5 +538,111 @@ public class InfiniteQueryTests
 
         var state = await sut.State.Where(s => s.IsSuccess && s.Pages[0].StartsWith("fetched")).FirstAsync();
         await Assert.That(state.Pages[0]).IsEqualTo("fetched:1");
+    }
+
+    [Test]
+    public async Task Cancel_ThenRefetch_StillFetches()
+    {
+        var fetchCount = 0;
+        var gate = new TaskCompletionSource();
+
+        using var sut = CreateQuery(
+            fetcher: async (_, page, ct) =>
+            {
+                if (Interlocked.Increment(ref fetchCount) == 1)
+                {
+                    await gate.Task.WaitAsync(ct);
+                }
+
+                return $"page{page}";
+            }
+        );
+
+        using var sub = sut.State.Subscribe();
+        sut.Refetch();
+        await sut.State.Where(s => s.IsFetching).FirstAsync();
+
+        sut.Cancel();
+        await sut.State.Where(s => s.IsIdle).FirstAsync();
+
+        // Cancel() swaps in a fresh token source, so the query must remain usable afterwards.
+        sut.Refetch();
+        var state = await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(state.Pages[0]).IsEqualTo("page0");
+    }
+
+    [Test]
+    public async Task Invalidate_WithNoSubscribers_DefersFetchUntilFirstSubscriber()
+    {
+        var fetchCount = 0;
+
+        using var sut = CreateQuery(
+            fetcher: (_, page, _) =>
+            {
+                Interlocked.Increment(ref fetchCount);
+                return Task.FromResult($"page{page}");
+            }
+        );
+
+        sut.Invalidate();
+        await Assert.That(fetchCount).IsEqualTo(0);
+
+        using var sub = sut.State.Subscribe();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(fetchCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Invalidate_WithinStaleTime_IsNoOp()
+    {
+        var fetchCount = 0;
+
+        using var sut = CreateQuery(
+            fetcher: (_, page, _) =>
+            {
+                Interlocked.Increment(ref fetchCount);
+                return Task.FromResult($"page{page}");
+            },
+            staleTime: TimeSpan.FromMinutes(5)
+        );
+
+        using var sub = sut.State.Subscribe();
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        sut.Invalidate();
+
+        await Assert.That(fetchCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Unsubscribed_FiresWhenLastSubscriberDisposes()
+    {
+        using var sut = CreateQuery();
+
+        var unsubscribed = 0;
+        using var signal = sut.Unsubscribed.Subscribe(_ => Interlocked.Increment(ref unsubscribed));
+
+        var first = sut.State.Subscribe();
+        var second = sut.State.Subscribe();
+
+        first.Dispose();
+        await Assert.That(unsubscribed).IsEqualTo(0);
+
+        second.Dispose();
+        await Assert.That(unsubscribed).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task MetricName_FallsBackToFirstKeyPart()
+    {
+        using var named = CreateQuery(name: "pages");
+        using var unnamed = CreateQuery();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(named.MetricName).IsEqualTo("pages");
+        await Assert.That(unnamed.MetricName).IsEqualTo("test");
     }
 }

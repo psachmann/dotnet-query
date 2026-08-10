@@ -69,6 +69,7 @@ GetNextPageParam = info =>
 | `IsEnabled` | `true` | When `false`, no fetches run. |
 | `DataComparer` | `null` | Per-page equality check to suppress duplicate emissions. |
 | `InitialData` | `null` | Pre-seeds the first page. The query starts in `Success` state and immediately displays the seeded data while a background refetch refreshes it. |
+| `Name` | `null` | Low-cardinality name used to tag metrics. Falls back to the first part of the `QueryKey`. See [Observability](observability.md). |
 
 ### InitialData
 

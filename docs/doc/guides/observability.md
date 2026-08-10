@@ -59,6 +59,24 @@ builder.Services.AddOpenTelemetry()
 
 Any OpenTelemetry-compatible exporter works — Jaeger, Zipkin, OTLP, Prometheus, Azure Monitor, etc.
 
+## Naming Queries and Mutations
+
+Set `Name` on `QueryOptions<TArgs, TData>` or `MutationOptions<TArgs, TData>` to control the low-cardinality
+identifier used to tag metrics:
+
+```csharp
+var options = new QueryOptions<int, User>
+{
+    Name = "users", // shows up as the query.name tag on metrics
+    KeyFactory = id => QueryKey.From("users", id),
+    Fetcher = (id, ct) => userApi.GetAsync(id, ct),
+};
+```
+
+When `Name` is not set, DotNet Query falls back to the first part of the derived `QueryKey`
+(e.g. `"users"` for a key built as `QueryKey.From("users", id)`). Mutations without a `Name`
+fall back to `typeof(TArgs).Name`.
+
 ## Traces
 
 DotNet Query creates one activity span per operation:
@@ -70,21 +88,31 @@ DotNet Query creates one activity span per operation:
 
 ### Query fetch span
 
-The `query.fetch` span is tagged with the query key and status:
+The `query.fetch` span carries the full identity of the fetch — traces are not subject to the
+cardinality limits that apply to metrics, so the complete `QueryKey` is always included:
 
 | Tag | Value |
 |---|---|
 | `query.key` | The string representation of the `QueryKey` (e.g. `users:42`) |
-| `otel.status_code` | `Ok` on success, `Error` on failure |
+| `trigger` | What caused the fetch: `manual`, `invalidate`, `interval`, `stale`, or `prefetch` |
+| `direction` | Infinite queries only: `refetch_all`, `next`, or `previous` |
+| `attempts` | Number of attempts made by the configured `IRetryHandler` (`1` when no retry occurred) |
+| `otel.status_code` | `Ok` on success, `Error` on failure or cancellation |
 | `error.type` | Exception type name (only on failure) |
+
+A `retry` activity event is added for each attempt beyond the first.
+
+Infinite queries emit the same `query.fetch` span as regular queries. A `refetch_all` re-fetches every
+currently loaded page under a single span, so its `attempts` counts retries across all of those page
+fetches — it is `1` when every page succeeded first try.
 
 ### Mutation execute span
 
-The `mutation.execute` span carries the final status:
-
 | Tag | Value |
 |---|---|
-| `otel.status_code` | `Ok` on success, `Error` on failure |
+| `mutation.name` | The mutation's `Name`, or `typeof(TArgs).Name` when unset |
+| `attempts` | Number of attempts made by the configured `IRetryHandler` |
+| `otel.status_code` | `Ok` on success, `Error` on failure or cancellation |
 | `error.type` | Exception type name (only on failure) |
 
 ## Metrics
@@ -95,19 +123,40 @@ All metrics use the `"DotNetQuery"` meter name. Attach a tag filter in your metr
 |---|---|---|---|
 | `dotnetquery.query.duration` | Histogram | ms | Duration of each query fetch operation |
 | `dotnetquery.query.active` | UpDownCounter | — | Number of query fetch operations currently in flight |
+| `dotnetquery.query.retries` | Counter | — | Retry attempts made by query fetches beyond the first |
 | `dotnetquery.cache.hits` | Counter | — | Cache lookups that found an existing entry |
 | `dotnetquery.cache.misses` | Counter | — | Cache lookups that created a new entry |
+| `dotnetquery.cache.entries` | UpDownCounter | — | Entries currently held in the query cache |
+| `dotnetquery.cache.evictions` | Counter | — | Entries automatically evicted after `CacheTime` elapsed |
 | `dotnetquery.mutation.duration` | Histogram | ms | Duration of each mutation operation |
+| `dotnetquery.mutation.retries` | Counter | — | Retry attempts made by mutations beyond the first |
 
 ### Tags on metrics
 
 | Metric | Tags |
 |---|---|
-| `dotnetquery.query.duration` | `query.key`, `status` (`success` / `failure`) |
-| `dotnetquery.query.active` | `query.key` |
-| `dotnetquery.cache.hits` | `query.key` |
-| `dotnetquery.cache.misses` | `query.key` |
-| `dotnetquery.mutation.duration` | `status` (`success` / `failure`) |
+| `dotnetquery.query.duration` | `query.name`, `status` (`success` / `failure` / `cancelled`), `error.type` (on failure), `trigger` |
+| `dotnetquery.query.active` | `query.name` |
+| `dotnetquery.query.retries` | `query.name` |
+| `dotnetquery.cache.hits` | `query.name` |
+| `dotnetquery.cache.misses` | `query.name` |
+| `dotnetquery.cache.entries` | `query.name` |
+| `dotnetquery.cache.evictions` | `query.name` |
+| `dotnetquery.mutation.duration` | `mutation.name`, `status` (`success` / `failure` / `cancelled`), `error.type` (on failure) |
+| `dotnetquery.mutation.retries` | `mutation.name` |
+
+### Cardinality
+
+Metrics are tagged with `query.name` (or `mutation.name`), never with the full `QueryKey`. A `QueryKey`
+typically embeds per-entity arguments — `QueryKey.From("users", id)` — and tagging metrics with it
+would create one time series per distinct `id`. Most metrics backends enforce a cardinality limit per
+stream (OpenTelemetry defaults to 2000); exceeding it silently collapses new series into an overflow
+bucket. Traces and log messages are not affected — they always carry the full key.
+
+If your keys are drawn from a bounded, known-small set and you want the full key on metrics anyway,
+set `QueryClientOptions.IncludeQueryKeyInMetrics = true`. This adds a `query.key` tag alongside
+`query.name` on every metric. Leave it `false` (the default) for any key space that includes
+per-entity identifiers.
 
 ## Log Messages
 
@@ -121,10 +170,14 @@ All log messages use the category `"DotNetQuery"` (the same string as `QueryTele
 | Debug | `Fetch cancelled for key '{QueryKey}'` |
 | Debug | `Cache hit for key '{QueryKey}'` |
 | Debug | `Cache miss for key '{QueryKey}'` |
-| Debug | `Mutation started` |
-| Debug | `Mutation succeeded in {Duration}ms` |
-| Warning | `Mutation failed after {Duration}ms` (+ exception) |
-| Debug | `Mutation cancelled` |
+| Debug | `Cache entry for key '{QueryKey}' evicted after CacheTime elapsed` |
+| Debug | `Mutation '{MutationName}' started` |
+| Debug | `Mutation '{MutationName}' succeeded in {Duration}ms` |
+| Warning | `Mutation '{MutationName}' failed after {Duration}ms` (+ exception) |
+| Debug | `Mutation '{MutationName}' cancelled` |
+
+Log messages are source-generated via `[LoggerMessage]`, so Debug-level calls cost nothing beyond an
+`IsEnabled` check when the category is filtered out.
 
 ## Filtering Log Output
 

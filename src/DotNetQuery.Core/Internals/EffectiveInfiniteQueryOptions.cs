@@ -28,4 +28,6 @@ internal sealed record EffectiveInfiniteQueryOptions<TArgs, TData, TPageParam>
     public required IEqualityComparer<TData> DataComparer { get; init; }
 
     public required TData? InitialData { get; init; }
+
+    public required string? Name { get; init; }
 }

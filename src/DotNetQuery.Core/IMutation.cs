@@ -22,11 +22,15 @@ public interface IMutation<TArgs, TData> : IDisposable
 
     /// <summary>
     /// Emits the unwrapped <typeparamref name="TData"/> on each successful execution.
+    /// Derived from <see cref="State"/>, so if the current state is already a success, a new
+    /// subscriber receives that value immediately rather than waiting for the next execution.
     /// </summary>
     public IObservable<TData> Success { get; }
 
     /// <summary>
     /// Emits the <see cref="Exception"/> on each failed execution.
+    /// Derived from <see cref="State"/>, so if the current state is already a failure, a new
+    /// subscriber receives that exception immediately rather than waiting for the next execution.
     /// </summary>
     public IObservable<Exception> Failure { get; }
 

@@ -60,6 +60,7 @@ new QueryOptions<int, UserDto>
     RefetchInterval = TimeSpan.FromSeconds(60),    // poll every 60 seconds
     RetryHandler    = new MyCustomRetryHandler(),  // override global RetryHandler
     IsEnabled       = false,                       // start disabled
+    Name            = "users",                     // low-cardinality name used to tag metrics — see the Observability guide
 }
 ```
 

@@ -5,6 +5,8 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
     private readonly ConcurrentDictionary<QueryKey, IQuery> _entries = new();
     private readonly ConcurrentDictionary<QueryKey, IDisposable> _pendingRemovals = new();
     private readonly ConcurrentDictionary<QueryKey, IDisposable> _stateSubscriptions = new();
+    private readonly ConcurrentDictionary<QueryKey, IDisposable> _unsubscribedSubscriptions = new();
+    private readonly ConcurrentDictionary<QueryKey, IDisposable> _subscribedSubscriptions = new();
     private readonly BehaviorSubject<IReadOnlyList<IQueryInspector>> _entriesSubject = new([]);
     private readonly IScheduler _scheduler = scheduler;
     private readonly QueryInstrumentation _instrumentation = instrumentation;
@@ -16,63 +18,141 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
     private IReadOnlyList<IQueryInspector> Snapshot() => [.. _entries.Values.Cast<IQueryInspector>()];
 
     public TEntry GetOrCreate<TEntry>(QueryKey key, TEntry entry)
-        where TEntry : class, IQueryInspector
+        where TEntry : class, ICacheEntry
     {
+        TEntry result;
+        var changed = false;
+
         lock (_evictionLock)
         {
+            // Cancelling and looking up/adding the entry must happen atomically under the same lock
+            // acquisition — otherwise a concurrent Remove(key) could schedule an eviction in the gap
+            // between the two, after this call has already attached a new observer to the entry.
             if (_pendingRemovals.TryRemove(key, out var pending))
             {
                 pending.Dispose();
-                _entriesSubject.OnNext(Snapshot());
+                changed = true;
             }
 
-            var result = (TEntry)_entries.GetOrAdd(key, entry);
+            var existing = _entries.GetOrAdd(key, entry);
+
+            if (existing is not TEntry typed)
+            {
+                throw new InvalidOperationException(
+                    $"QueryKey '{key}' is already in use by a query with a different shape "
+                        + $"({existing.GetType().Name}). Use a distinct QueryKey per query type."
+                );
+            }
+
+            result = typed;
 
             if (ReferenceEquals(result, entry))
             {
-                _instrumentation.RecordCacheMiss(key);
+                _instrumentation.RecordCacheMiss(key, result.MetricName);
                 _stateSubscriptions[key] = entry.StateChanged.Subscribe(_ => _entriesSubject.OnNext(Snapshot()));
-                _entriesSubject.OnNext(Snapshot());
+                _unsubscribedSubscriptions[key] = entry.Unsubscribed.Subscribe(_ => Remove(key));
+                _subscribedSubscriptions[key] = entry.Subscribed.Subscribe(_ => CancelPendingRemoval(key));
+                changed = true;
             }
             else
             {
-                _instrumentation.RecordCacheHit(key);
+                _instrumentation.RecordCacheHit(key, result.MetricName);
             }
+        }
 
-            return result;
+        if (changed)
+        {
+            _entriesSubject.OnNext(Snapshot());
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Cancels a pending eviction for <paramref name="key"/>, if any — e.g. because a new observer
+    /// attached (via <see cref="GetOrCreate{TEntry}"/>) or a new <c>State</c> subscriber joined
+    /// a query that was already counting down to eviction.
+    /// </summary>
+    private void CancelPendingRemoval(QueryKey key)
+    {
+        bool cancelled;
+
+        lock (_evictionLock)
+        {
+            cancelled = _pendingRemovals.TryRemove(key, out var pending);
+            if (cancelled)
+            {
+                pending!.Dispose();
+            }
+        }
+
+        if (cancelled)
+        {
+            _entriesSubject.OnNext(Snapshot());
         }
     }
 
     public void Remove(QueryKey key)
     {
-        if (!_entries.TryGetValue(key, out var query))
+        lock (_evictionLock)
         {
-            return;
-        }
-
-        var subscription = Observable
-            .Timer(query.CacheTime, _scheduler)
-            .Subscribe(_ =>
+            if (!_entries.TryGetValue(key, out var query))
             {
-                IQuery? toDispose = null;
+                return;
+            }
 
-                lock (_evictionLock)
-                {
-                    if (_pendingRemovals.TryRemove(key, out IDisposable? _) && _entries.TryRemove(key, out var removed))
+            IDisposable subscription;
+
+            try
+            {
+                subscription = Observable
+                    .Timer(query.CacheTime, _scheduler)
+                    .Subscribe(_ =>
                     {
-                        toDispose = removed;
-                        if (_stateSubscriptions.TryRemove(key, out var stateSub))
+                        IQuery? toDispose = null;
+
+                        lock (_evictionLock)
                         {
-                            stateSub.Dispose();
+                            if (
+                                _pendingRemovals.TryRemove(key, out IDisposable? _)
+                                && _entries.TryRemove(key, out var removed)
+                            )
+                            {
+                                toDispose = removed;
+                                _instrumentation.RecordCacheEviction(key, ((IQueryInspector)removed).MetricName);
+                                if (_stateSubscriptions.TryRemove(key, out var stateSub))
+                                {
+                                    stateSub.Dispose();
+                                }
+                                if (_unsubscribedSubscriptions.TryRemove(key, out var unsubscribedSub))
+                                {
+                                    unsubscribedSub.Dispose();
+                                }
+                                if (_subscribedSubscriptions.TryRemove(key, out var subscribedSub))
+                                {
+                                    subscribedSub.Dispose();
+                                }
+                            }
                         }
-                    }
-                }
 
-                toDispose?.Dispose();
-                _entriesSubject.OnNext(Snapshot());
-            });
+                        toDispose?.Dispose();
+                        _entriesSubject.OnNext(Snapshot());
+                    });
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // CacheTime exceeds what the scheduler's underlying timer can represent (e.g. DefaultScheduler's
+                // ~49-day System.Threading.Timer limit) — treat it as "never evict" instead of crashing.
+                return;
+            }
 
-        _pendingRemovals[key] = subscription;
+            if (_pendingRemovals.TryGetValue(key, out var existing))
+            {
+                existing.Dispose();
+            }
+
+            _pendingRemovals[key] = subscription;
+        }
     }
 
     public void Invalidate(QueryKey key)
@@ -116,6 +196,20 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
         }
 
         _stateSubscriptions.Clear();
+
+        foreach (var subscription in _unsubscribedSubscriptions.Values)
+        {
+            subscription.Dispose();
+        }
+
+        _unsubscribedSubscriptions.Clear();
+
+        foreach (var subscription in _subscribedSubscriptions.Values)
+        {
+            subscription.Dispose();
+        }
+
+        _subscribedSubscriptions.Clear();
 
         foreach (var query in _entries.Values)
         {

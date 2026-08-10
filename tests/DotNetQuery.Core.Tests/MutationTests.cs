@@ -496,6 +496,60 @@ public class MutationTests
     }
 
     [Test]
+    public async Task Execute_WithRetryingHandler_RecordsAttemptsOnActivity()
+    {
+        Activity? recorded = null;
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == QueryTelemetry.SourceName,
+            Sample = (ref _) => ActivitySamplingResult.AllData,
+            ActivityStopped = a =>
+            {
+                if (
+                    a.OperationName == QueryTelemetryTags.ActivityMutationExecute
+                    && Equals(a.GetTagItem(QueryTelemetryTags.TagAttempts), 3)
+                )
+                {
+                    recorded = a;
+                }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string>
+            {
+                Mutator = (_, _) => Task.FromResult("ok"),
+                RetryHandler = new InvokeNTimesRetryHandler(3),
+            }
+        );
+
+        mutation.Execute(0);
+        await mutation.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(recorded!.GetTagItem(QueryTelemetryTags.TagAttempts)).IsEqualTo(3);
+    }
+
+    private sealed class InvokeNTimesRetryHandler(int times) : IRetryHandler
+    {
+        public async Task<TResult> ExecuteAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> action,
+            CancellationToken cancellationToken = default
+        )
+        {
+            TResult result = default!;
+
+            for (var i = 0; i < times; i++)
+            {
+                result = await action(cancellationToken);
+            }
+
+            return result;
+        }
+    }
+
+    [Test]
     public async Task RetryHandler_NullInOptions_UsesGlobalHandler()
     {
         using var client = new QueryClient(

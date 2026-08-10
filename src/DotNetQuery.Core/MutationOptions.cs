@@ -17,6 +17,12 @@ public sealed record MutationOptions<TArgs, TData>
     public IRetryHandler? RetryHandler { get; init; }
 
     /// <summary>
+    /// A short name used to tag metrics, traces, and log messages for this mutation (e.g. <c>"createTodo"</c>).
+    /// When <c>null</c>, <c>typeof(TArgs).Name</c> is used instead.
+    /// </summary>
+    public string? Name { get; init; }
+
+    /// <summary>
     /// Whether the mutation is initially enabled. Defaults to <c>true</c>.
     /// When <c>false</c>, calls to <see cref="IMutation{TArgs,TData}.Execute"/> are silently ignored.
     /// </summary>

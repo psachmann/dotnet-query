@@ -79,6 +79,8 @@ internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam>
 
     public int ObserverCount => _activeQuery.Value?.ObserverCount ?? 0;
 
+    public string MetricName => _activeQuery.Value?.MetricName ?? _options.Name ?? "unknown";
+
     public IObservable<Unit> StateChanged =>
         _activeQuery.Where(query => query is not null).Select(query => query!.StateChanged).Switch();
 
@@ -144,5 +146,6 @@ internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam>
             RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
             DataComparer = options.DataComparer ?? EqualityComparer<TData>.Default,
             InitialData = options.InitialData,
+            Name = options.Name,
         };
 }

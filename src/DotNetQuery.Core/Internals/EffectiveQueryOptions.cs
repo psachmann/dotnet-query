@@ -1,6 +1,7 @@
 namespace DotNetQuery.Core.Internals;
 
 internal sealed record EffectiveQueryOptions<TArgs, TData>
+    where TData : class
 {
     public required Func<TArgs, CancellationToken, Task<TData>> Fetcher { get; init; }
 
@@ -17,4 +18,6 @@ internal sealed record EffectiveQueryOptions<TArgs, TData>
     public required IEqualityComparer<TData> DataComparer { get; init; }
 
     public required TData? InitialData { get; init; }
+
+    public required string? Name { get; init; }
 }

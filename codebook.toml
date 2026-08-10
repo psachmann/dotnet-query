@@ -2,6 +2,7 @@ words = [
     "Blazor",
     "MVVM",
     "cref",
+    "dotnetquery",
     "paramref",
     "typeparam",
     "typeparamref",

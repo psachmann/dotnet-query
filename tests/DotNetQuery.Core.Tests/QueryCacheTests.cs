@@ -1,3 +1,5 @@
+using System.Diagnostics.Metrics;
+
 namespace DotNetQuery.Core.Tests;
 
 public class QueryCacheTests
@@ -31,9 +33,32 @@ public class QueryCacheTests
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
             InitialData = null,
+            Name = null,
         };
 
         return new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
+    }
+
+    private InfiniteQuery<int, string, int> CreateInfiniteQuery(QueryKey key, TimeSpan? cacheTime = null)
+    {
+        var options = new EffectiveInfiniteQueryOptions<int, string, int>
+        {
+            Fetcher = (_, page, _) => Task.FromResult($"page{page}"),
+            InitialPageParam = 0,
+            GetNextPageParam = info => info.PageParam + 1,
+            GetPreviousPageParam = null,
+            MaxPages = null,
+            StaleTime = TimeSpan.Zero,
+            CacheTime = cacheTime ?? TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
+            Name = null,
+        };
+
+        return new InfiniteQuery<int, string, int>(key, 0, options, _scheduler, _instrumentation);
     }
 
     [Test]
@@ -85,6 +110,50 @@ public class QueryCacheTests
     }
 
     [Test]
+    public async Task GetOrCreate_SameKeyDifferentDataType_ThrowsInvalidOperationException()
+    {
+        var key = QueryKey.From("a");
+        using var stringQuery = CreateQuery(key);
+        _sut.GetOrCreate(key, stringQuery);
+
+        var objectOptions = new EffectiveQueryOptions<int, object>
+        {
+            Fetcher = (_, _) => Task.FromResult<object>("data"),
+            StaleTime = TimeSpan.Zero,
+            CacheTime = TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+            DataComparer = EqualityComparer<object>.Default,
+            InitialData = null,
+            Name = null,
+        };
+        using var objectQuery = new Query<int, object>(key, 0, objectOptions, _scheduler, _instrumentation);
+
+        await Assert.That(() => _sut.GetOrCreate(key, objectQuery)).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task Remove_CalledTwiceBeforeTimerFires_StillEvictsAfterCacheTime()
+    {
+        // Regression: a double-Detach (or Detach racing an auto-eviction) used to overwrite the first
+        // pending-removal subscription without disposing it, leaking a timer.
+        var key = QueryKey.From("a");
+        using var query = CreateQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        _sut.Remove(key);
+        _sut.Remove(key);
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(5).Ticks + 1);
+
+        using var fresh = CreateQuery(key);
+        var result = _sut.GetOrCreate(key, fresh);
+
+        await Assert.That(result).IsEqualTo(fresh);
+    }
+
+    [Test]
     public async Task Remove_NonExistentKey_DoesNothing()
     {
         var key = QueryKey.From("missing");
@@ -128,6 +197,100 @@ public class QueryCacheTests
         var result = _sut.GetOrCreate(key, fresh);
 
         await Assert.That(result).IsEqualTo(fresh);
+    }
+
+    [Test]
+    public async Task LastSubscriberUnsubscribing_SchedulesEviction()
+    {
+        // Regression: previously, nothing started the eviction timer when the last State subscriber
+        // left — only an explicit Detach() did — so cache entries accumulated forever.
+        var key = QueryKey.From("a");
+        using var query = CreateQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        var subscription = query.State.Subscribe();
+        subscription.Dispose(); // last (only) subscriber leaves
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(5).Ticks + 1);
+
+        // Query should have been evicted automatically — GetOrCreate for the same key returns a fresh instance
+        using var fresh = CreateQuery(key);
+        var result = _sut.GetOrCreate(key, fresh);
+
+        await Assert.That(result).IsEqualTo(fresh);
+    }
+
+    [Test]
+    public async Task InfiniteQuery_LastSubscriberUnsubscribing_SchedulesEviction()
+    {
+        // Infinite queries are cached through the same generic GetOrCreate as regular queries, so they
+        // must take part in the same subscriber-driven eviction lifecycle.
+        var key = QueryKey.From("infinite");
+        using var query = CreateInfiniteQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        var subscription = query.State.Subscribe();
+        subscription.Dispose();
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(5).Ticks + 1);
+
+        using var fresh = CreateInfiniteQuery(key);
+        var result = _sut.GetOrCreate(key, fresh);
+
+        await Assert.That(result).IsEqualTo(fresh);
+    }
+
+    [Test]
+    public async Task InfiniteQuery_SubscriberRejoiningBeforeEvictionTimerFires_CancelsEviction()
+    {
+        var key = QueryKey.From("infinite");
+        using var query = CreateInfiniteQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        var subscription = query.State.Subscribe();
+        subscription.Dispose();
+
+        using var rejoin = query.State.Subscribe();
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(10).Ticks);
+
+        using var late = CreateInfiniteQuery(key);
+        var result = _sut.GetOrCreate(key, late);
+
+        await Assert.That(result).IsEqualTo(query);
+    }
+
+    [Test]
+    public async Task GetOrCreate_SameKeyForQueryAndInfiniteQuery_ThrowsInvalidOperationException()
+    {
+        var key = QueryKey.From("a");
+        using var query = CreateQuery(key);
+        _sut.GetOrCreate(key, query);
+
+        using var infinite = CreateInfiniteQuery(key);
+
+        await Assert.That(() => _sut.GetOrCreate(key, infinite)).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task SubscriberRejoiningBeforeEvictionTimerFires_CancelsEviction()
+    {
+        var key = QueryKey.From("a");
+        using var query = CreateQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        var subscription = query.State.Subscribe();
+        subscription.Dispose();
+
+        // Rejoin directly against the Query (not via GetOrCreate) before the CacheTime timer fires
+        using var rejoin = query.State.Subscribe();
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(10).Ticks);
+
+        using var late = CreateQuery(key);
+        var result = _sut.GetOrCreate(key, late);
+
+        await Assert.That(result).IsEqualTo(query);
     }
 
     [Test]
@@ -211,6 +374,73 @@ public class QueryCacheTests
         _sut.Dispose();
 
         await Assert.That(completed).IsTrue();
+    }
+
+    [Test]
+    public async Task Eviction_ReturnsCacheEntriesMetricToZero()
+    {
+        using var meter = new Meter($"DotNetQuery-CacheEntries-{Guid.NewGuid()}");
+        var instrumentation = new QueryInstrumentation(NullLogger.Instance, meter);
+        using var cache = new QueryCache(_scheduler, instrumentation);
+
+        var entryDeltas = new List<int>();
+        using var entriesListener = CreateMeterListener<int>(meter, "dotnetquery.cache.entries", entryDeltas.Add);
+
+        var key = QueryKey.From("evict-metric");
+        using var query = CreateQuery(key, TimeSpan.FromMinutes(5));
+        cache.GetOrCreate(key, query);
+        cache.Remove(key);
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(5).Ticks + 1);
+
+        await Assert.That(entryDeltas.Sum()).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task CancelledPendingRemoval_DoesNotDecrementCacheEntriesOrRecordEviction()
+    {
+        using var meter = new Meter($"DotNetQuery-CacheEntries-{Guid.NewGuid()}");
+        var instrumentation = new QueryInstrumentation(NullLogger.Instance, meter);
+        using var cache = new QueryCache(_scheduler, instrumentation);
+
+        var entryDeltas = new List<int>();
+        var evictions = new List<long>();
+        using var entriesListener = CreateMeterListener<int>(meter, "dotnetquery.cache.entries", entryDeltas.Add);
+        using var evictionsListener = CreateMeterListener<long>(meter, "dotnetquery.cache.evictions", evictions.Add);
+
+        var key = QueryKey.From("evict-cancel-metric");
+        using var query = CreateQuery(key, TimeSpan.FromMinutes(5));
+        cache.GetOrCreate(key, query);
+        cache.Remove(key);
+
+        using var rejoin = CreateQuery(key);
+        cache.GetOrCreate(key, rejoin);
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(10).Ticks);
+
+        using var _ = Assert.Multiple();
+        await Assert.That(entryDeltas.Sum()).IsEqualTo(1);
+        await Assert.That(evictions).IsEmpty();
+    }
+
+    private static MeterListener CreateMeterListener<T>(Meter meter, string instrumentName, Action<T> onMeasurement)
+        where T : struct
+    {
+        var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, l) =>
+            {
+                if (ReferenceEquals(instrument.Meter, meter) && instrument.Name == instrumentName)
+                {
+                    l.EnableMeasurementEvents(instrument);
+                }
+            },
+        };
+
+        listener.SetMeasurementEventCallback<T>((_, measurement, _, _) => onMeasurement(measurement));
+        listener.Start();
+
+        return listener;
     }
 
     [Test]

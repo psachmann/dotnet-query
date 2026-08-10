@@ -1,6 +1,7 @@
 namespace DotNetQuery.Core.Internals;
 
 internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>, IQueryInspector
+    where TData : class
 {
     private readonly QueryCache _cache;
     private readonly EffectiveQueryOptions<TArgs, TData> _options;
@@ -34,10 +35,13 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>, IQuery
             _args.Subscribe(args =>
             {
                 var key = options.KeyFactory(args);
-                var query = _cache.GetOrCreate(
-                    key,
-                    new Query<TArgs, TData>(key, args, _options, _scheduler, _instrumentation)
-                );
+                var candidate = new Query<TArgs, TData>(key, args, _options, _scheduler, _instrumentation);
+                var query = _cache.GetOrCreate(key, candidate);
+
+                if (!ReferenceEquals(query, candidate))
+                {
+                    candidate.Dispose();
+                }
 
                 _currentKey = key;
 
@@ -68,6 +72,8 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>, IQuery
     public DateTimeOffset? LastUpdatedAt => _activeQuery.Value?.LastUpdatedAt;
 
     public int ObserverCount => _activeQuery.Value?.ObserverCount ?? 0;
+
+    public string MetricName => _activeQuery.Value?.MetricName ?? _options.Name ?? "unknown";
 
     public IObservable<Unit> StateChanged =>
         _activeQuery.Where(query => query is not null).Select(query => query!.StateChanged).Switch();
@@ -150,6 +156,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>, IQuery
             RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
             DataComparer = options.DataComparer ?? EqualityComparer<TData>.Default,
             InitialData = options.InitialData,
+            Name = options.Name,
         };
     }
 }

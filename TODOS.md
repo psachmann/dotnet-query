@@ -3,7 +3,7 @@
 ## Core Library Gaps (vs TanStack Query)
 
 - [x] **Infinite/Paginated Queries** — `IInfiniteQuery` equivalent with fetch-next-page / fetch-previous-page support
-  - [ ] Initial data
+  - [x] Initial data
 
 ## Blazor-Specific Gaps
 

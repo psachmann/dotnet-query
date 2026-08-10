@@ -19,11 +19,19 @@ public sealed record QueryKey : IEnumerable<object>
     /// <summary>The ordered list of values that make up this key.</summary>
     public IReadOnlyList<object> Parts { get; private set; }
 
+    private string? _stringValue;
+
     /// <summary>
     /// A sentinel key representing the uninitialized state.
     /// Returned by <see cref="IQuery.Key"/> before args have been pushed for the first time.
+    /// Built from a private marker type, so no user-constructed <see cref="QueryKey"/> can ever equal it.
     /// </summary>
-    public static QueryKey Default { get; } = From("\0");
+    public static QueryKey Default { get; } = new(new object[] { new UninitializedMarker() });
+
+    private sealed record UninitializedMarker
+    {
+        public override string ToString() => "<uninitialized>";
+    }
 
     /// <summary>
     /// Creates a <see cref="QueryKey"/> from the given parts.
@@ -64,7 +72,7 @@ public sealed record QueryKey : IEnumerable<object>
     }
 
     /// <inheritdoc/>
-    public override string ToString() => string.Join(":", Parts.Select(p => p?.ToString() ?? "null"));
+    public override string ToString() => _stringValue ??= string.Join(":", Parts.Select(p => p?.ToString() ?? "null"));
 
     /// <inheritdoc/>
     public bool Equals(QueryKey? other)

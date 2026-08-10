@@ -70,4 +70,14 @@ public sealed record InfiniteQueryOptions<TArgs, TData, TPageParam>
     /// <see cref="IInfiniteQuery{TArgs,TData,TPageParam}.FetchNextPage"/>.
     /// </summary>
     public TData? InitialData { get; init; }
+
+    /// <summary>
+    /// A short, low-cardinality name used to tag metrics for this query (e.g. <c>"users"</c>, <c>"todos"</c>).
+    /// Metrics are never tagged with the full <see cref="QueryKey"/> — which typically includes per-entity
+    /// arguments such as an id — because that would produce one time series per distinct argument value.
+    /// When <c>null</c>, the first part of the derived <see cref="QueryKey"/> is used instead.
+    /// Traces and log messages always carry the full key regardless of this setting.
+    /// See <see cref="QueryClientOptions.IncludeQueryKeyInMetrics"/> to opt back into per-key metrics.
+    /// </summary>
+    public string? Name { get; init; }
 }
