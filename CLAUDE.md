@@ -66,7 +66,7 @@ The solution has four projects under `src/` and three test projects under `tests
 
 **`ICacheEntry`** — internal interface extending `IQueryInspector` with the `Subscribed` / `Unsubscribed` signals `QueryCache` uses to drive eviction. Implemented only by the cached entries themselves (`Query`, `InfiniteQuery`) — the observers handed back to callers implement `IQueryInspector` but are not cache entries. Keep this split when adding a new query type: DevTools-facing inspection on `IQueryInspector`, cache lifecycle on `ICacheEntry`.
 
-**Observability tagging** — metrics are tagged with a low-cardinality `MetricName` (the `Name` option, falling back to the first `QueryKey` part), never the full key, unless `QueryClientOptions.IncludeQueryKeyInMetrics` is set. Traces and logs always carry the full key. Fetch spans also carry a `FetchTrigger` (`manual` / `invalidate` / `interval` / `stale` / `prefetch`) and, for infinite queries, a `direction` (`refetch_all` / `next` / `previous`).
+**Observability tagging** — metrics are tagged with a low-cardinality `MetricName` (the `Name` option, falling back to the first `QueryKey` part), never the full key, unless `QueryClientOptions.IncludeQueryKeyInMetrics` is set. Traces and logs always carry the full key; fetch spans additionally carry `query.name` for trace↔metric correlation. Fetch spans also carry a `FetchTrigger` (`manual` / `invalidate` / `interval` / `stale` / `prefetch`) and, for infinite queries, a `direction` (`refetch_all` / `next` / `previous`) plus a `query.pages` count. Duration histograms record seconds (OTel semantic conventions); log messages report milliseconds.
 
 ### Blazor layer
 

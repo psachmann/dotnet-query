@@ -1,5 +1,5 @@
 @typeparam TArgs
-@typeparam TData
+@typeparam TData where TData : class
 @typeparam TPageParam
 @implements IDisposable
 
@@ -45,7 +45,8 @@ else
     public RenderFragment? Loading { get; set; }
 
     /// <summary>
-    /// Rendered when the query has failed and no pages are available to fall back on.
+    /// Rendered whenever the query has failed, even when stale pages are still available —
+    /// use <see cref="InfiniteTransition{TArgs,TData,TPageParam}"/> to keep showing stale pages instead.
     /// Receives the exception as context. Defaults to nothing if not provided.
     /// </summary>
     [Parameter]

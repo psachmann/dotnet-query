@@ -213,6 +213,7 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
 
         foreach (var query in _entries.Values)
         {
+            _instrumentation.RecordCacheDisposed(query.Key, ((IQueryInspector)query).MetricName);
             query.Dispose();
         }
 

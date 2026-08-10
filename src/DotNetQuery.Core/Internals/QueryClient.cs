@@ -23,7 +23,8 @@ internal sealed class QueryClient : IQueryClient, IQueryClientInspector
 
     public IInfiniteQuery<TArgs, TData, TPageParam> CreateInfiniteQuery<TArgs, TData, TPageParam>(
         InfiniteQueryOptions<TArgs, TData, TPageParam> options
-    ) =>
+    )
+        where TData : class =>
         new InfiniteQueryObserver<TArgs, TData, TPageParam>(
             options,
             _globalOptions,

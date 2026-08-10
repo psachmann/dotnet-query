@@ -94,8 +94,10 @@ cardinality limits that apply to metrics, so the complete `QueryKey` is always i
 | Tag | Value |
 |---|---|
 | `query.key` | The string representation of the `QueryKey` (e.g. `users:42`) |
+| `query.name` | The low-cardinality metric name — the same value metrics are tagged with, for trace↔metric correlation |
 | `trigger` | What caused the fetch: `manual`, `invalidate`, `interval`, `stale`, or `prefetch` |
 | `direction` | Infinite queries only: `refetch_all`, `next`, or `previous` |
+| `query.pages` | Infinite queries only: number of pages fetched (`1` for `next`/`previous`, page count for `refetch_all`) |
 | `attempts` | Number of attempts made by the configured `IRetryHandler` (`1` when no retry occurred) |
 | `otel.status_code` | `Ok` on success, `Error` on failure or cancellation |
 | `error.type` | Exception type name (only on failure) |
@@ -121,14 +123,20 @@ All metrics use the `"DotNetQuery"` meter name. Attach a tag filter in your metr
 
 | Instrument | Type | Unit | Description |
 |---|---|---|---|
-| `dotnetquery.query.duration` | Histogram | ms | Duration of each query fetch operation |
+| `dotnetquery.query.duration` | Histogram | s | Duration of each query fetch operation |
 | `dotnetquery.query.active` | UpDownCounter | — | Number of query fetch operations currently in flight |
 | `dotnetquery.query.retries` | Counter | — | Retry attempts made by query fetches beyond the first |
 | `dotnetquery.cache.hits` | Counter | — | Cache lookups that found an existing entry |
 | `dotnetquery.cache.misses` | Counter | — | Cache lookups that created a new entry |
 | `dotnetquery.cache.entries` | UpDownCounter | — | Entries currently held in the query cache |
 | `dotnetquery.cache.evictions` | Counter | — | Entries automatically evicted after `CacheTime` elapsed |
-| `dotnetquery.mutation.duration` | Histogram | ms | Duration of each mutation operation |
+| `dotnetquery.mutation.duration` | Histogram | s | Duration of each mutation operation |
+
+Duration histograms record **seconds**, following current OTel semantic conventions for
+`*.duration` instruments. Log messages report milliseconds for readability.
+
+`dotnetquery.cache.entries` is also decremented when a client (and its cache) is disposed, so
+scoped SSR clients do not leak their live-entry count into the process-wide gauge.
 | `dotnetquery.mutation.retries` | Counter | — | Retry attempts made by mutations beyond the first |
 
 ### Tags on metrics
@@ -171,6 +179,7 @@ All log messages use the category `"DotNetQuery"` (the same string as `QueryTele
 | Debug | `Cache hit for key '{QueryKey}'` |
 | Debug | `Cache miss for key '{QueryKey}'` |
 | Debug | `Cache entry for key '{QueryKey}' evicted after CacheTime elapsed` |
+| Debug | `Cache entry for key '{QueryKey}' released on cache dispose` |
 | Debug | `Mutation '{MutationName}' started` |
 | Debug | `Mutation '{MutationName}' succeeded in {Duration}ms` |
 | Warning | `Mutation '{MutationName}' failed after {Duration}ms` (+ exception) |

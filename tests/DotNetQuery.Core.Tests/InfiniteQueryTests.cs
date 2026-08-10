@@ -636,6 +636,44 @@ public class InfiniteQueryTests
     }
 
     [Test]
+    public async Task CurrentData_ReturnsSnapshot_UnaffectedByLaterFetches()
+    {
+        using var sut = CreateQuery();
+
+        using var sub = sut.State.Subscribe();
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        var snapshot = (IReadOnlyList<string>)sut.CurrentData!;
+
+        sut.FetchNextPage();
+        await sut.State.Where(s => s.IsSuccess && s.Pages.Count == 2).FirstAsync();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(snapshot.Count).IsEqualTo(1);
+        await Assert.That(((IReadOnlyList<string>)sut.CurrentData!).Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Refetch_UnchangedPage_KeepsPreviousPageInstance()
+    {
+        // A fresh string instance per fetch — reference equality must come from the DataComparer
+        // reuse in ExecuteRefetchAllAsync, not from string interning.
+        using var sut = CreateQuery(fetcher: (_, page, _) => Task.FromResult(new string($"page{page}".ToCharArray())));
+
+        using var sub = sut.State.Subscribe();
+        sut.Refetch();
+        var first = await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        var tcs = new TaskCompletionSource<InfiniteQueryState<string, int>>();
+        using var secondSub = sut.State.Where(s => s.IsSuccess).Skip(1).Subscribe(s => tcs.TrySetResult(s));
+        sut.Refetch();
+        var second = await tcs.Task;
+
+        await Assert.That(ReferenceEquals(second.Pages[0], first.Pages[0])).IsTrue();
+    }
+
+    [Test]
     public async Task MetricName_FallsBackToFirstKeyPart()
     {
         using var named = CreateQuery(name: "pages");

@@ -5,9 +5,13 @@ namespace DotNetQuery.Core;
 /// <see cref="IQueryClient.CreateInfiniteQuery{TArgs,TData,TPageParam}"/>.
 /// </summary>
 /// <typeparam name="TArgs">The type of the arguments that identify which resource to fetch.</typeparam>
-/// <typeparam name="TData">The type of a single page of data.</typeparam>
+/// <typeparam name="TData">
+/// The type of a single page of data. Constrained to reference types because the library
+/// uses <c>null</c> to represent "no data yet" — a non-nullable value type has no way to express that.
+/// </typeparam>
 /// <typeparam name="TPageParam">The type of the page parameter (cursor/offset).</typeparam>
 public sealed record InfiniteQueryOptions<TArgs, TData, TPageParam>
+    where TData : class
 {
     /// <summary>Derives the cache key from the current args.</summary>
     public required Func<TArgs, QueryKey> KeyFactory { get; init; }
@@ -59,6 +63,10 @@ public sealed record InfiniteQueryOptions<TArgs, TData, TPageParam>
 
     /// <summary>
     /// Equality comparer applied per page to detect structurally identical pages.
+    /// During a full refetch, a re-fetched page that equals its predecessor keeps the previous
+    /// instance (reference equality is preserved), and
+    /// <see cref="IInfiniteQuery{TArgs,TData,TPageParam}.Success"/> suppresses re-emissions when
+    /// every page is equal to the previous emission.
     /// Defaults to <see cref="EqualityComparer{T}.Default"/>.
     /// </summary>
     public IEqualityComparer<TData>? DataComparer { get; init; }

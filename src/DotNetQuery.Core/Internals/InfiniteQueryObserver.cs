@@ -3,6 +3,7 @@ namespace DotNetQuery.Core.Internals;
 internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam>
     : IInfiniteQuery<TArgs, TData, TPageParam>,
         IQueryInspector
+    where TData : class
 {
     private readonly QueryCache _cache;
     private readonly EffectiveInfiniteQueryOptions<TArgs, TData, TPageParam> _options;
@@ -96,7 +97,10 @@ internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam>
         _activeQuery.Where(query => query is not null).Select(query => query!.State).Switch();
 
     public IObservable<IReadOnlyList<TData>> Success =>
-        State.Where(s => s.IsSuccess && !s.IsFetchingNextPage && !s.IsFetchingPreviousPage).Select(s => s.Pages);
+        State
+            .Where(s => s.IsSuccess && !s.IsFetchingNextPage && !s.IsFetchingPreviousPage)
+            .Select(s => s.Pages)
+            .DistinctUntilChanged(new PagesComparer(_options.DataComparer));
 
     public IObservable<Exception> Failure => State.Where(s => s.IsFailure).Select(s => s.Error!);
 
@@ -126,6 +130,35 @@ internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam>
         _args.Dispose();
         _isEnabled.Dispose();
         _activeQuery.Dispose();
+    }
+
+    /// <summary>Compares two page lists element-wise using the query's <c>DataComparer</c>.</summary>
+    private sealed class PagesComparer(IEqualityComparer<TData> pageComparer) : IEqualityComparer<IReadOnlyList<TData>>
+    {
+        public bool Equals(IReadOnlyList<TData>? x, IReadOnlyList<TData>? y)
+        {
+            if (ReferenceEquals(x, y))
+            {
+                return true;
+            }
+
+            if (x is null || y is null || x.Count != y.Count)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < x.Count; i++)
+            {
+                if (!pageComparer.Equals(x[i], y[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public int GetHashCode(IReadOnlyList<TData> obj) => obj.Count;
     }
 
     public static EffectiveInfiniteQueryOptions<TArgs, TData, TPageParam> MergeOptions(

@@ -4,7 +4,8 @@ namespace DotNetQuery.Blazor;
 /// Renders infinite query state with explicit loading and failure templates.
 /// Shows <c>Loading</c> while the query is <c>Idle</c> or <c>Fetching</c> (including full
 /// background refetches), <c>Content</c> once data has been successfully loaded, and
-/// <c>Failure</c> when the query fails with no pages to fall back on.
+/// <c>Failure</c> whenever the query has failed — even when stale pages from an earlier
+/// success are still available.
 /// </summary>
 /// <remarks>
 /// Use <see cref="InfiniteSuspense{TArgs,TData,TPageParam}"/> when you want a clean loading

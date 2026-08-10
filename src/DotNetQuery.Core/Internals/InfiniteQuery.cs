@@ -1,6 +1,7 @@
 namespace DotNetQuery.Core.Internals;
 
 internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEntry
+    where TData : class
 {
     private enum FetchDirection
     {
@@ -12,12 +13,14 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
     private readonly record struct FetchCommand(FetchDirection Direction, FetchTrigger Trigger);
 
     /// <summary>
-    /// Accumulates retries across every page fetched by one <see cref="ExecuteAsync"/> run. A refetch-all
-    /// issues one fetch per loaded page, so raw attempt counts cannot be summed — only attempts beyond
-    /// each page's first are retries.
+    /// Accumulates fetcher invocations across every page fetched by one <see cref="ExecuteAsync"/> run.
+    /// A refetch-all issues one fetch per loaded page, so raw attempt counts cannot be summed — only
+    /// attempts beyond each page's first are <see cref="Retries"/>; <see cref="Attempts"/> counts every
+    /// invocation so exit paths can tell whether the fetcher ever ran.
     /// </summary>
     private sealed class AttemptCounter
     {
+        public int Attempts;
         public int Retries;
     }
 
@@ -101,7 +104,8 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
         {
             lock (_syncRoot)
             {
-                return _pages.Count > 0 ? (object)_pages.AsReadOnly() : null;
+                // Snapshot — a live view over _pages would race with fetches mutating the list.
+                return _pages.Count > 0 ? _pages.ToArray() : null;
             }
         }
     }
@@ -298,14 +302,70 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
             snapshotHasPrev = _state.Value.HasPreviousPage;
         }
 
-        // No-op checks before starting telemetry
-        if (!ShouldFetch(command.Direction, snapshotPages, snapshotParams))
+        // Resolve the page params to fetch up front — this is both the no-op check (before any
+        // telemetry starts) and the only invocation of the user's page-param delegates this run.
+        List<TPageParam>? refetchParams = null;
+        TPageParam boundaryParam = default!;
+
+        switch (command.Direction)
         {
-            return;
+            case FetchDirection.RefetchAll:
+                refetchParams = snapshotParams.Count > 0 ? snapshotParams : [_options.InitialPageParam];
+                break;
+
+            case FetchDirection.FetchNext:
+                if (snapshotPages.Count == 0)
+                {
+                    return;
+                }
+
+                var nextParam = _options.GetNextPageParam(
+                    new InfinitePageInfo<TData, TPageParam>(
+                        snapshotPages[^1],
+                        snapshotPages,
+                        snapshotParams[^1],
+                        snapshotParams
+                    )
+                );
+
+                if (!nextParam.HasValue)
+                {
+                    return;
+                }
+
+                boundaryParam = nextParam.Value;
+                break;
+
+            case FetchDirection.FetchPrevious:
+                if (snapshotPages.Count == 0 || _options.GetPreviousPageParam is null)
+                {
+                    return;
+                }
+
+                var prevParam = _options.GetPreviousPageParam(
+                    new InfinitePageInfo<TData, TPageParam>(
+                        snapshotPages[0],
+                        snapshotPages,
+                        snapshotParams[0],
+                        snapshotParams
+                    )
+                );
+
+                if (!prevParam.HasValue)
+                {
+                    return;
+                }
+
+                boundaryParam = prevParam.Value;
+                break;
+
+            default:
+                return;
         }
 
         using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityQueryFetch);
         activity?.SetTag(QueryTelemetryTags.TagQueryKey, _key.ToString());
+        activity?.SetTag(QueryTelemetryTags.TagQueryName, _metricName);
         activity?.SetTag(QueryTelemetryTags.TagTrigger, command.Trigger.ToTagValue());
         activity?.SetTag(QueryTelemetryTags.TagDirection, ToTagValue(command.Direction));
 
@@ -316,41 +376,51 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
 
         try
         {
-            switch (command.Direction)
+            var didFetch = command.Direction switch
             {
-                case FetchDirection.RefetchAll:
-                    await ExecuteRefetchAllAsync(
-                        snapshotPages,
-                        snapshotParams,
-                        snapshotHasNext,
-                        snapshotHasPrev,
-                        activity,
-                        counter,
-                        linkedToken
-                    );
-                    break;
-                case FetchDirection.FetchNext:
-                    await ExecuteFetchNextAsync(
-                        snapshotPages,
-                        snapshotParams,
-                        snapshotHasNext,
-                        snapshotHasPrev,
-                        activity,
-                        counter,
-                        linkedToken
-                    );
-                    break;
-                case FetchDirection.FetchPrevious:
-                    await ExecuteFetchPreviousAsync(
-                        snapshotPages,
-                        snapshotParams,
-                        snapshotHasNext,
-                        snapshotHasPrev,
-                        activity,
-                        counter,
-                        linkedToken
-                    );
-                    break;
+                FetchDirection.RefetchAll => await ExecuteRefetchAllAsync(
+                    snapshotPages,
+                    snapshotParams,
+                    snapshotHasNext,
+                    snapshotHasPrev,
+                    refetchParams!,
+                    activity,
+                    counter,
+                    linkedToken
+                ),
+                FetchDirection.FetchNext => await ExecuteFetchNextAsync(
+                    snapshotPages,
+                    snapshotParams,
+                    snapshotHasNext,
+                    snapshotHasPrev,
+                    boundaryParam,
+                    activity,
+                    counter,
+                    linkedToken
+                ),
+                FetchDirection.FetchPrevious => await ExecuteFetchPreviousAsync(
+                    snapshotPages,
+                    snapshotParams,
+                    snapshotHasNext,
+                    snapshotHasPrev,
+                    boundaryParam,
+                    activity,
+                    counter,
+                    linkedToken
+                ),
+                _ => false,
+            };
+
+            stopwatch.Stop();
+
+            if (!didFetch)
+            {
+                // The entry was disposed mid-run — balance RecordFetchStart without stamping
+                // freshness or reporting a successful fetch that never took effect.
+                activity?.SetTag(QueryTelemetryTags.TagAttempts, counter.Attempts == 0 ? 0 : counter.Retries + 1);
+                activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
+                _instrumentation.RecordFetchCancelled(_key, _metricName, stopwatch.Elapsed, command.Trigger);
+                return;
             }
 
             lock (_syncRoot)
@@ -358,31 +428,19 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
                 _lastSuccessAt = _scheduler.Now;
             }
 
-            stopwatch.Stop();
-
             var attempts = counter.Retries + 1;
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
+            activity?.SetTag(QueryTelemetryTags.TagPages, refetchParams?.Count ?? 1);
             activity?.SetStatus(ActivityStatusCode.Ok);
-            _instrumentation.RecordFetchSuccess(
-                _key,
-                _metricName,
-                stopwatch.Elapsed.TotalMilliseconds,
-                attempts,
-                command.Trigger
-            );
+            _instrumentation.RecordFetchSuccess(_key, _metricName, stopwatch.Elapsed, attempts, command.Trigger);
         }
         catch (OperationCanceledException) when (linkedToken.IsCancellationRequested)
         {
             stopwatch.Stop();
 
-            activity?.SetTag(QueryTelemetryTags.TagAttempts, counter.Retries + 1);
+            activity?.SetTag(QueryTelemetryTags.TagAttempts, counter.Attempts == 0 ? 0 : counter.Retries + 1);
             activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
-            _instrumentation.RecordFetchCancelled(
-                _key,
-                _metricName,
-                stopwatch.Elapsed.TotalMilliseconds,
-                command.Trigger
-            );
+            _instrumentation.RecordFetchCancelled(_key, _metricName, stopwatch.Elapsed, command.Trigger);
 
             // Only the explicit Cancel() path (currentSource) should roll state back. When the outer
             // cancellationToken fired instead, this run was superseded by Switch() for a newer command,
@@ -409,14 +467,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetTag(QueryTelemetryTags.TagErrorType, error.GetType().Name);
             activity?.SetStatus(ActivityStatusCode.Error, error.Message);
-            _instrumentation.RecordFetchFailure(
-                _key,
-                _metricName,
-                stopwatch.Elapsed.TotalMilliseconds,
-                error,
-                attempts,
-                command.Trigger
-            );
+            _instrumentation.RecordFetchFailure(_key, _metricName, stopwatch.Elapsed, error, attempts, command.Trigger);
 
             if (!_disposed)
             {
@@ -458,6 +509,8 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
         return _options.RetryHandler.ExecuteAsync(
             token =>
             {
+                Interlocked.Increment(ref counter.Attempts);
+
                 if (Interlocked.Increment(ref pageAttempts) > 1)
                 {
                     Interlocked.Increment(ref counter.Retries);
@@ -470,57 +523,12 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
         );
     }
 
-    private bool ShouldFetch(FetchDirection direction, List<TData> snapshotPages, List<TPageParam> snapshotParams)
-    {
-        switch (direction)
-        {
-            case FetchDirection.RefetchAll:
-                return true;
-
-            case FetchDirection.FetchNext:
-                if (snapshotPages.Count == 0)
-                {
-                    return false;
-                }
-
-                return _options
-                    .GetNextPageParam(
-                        new InfinitePageInfo<TData, TPageParam>(
-                            snapshotPages[^1],
-                            snapshotPages,
-                            snapshotParams[^1],
-                            snapshotParams
-                        )
-                    )
-                    .HasValue;
-
-            case FetchDirection.FetchPrevious:
-                if (snapshotPages.Count == 0 || _options.GetPreviousPageParam is null)
-                {
-                    return false;
-                }
-
-                return _options
-                    .GetPreviousPageParam(
-                        new InfinitePageInfo<TData, TPageParam>(
-                            snapshotPages[0],
-                            snapshotPages,
-                            snapshotParams[0],
-                            snapshotParams
-                        )
-                    )
-                    .HasValue;
-
-            default:
-                return false;
-        }
-    }
-
-    private async Task ExecuteRefetchAllAsync(
+    private async Task<bool> ExecuteRefetchAllAsync(
         List<TData> snapshotPages,
         List<TPageParam> snapshotParams,
         bool snapshotHasNext,
         bool snapshotHasPrev,
+        List<TPageParam> paramsToFetch,
         Activity? activity,
         AttemptCounter counter,
         CancellationToken ct
@@ -528,10 +536,8 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
     {
         if (_disposed)
         {
-            return;
+            return false;
         }
-
-        var paramsToFetch = snapshotParams.Count > 0 ? snapshotParams : [_options.InitialPageParam];
 
         _state.OnNext(
             InfiniteQueryState<TData, TPageParam>.CreateFetching(
@@ -549,13 +555,24 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
         {
             ct.ThrowIfCancellationRequested();
             var page = await FetchPageAsync(param, activity, counter, ct);
+
+            // Keep the previous instance when the re-fetched page is structurally identical, so
+            // consumers relying on reference equality don't observe a change that isn't one.
+            if (
+                newPages.Count < snapshotPages.Count
+                && _options.DataComparer.Equals(page, snapshotPages[newPages.Count])
+            )
+            {
+                page = snapshotPages[newPages.Count];
+            }
+
             newPages.Add(page);
             newParams.Add(param);
         }
 
         if (_disposed)
         {
-            return;
+            return false;
         }
 
         var (hasNext, hasPrev) = ComputeHasMorePages(newPages, newParams);
@@ -569,38 +586,24 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
         }
 
         _state.OnNext(InfiniteQueryState<TData, TPageParam>.CreateSuccess(newPages, newParams, hasNext, hasPrev));
+        return true;
     }
 
-    private async Task ExecuteFetchNextAsync(
+    private async Task<bool> ExecuteFetchNextAsync(
         List<TData> snapshotPages,
         List<TPageParam> snapshotParams,
         bool snapshotHasNext,
         bool snapshotHasPrev,
+        TPageParam nextParam,
         Activity? activity,
         AttemptCounter counter,
         CancellationToken ct
     )
     {
-        if (_disposed || snapshotPages.Count == 0)
+        if (_disposed)
         {
-            return;
+            return false;
         }
-
-        var nextParamResult = _options.GetNextPageParam(
-            new InfinitePageInfo<TData, TPageParam>(
-                snapshotPages[^1],
-                snapshotPages,
-                snapshotParams[^1],
-                snapshotParams
-            )
-        );
-
-        if (!nextParamResult.HasValue)
-        {
-            return;
-        }
-
-        var nextParam = nextParamResult.Value;
 
         _state.OnNext(
             InfiniteQueryState<TData, TPageParam>.CreateFetchingNext(
@@ -615,7 +618,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
 
         if (_disposed)
         {
-            return;
+            return false;
         }
 
         List<TData> newPages;
@@ -639,33 +642,24 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
 
         var (hasNext, hasPrev) = ComputeHasMorePages(newPages, newParams);
         _state.OnNext(InfiniteQueryState<TData, TPageParam>.CreateSuccess(newPages, newParams, hasNext, hasPrev));
+        return true;
     }
 
-    private async Task ExecuteFetchPreviousAsync(
+    private async Task<bool> ExecuteFetchPreviousAsync(
         List<TData> snapshotPages,
         List<TPageParam> snapshotParams,
         bool snapshotHasNext,
         bool snapshotHasPrev,
+        TPageParam prevParam,
         Activity? activity,
         AttemptCounter counter,
         CancellationToken ct
     )
     {
-        if (_disposed || snapshotPages.Count == 0 || _options.GetPreviousPageParam is null)
+        if (_disposed)
         {
-            return;
+            return false;
         }
-
-        var prevParamResult = _options.GetPreviousPageParam(
-            new InfinitePageInfo<TData, TPageParam>(snapshotPages[0], snapshotPages, snapshotParams[0], snapshotParams)
-        );
-
-        if (!prevParamResult.HasValue)
-        {
-            return;
-        }
-
-        var prevParam = prevParamResult.Value;
 
         _state.OnNext(
             InfiniteQueryState<TData, TPageParam>.CreateFetchingPrevious(
@@ -680,7 +674,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
 
         if (_disposed)
         {
-            return;
+            return false;
         }
 
         List<TData> newPages;
@@ -704,6 +698,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
 
         var (hasNext, hasPrev) = ComputeHasMorePages(newPages, newParams);
         _state.OnNext(InfiniteQueryState<TData, TPageParam>.CreateSuccess(newPages, newParams, hasNext, hasPrev));
+        return true;
     }
 
     private (bool hasNext, bool hasPrev) ComputeHasMorePages(List<TData> pages, List<TPageParam> pageParams)

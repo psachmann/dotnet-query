@@ -1,6 +1,7 @@
 namespace DotNetQuery.Core.Internals;
 
 internal sealed record EffectiveInfiniteQueryOptions<TArgs, TData, TPageParam>
+    where TData : class
 {
     public required Func<TArgs, TPageParam, CancellationToken, Task<TData>> Fetcher { get; init; }
 

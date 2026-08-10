@@ -423,6 +423,30 @@ public class QueryCacheTests
         await Assert.That(evictions).IsEmpty();
     }
 
+    [Test]
+    public async Task Dispose_ReturnsCacheEntriesMetricToZero_WithoutRecordingEvictions()
+    {
+        using var meter = new Meter($"DotNetQuery-CacheEntries-{Guid.NewGuid()}");
+        var instrumentation = new QueryInstrumentation(NullLogger.Instance, meter);
+        var cache = new QueryCache(_scheduler, instrumentation);
+
+        var entryDeltas = new List<int>();
+        var evictions = new List<long>();
+        using var entriesListener = CreateMeterListener<int>(meter, "dotnetquery.cache.entries", entryDeltas.Add);
+        using var evictionsListener = CreateMeterListener<long>(meter, "dotnetquery.cache.evictions", evictions.Add);
+
+        using var query = CreateQuery(QueryKey.From("dispose-metric", 1));
+        using var infinite = CreateInfiniteQuery(QueryKey.From("dispose-metric", 2));
+        cache.GetOrCreate(QueryKey.From("dispose-metric", 1), query);
+        cache.GetOrCreate(QueryKey.From("dispose-metric", 2), infinite);
+
+        cache.Dispose();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(entryDeltas.Sum()).IsEqualTo(0);
+        await Assert.That(evictions).IsEmpty();
+    }
+
     private static MeterListener CreateMeterListener<T>(Meter meter, string instrumentName, Action<T> onMeasurement)
         where T : struct
     {

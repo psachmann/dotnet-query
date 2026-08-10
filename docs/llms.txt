@@ -790,18 +790,18 @@ Activity spans:
 
 | Span name | When | Tags |
 |---|---|---|
-| `query.fetch` | Every query fetch | `query.key`, `otel.status_code`, `error.type` (on failure) |
-| `mutation.execute` | Every mutation execution | `otel.status_code`, `error.type` (on failure) |
+| `query.fetch` | Every query fetch | `query.key`, `query.name`, `trigger`, `attempts`, `direction` + `query.pages` (infinite only), `otel.status_code`, `error.type` (on failure) |
+| `mutation.execute` | Every mutation execution | `mutation.name`, `attempts`, `otel.status_code`, `error.type` (on failure) |
 
-Metrics (meter name: `"DotNetQuery"`):
+Metrics (meter name: `"DotNetQuery"`; duration histograms record seconds):
 
 | Instrument | Type | Unit | Tags |
 |---|---|---|---|
-| `dotnetquery.query.duration` | Histogram | ms | `query.key`, `status` |
-| `dotnetquery.query.active` | UpDownCounter | — | `query.key` |
-| `dotnetquery.cache.hits` | Counter | — | `query.key` |
-| `dotnetquery.cache.misses` | Counter | — | `query.key` |
-| `dotnetquery.mutation.duration` | Histogram | ms | `status` |
+| `dotnetquery.query.duration` | Histogram | s | `query.name`, `status`, `trigger` |
+| `dotnetquery.query.active` | UpDownCounter | — | `query.name` |
+| `dotnetquery.cache.hits` | Counter | — | `query.name` |
+| `dotnetquery.cache.misses` | Counter | — | `query.name` |
+| `dotnetquery.mutation.duration` | Histogram | s | `mutation.name`, `status` |
 
 Log category: `"DotNetQuery"`. Control verbosity:
 

@@ -5,9 +5,13 @@ namespace DotNetQuery.Core;
 /// with page parameters of type <typeparamref name="TPageParam"/>.
 /// </summary>
 /// <typeparam name="TArgs">The type of the arguments that identify which resource to fetch.</typeparam>
-/// <typeparam name="TData">The type of a single page of data.</typeparam>
+/// <typeparam name="TData">
+/// The type of a single page of data. Constrained to reference types because the library
+/// uses <c>null</c> to represent "no data yet" — a non-nullable value type has no way to express that.
+/// </typeparam>
 /// <typeparam name="TPageParam">The type of the page parameter (cursor/offset).</typeparam>
 public interface IInfiniteQuery<TArgs, TData, TPageParam> : IQuery
+    where TData : class
 {
     /// <summary>The current state snapshot. Can be read synchronously without subscribing.</summary>
     InfiniteQueryState<TData, TPageParam> CurrentState { get; }
@@ -48,6 +52,8 @@ public interface IInfiniteQuery<TArgs, TData, TPageParam> : IQuery
     /// Emits the full accumulated page list after each fetch fully settles — not during
     /// <see cref="InfiniteQueryState{TData,TPageParam}.IsFetchingNextPage"/> or
     /// <see cref="InfiniteQueryState{TData,TPageParam}.IsFetchingPreviousPage"/>.
+    /// Re-emissions are suppressed when every page equals the previous emission according to
+    /// <see cref="InfiniteQueryOptions{TArgs,TData,TPageParam}.DataComparer"/>.
     /// </summary>
     IObservable<IReadOnlyList<TData>> Success { get; }
 

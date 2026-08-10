@@ -20,7 +20,8 @@ public interface IQueryClient : IDisposable
     /// </summary>
     IInfiniteQuery<TArgs, TData, TPageParam> CreateInfiniteQuery<TArgs, TData, TPageParam>(
         InfiniteQueryOptions<TArgs, TData, TPageParam> options
-    );
+    )
+        where TData : class;
 
     /// <summary>
     /// Creates a mutation. If <see cref="MutationOptions{TArgs, TData}.InvalidateKeys"/> is set,
