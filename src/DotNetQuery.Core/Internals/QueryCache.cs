@@ -17,10 +17,10 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
 
     private IReadOnlyList<IQueryInspector> Snapshot() => [.. _entries.Values.Cast<IQueryInspector>()];
 
-    public Query<TArgs, TData> GetOrCreate<TArgs, TData>(QueryKey key, Query<TArgs, TData> query)
-        where TData : class
+    public TEntry GetOrCreate<TEntry>(QueryKey key, TEntry entry)
+        where TEntry : class, ICacheEntry
     {
-        Query<TArgs, TData> result;
+        TEntry result;
         var changed = false;
 
         lock (_evictionLock)
@@ -34,24 +34,24 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
                 changed = true;
             }
 
-            var existing = _entries.GetOrAdd(key, query);
+            var existing = _entries.GetOrAdd(key, entry);
 
-            if (existing is not Query<TArgs, TData> typed)
+            if (existing is not TEntry typed)
             {
                 throw new InvalidOperationException(
-                    $"QueryKey '{key}' is already in use by a query with a different data type "
-                        + $"({existing.GetType().Name}). Use a distinct QueryKey per (TArgs, TData) combination."
+                    $"QueryKey '{key}' is already in use by a query with a different shape "
+                        + $"({existing.GetType().Name}). Use a distinct QueryKey per query type."
                 );
             }
 
             result = typed;
 
-            if (ReferenceEquals(result, query))
+            if (ReferenceEquals(result, entry))
             {
                 _instrumentation.RecordCacheMiss(key, result.MetricName);
-                _stateSubscriptions[key] = query.StateChanged.Subscribe(_ => _entriesSubject.OnNext(Snapshot()));
-                _unsubscribedSubscriptions[key] = query.Unsubscribed.Subscribe(_ => Remove(key));
-                _subscribedSubscriptions[key] = query.Subscribed.Subscribe(_ => CancelPendingRemoval(key));
+                _stateSubscriptions[key] = entry.StateChanged.Subscribe(_ => _entriesSubject.OnNext(Snapshot()));
+                _unsubscribedSubscriptions[key] = entry.Unsubscribed.Subscribe(_ => Remove(key));
+                _subscribedSubscriptions[key] = entry.Subscribed.Subscribe(_ => CancelPendingRemoval(key));
                 changed = true;
             }
             else
@@ -70,7 +70,7 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
 
     /// <summary>
     /// Cancels a pending eviction for <paramref name="key"/>, if any — e.g. because a new observer
-    /// attached (via <see cref="GetOrCreate{TArgs,TData}"/>) or a new <c>State</c> subscriber joined
+    /// attached (via <see cref="GetOrCreate{TEntry}"/>) or a new <c>State</c> subscriber joined
     /// a query that was already counting down to eviction.
     /// </summary>
     private void CancelPendingRemoval(QueryKey key)
@@ -213,6 +213,7 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
 
         foreach (var query in _entries.Values)
         {
+            _instrumentation.RecordCacheDisposed(query.Key, ((IQueryInspector)query).MetricName);
             query.Dispose();
         }
 

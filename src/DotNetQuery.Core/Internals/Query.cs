@@ -1,6 +1,6 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
+internal sealed class Query<TArgs, TData> : IQuery, ICacheEntry
     where TData : class
 {
     private readonly QueryKey _key;
@@ -81,10 +81,10 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
     public IObservable<Unit> StateChanged => _state.Select(_ => Unit.Default);
 
     /// <summary>Fires when the last active <see cref="State"/> subscriber disposes.</summary>
-    internal IObservable<Unit> Unsubscribed => _unsubscribed;
+    public IObservable<Unit> Unsubscribed => _unsubscribed;
 
     /// <summary>Fires when the first <see cref="State"/> subscriber attaches after having none.</summary>
-    internal IObservable<Unit> Subscribed => _subscribed;
+    public IObservable<Unit> Subscribed => _subscribed;
 
     public IObservable<QueryState<TData>> State =>
         Observable.Create<QueryState<TData>>(observer =>
@@ -266,6 +266,7 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
 
         using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityQueryFetch);
         activity?.SetTag(QueryTelemetryTags.TagQueryKey, _key.ToString());
+        activity?.SetTag(QueryTelemetryTags.TagQueryName, _metricName);
         activity?.SetTag(QueryTelemetryTags.TagTrigger, trigger.ToTagValue());
 
         var stopwatch = Stopwatch.StartNew();
@@ -298,13 +299,7 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
 
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetStatus(ActivityStatusCode.Ok);
-            _instrumentation.RecordFetchSuccess(
-                _key,
-                _metricName,
-                stopwatch.Elapsed.TotalMilliseconds,
-                attempts,
-                trigger
-            );
+            _instrumentation.RecordFetchSuccess(_key, _metricName, stopwatch.Elapsed, attempts, trigger);
 
             if (!_disposed)
             {
@@ -318,7 +313,7 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
 
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
-            _instrumentation.RecordFetchCancelled(_key, _metricName, stopwatch.Elapsed.TotalMilliseconds, trigger);
+            _instrumentation.RecordFetchCancelled(_key, _metricName, stopwatch.Elapsed, trigger);
 
             // Only the explicit Cancel() path (currentSource) should surface as Idle. When the outer
             // cancellationToken fired instead, this fetch was superseded by Switch() for a newer one,
@@ -335,14 +330,7 @@ internal sealed class Query<TArgs, TData> : IQuery, IQueryInspector
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetTag(QueryTelemetryTags.TagErrorType, error.GetType().Name);
             activity?.SetStatus(ActivityStatusCode.Error, error.Message);
-            _instrumentation.RecordFetchFailure(
-                _key,
-                _metricName,
-                stopwatch.Elapsed.TotalMilliseconds,
-                error,
-                attempts,
-                trigger
-            );
+            _instrumentation.RecordFetchFailure(_key, _metricName, stopwatch.Elapsed, error, attempts, trigger);
 
             if (!_disposed)
             {

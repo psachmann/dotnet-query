@@ -93,6 +93,10 @@ public interface IQueryClient : IDisposable
     // Gets or creates a query. Queries with the same key share one cache entry.
     IQuery<TArgs, TData> CreateQuery<TArgs, TData>(QueryOptions<TArgs, TData> options);
 
+    // Gets or creates an infinite (paginated) query. Queries with the same key share one cache entry.
+    IInfiniteQuery<TArgs, TData, TPageParam> CreateInfiniteQuery<TArgs, TData, TPageParam>(
+        InfiniteQueryOptions<TArgs, TData, TPageParam> options);
+
     // Creates a mutation. InvalidateKeys are wired automatically on success.
     IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options);
 
@@ -209,6 +213,158 @@ new QueryOptions<int, UserDto>
 `Invalidate()` respects `StaleTime` (no-op within window). `Refetch()` always fetches.
 When invalidated with no active subscribers, fetch is deferred until the first subscriber joins.
 A new `SetArgs` while a fetch is in progress cancels the in-flight fetch (`.Switch()` semantics).
+
+---
+
+## IInfiniteQuery<TArgs, TData, TPageParam>
+
+Returned by `IQueryClient.CreateInfiniteQuery`. Accumulates pages of data fetched sequentially with a **page parameter** (cursor, offset, or page number). Shares the same cache, deduplication, stale-while-revalidate, and invalidation guarantees as `IQuery`.
+
+### PageParam<TPageParam>
+
+A small discriminated union used by `GetNextPageParam` / `GetPreviousPageParam` to signal whether a next/previous page exists. Necessary because C# generic nullable (`TPageParam?`) is ambiguous for value types.
+
+```csharp
+// Signal "no more pages"
+PageParam<int>.None
+
+// Signal "next page param is 2"
+PageParam<int>.Some(2)
+
+// Implicit conversion from the underlying type
+PageParam<int> p = 2;  // equivalent to Some(2)
+```
+
+### InfiniteQueryOptions<TArgs, TData, TPageParam>
+
+```csharp
+new InfiniteQueryOptions<Guid, List<ItemDto>, int>
+{
+    // Required
+    KeyFactory       = id => ["items", id],
+    Fetcher          = (id, page, ct) => api.GetItemsAsync(id, page, ct),
+    InitialPageParam = 1,
+    GetNextPageParam = info =>
+        info.Page.Count < PageSize ? PageParam<int>.None : PageParam<int>.Some(info.PageParam + 1),
+
+    // Optional
+    GetPreviousPageParam = null,   // omit for forward-only lists
+    MaxPages             = null,   // unbounded by default; set to trim oldest pages
+    StaleTime            = null,
+    CacheTime            = null,
+    RefetchInterval      = null,
+    RetryHandler         = null,
+    IsEnabled            = true,
+    DataComparer         = null,
+    InitialData          = null,   // pre-seed first page; query starts Success, refetches in background
+}
+```
+
+`info` in `GetNextPageParam` is `InfinitePageInfo<TData, TPageParam>` — it carries the boundary page and all loaded pages so you can derive the next cursor from the data itself:
+
+```csharp
+GetNextPageParam = info => info.Page.LastOrDefault()?.CreatedAt is { } cursor
+    ? PageParam<DateTimeOffset>.Some(cursor)
+    : PageParam<DateTimeOffset>.None
+```
+
+### IInfiniteQuery<TArgs, TData, TPageParam>
+
+```csharp
+public interface IInfiniteQuery<TArgs, TData, TPageParam> : IQuery
+{
+    InfiniteQueryState<TData, TPageParam> CurrentState { get; }
+
+    void SetArgs(TArgs args);
+    void SetEnabled(bool enabled);
+
+    // Fetch the next page (no-op when HasNextPage is false or no pages loaded yet)
+    void FetchNextPage();
+
+    // Fetch the previous page (no-op when HasPreviousPage is false or no GetPreviousPageParam)
+    void FetchPreviousPage();
+
+    IObservable<InfiniteQueryState<TData, TPageParam>> State   { get; }
+    IObservable<IReadOnlyList<TData>>                  Success { get; }  // all pages after full settle
+    IObservable<Exception>                             Failure { get; }
+    IObservable<InfiniteQueryState<TData, TPageParam>> Settled { get; }
+
+    void Detach();
+}
+```
+
+### InfiniteQueryState<TData, TPageParam>
+
+```csharp
+record InfiniteQueryState<TData, TPageParam>
+{
+    QueryStatus            Status              { get; }  // Idle | Fetching | Success | Failure
+    IReadOnlyList<TData>   Pages               { get; }  // all loaded pages, oldest first
+    IReadOnlyList<TPageParam> PageParams        { get; }  // PageParams[i] fetched Pages[i]
+    Exception?             Error               { get; }
+    bool HasNextPage        { get; }
+    bool HasPreviousPage    { get; }
+    bool IsFetchingNextPage { get; }     // Status stays Success; existing pages remain visible
+    bool IsFetchingPreviousPage { get; } // Status stays Success; existing pages remain visible
+
+    bool IsIdle     { get; }  // Status == Idle
+    bool IsFetching { get; }  // Status == Fetching (full refetch of all pages)
+    bool IsSuccess  { get; }
+    bool IsFailure  { get; }
+    bool HasData    { get; }  // Pages.Count > 0
+    bool HasError   { get; }
+}
+```
+
+`Invalidate()` / `Refetch()` re-fetches **all** currently loaded pages sequentially (TanStack behavior), rebuilding `Pages` and `PageParams`. Existing pages are carried in the `Fetching` state for stale-while-revalidate display.
+
+### Typical usage
+
+```csharp
+public sealed class ItemService(IQueryClient client, IApi api) : IDisposable
+{
+    private const int PageSize = 20;
+
+    public readonly IInfiniteQuery<Guid, List<ItemDto>, int> ItemsQuery =
+        client.CreateInfiniteQuery(new InfiniteQueryOptions<Guid, List<ItemDto>, int>
+        {
+            KeyFactory       = listId => ["items", listId],
+            Fetcher          = (listId, page, ct) => api.GetItemsAsync(listId, page, PageSize, ct),
+            InitialPageParam = 1,
+            GetNextPageParam = info =>
+                info.Page.Count < PageSize ? PageParam<int>.None : PageParam<int>.Some(info.PageParam + 1),
+        });
+
+    public void Dispose() => ItemsQuery.Dispose();
+}
+```
+
+```razor
+@inject ItemService Items
+
+<InfiniteTransition Query="Items.ItemsQuery">
+    <Content Context="state">
+        @foreach (var item in state.Pages.SelectMany(p => p))
+        {
+            <div>@item.Name</div>
+        }
+        @if (state.HasNextPage)
+        {
+            <button disabled="@state.IsFetchingNextPage"
+                    @onclick="() => Items.ItemsQuery.FetchNextPage()">
+                @(state.IsFetchingNextPage ? "Loading…" : "Load more")
+            </button>
+        }
+    </Content>
+    <Loading><p>Loading…</p></Loading>
+    <Failure Context="e"><p>@e.Message</p></Failure>
+</InfiniteTransition>
+
+@code {
+    [Parameter] public Guid ListId { get; set; }
+    protected override void OnParametersSet() => Items.ItemsQuery.SetArgs(ListId);
+}
+```
 
 ---
 
@@ -419,6 +575,59 @@ Use when: data updates frequently and you want smooth background refreshes witho
 | Failure (has old data) | Failure | old Content |
 | Failure (no old data) | Failure | Failure |
 
+### `<InfiniteSuspense>`
+
+For `IInfiniteQuery`. Shows `Loading` during initial load and full background refetches. Shows `Content` once data is available (`IsSuccess && HasData`). `Content` receives the full `InfiniteQueryState` so the template can render all pages and wire up "Load more".
+
+```razor
+<InfiniteSuspense Query="_itemsQuery">
+    <Content Context="state">
+        @foreach (var item in state.Pages.SelectMany(p => p))
+        {
+            <div>@item.Name</div>
+        }
+        @if (state.HasNextPage)
+        {
+            <button @onclick="LoadMore" disabled="@state.IsFetchingNextPage">Load more</button>
+        }
+    </Content>
+    <Loading><p>Loading…</p></Loading>
+    <Failure Context="e"><p>Error: @e.Message</p></Failure>
+</InfiniteSuspense>
+```
+
+### `<InfiniteTransition>`
+
+For `IInfiniteQuery`. Stale-while-revalidate: shows `Content` whenever `HasData`, including during full background refetches and `FetchNextPage`. Shows `Loading` only before the very first page arrives.
+
+```razor
+<InfiniteTransition Query="_itemsQuery">
+    <Content Context="state">
+        @foreach (var item in state.Pages.SelectMany(p => p))
+        {
+            <div>@item.Name</div>
+        }
+        @if (state.HasNextPage)
+        {
+            <button @onclick="LoadMore" disabled="@state.IsFetchingNextPage">Load more</button>
+        }
+    </Content>
+    <Loading><p>Loading…</p></Loading>
+    <Failure Context="e"><p>@e.Message</p></Failure>
+</InfiniteTransition>
+```
+
+| Scenario | InfiniteSuspense | InfiniteTransition |
+|---|---|---|
+| Initial load (no pages) | Loading | Loading |
+| Full refetch with stale pages | Loading | old Content |
+| FetchNextPage in progress | Content + IsFetchingNextPage | Content + IsFetchingNextPage |
+| Success | Content | Content |
+| Failure (no pages) | Failure | Failure |
+| Failure (has pages) | Failure | old Content |
+
+Both components require three type parameters inferred from the `Query` parameter.
+
 ### `<QueryRefreshMonitor>`
 
 Side-effect component. Registers browser `visibilitychange` and `online` events. When the tab regains focus or network reconnects, calls `queryClient.Invalidate(_ => true)`. Respects `StaleTime` — fresh data is never re-fetched.
@@ -581,18 +790,18 @@ Activity spans:
 
 | Span name | When | Tags |
 |---|---|---|
-| `query.fetch` | Every query fetch | `query.key`, `otel.status_code`, `error.type` (on failure) |
-| `mutation.execute` | Every mutation execution | `otel.status_code`, `error.type` (on failure) |
+| `query.fetch` | Every query fetch | `query.key`, `query.name`, `trigger`, `attempts`, `direction` + `query.pages` (infinite only), `otel.status_code`, `error.type` (on failure) |
+| `mutation.execute` | Every mutation execution | `mutation.name`, `attempts`, `otel.status_code`, `error.type` (on failure) |
 
-Metrics (meter name: `"DotNetQuery"`):
+Metrics (meter name: `"DotNetQuery"`; duration histograms record seconds):
 
 | Instrument | Type | Unit | Tags |
 |---|---|---|---|
-| `dotnetquery.query.duration` | Histogram | ms | `query.key`, `status` |
-| `dotnetquery.query.active` | UpDownCounter | — | `query.key` |
-| `dotnetquery.cache.hits` | Counter | — | `query.key` |
-| `dotnetquery.cache.misses` | Counter | — | `query.key` |
-| `dotnetquery.mutation.duration` | Histogram | ms | `status` |
+| `dotnetquery.query.duration` | Histogram | s | `query.name`, `status`, `trigger` |
+| `dotnetquery.query.active` | UpDownCounter | — | `query.name` |
+| `dotnetquery.cache.hits` | Counter | — | `query.name` |
+| `dotnetquery.cache.misses` | Counter | — | `query.name` |
+| `dotnetquery.mutation.duration` | Histogram | s | `mutation.name`, `status` |
 
 Log category: `"DotNetQuery"`. Control verbosity:
 

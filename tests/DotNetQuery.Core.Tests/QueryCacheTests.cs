@@ -39,6 +39,28 @@ public class QueryCacheTests
         return new Query<int, string>(key, 0, options, _scheduler, _instrumentation);
     }
 
+    private InfiniteQuery<int, string, int> CreateInfiniteQuery(QueryKey key, TimeSpan? cacheTime = null)
+    {
+        var options = new EffectiveInfiniteQueryOptions<int, string, int>
+        {
+            Fetcher = (_, page, _) => Task.FromResult($"page{page}"),
+            InitialPageParam = 0,
+            GetNextPageParam = info => info.PageParam + 1,
+            GetPreviousPageParam = null,
+            MaxPages = null,
+            StaleTime = TimeSpan.Zero,
+            CacheTime = cacheTime ?? TimeSpan.FromMinutes(5),
+            RefetchInterval = null,
+            RetryHandler = new DefaultRetryHandler(),
+            IsEnabled = true,
+            DataComparer = EqualityComparer<string>.Default,
+            InitialData = null,
+            Name = null,
+        };
+
+        return new InfiniteQuery<int, string, int>(key, 0, options, _scheduler, _instrumentation);
+    }
+
     [Test]
     public async Task GetOrCreate_NewKey_ReturnsProvidedQuery()
     {
@@ -199,6 +221,58 @@ public class QueryCacheTests
     }
 
     [Test]
+    public async Task InfiniteQuery_LastSubscriberUnsubscribing_SchedulesEviction()
+    {
+        // Infinite queries are cached through the same generic GetOrCreate as regular queries, so they
+        // must take part in the same subscriber-driven eviction lifecycle.
+        var key = QueryKey.From("infinite");
+        using var query = CreateInfiniteQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        var subscription = query.State.Subscribe();
+        subscription.Dispose();
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(5).Ticks + 1);
+
+        using var fresh = CreateInfiniteQuery(key);
+        var result = _sut.GetOrCreate(key, fresh);
+
+        await Assert.That(result).IsEqualTo(fresh);
+    }
+
+    [Test]
+    public async Task InfiniteQuery_SubscriberRejoiningBeforeEvictionTimerFires_CancelsEviction()
+    {
+        var key = QueryKey.From("infinite");
+        using var query = CreateInfiniteQuery(key, TimeSpan.FromMinutes(5));
+        _sut.GetOrCreate(key, query);
+
+        var subscription = query.State.Subscribe();
+        subscription.Dispose();
+
+        using var rejoin = query.State.Subscribe();
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(10).Ticks);
+
+        using var late = CreateInfiniteQuery(key);
+        var result = _sut.GetOrCreate(key, late);
+
+        await Assert.That(result).IsEqualTo(query);
+    }
+
+    [Test]
+    public async Task GetOrCreate_SameKeyForQueryAndInfiniteQuery_ThrowsInvalidOperationException()
+    {
+        var key = QueryKey.From("a");
+        using var query = CreateQuery(key);
+        _sut.GetOrCreate(key, query);
+
+        using var infinite = CreateInfiniteQuery(key);
+
+        await Assert.That(() => _sut.GetOrCreate(key, infinite)).Throws<InvalidOperationException>();
+    }
+
+    [Test]
     public async Task SubscriberRejoiningBeforeEvictionTimerFires_CancelsEviction()
     {
         var key = QueryKey.From("a");
@@ -346,6 +420,30 @@ public class QueryCacheTests
 
         using var _ = Assert.Multiple();
         await Assert.That(entryDeltas.Sum()).IsEqualTo(1);
+        await Assert.That(evictions).IsEmpty();
+    }
+
+    [Test]
+    public async Task Dispose_ReturnsCacheEntriesMetricToZero_WithoutRecordingEvictions()
+    {
+        using var meter = new Meter($"DotNetQuery-CacheEntries-{Guid.NewGuid()}");
+        var instrumentation = new QueryInstrumentation(NullLogger.Instance, meter);
+        var cache = new QueryCache(_scheduler, instrumentation);
+
+        var entryDeltas = new List<int>();
+        var evictions = new List<long>();
+        using var entriesListener = CreateMeterListener<int>(meter, "dotnetquery.cache.entries", entryDeltas.Add);
+        using var evictionsListener = CreateMeterListener<long>(meter, "dotnetquery.cache.evictions", evictions.Add);
+
+        using var query = CreateQuery(QueryKey.From("dispose-metric", 1));
+        using var infinite = CreateInfiniteQuery(QueryKey.From("dispose-metric", 2));
+        cache.GetOrCreate(QueryKey.From("dispose-metric", 1), query);
+        cache.GetOrCreate(QueryKey.From("dispose-metric", 2), infinite);
+
+        cache.Dispose();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(entryDeltas.Sum()).IsEqualTo(0);
         await Assert.That(evictions).IsEmpty();
     }
 

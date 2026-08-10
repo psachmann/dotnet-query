@@ -8,7 +8,7 @@ internal sealed partial class QueryInstrumentation(
 {
     private readonly Histogram<double> _fetchDuration = (meter ?? QueryTelemetry.Meter).CreateHistogram<double>(
         "dotnetquery.query.duration",
-        "ms",
+        "s",
         "Duration of query fetch operations."
     );
 
@@ -44,7 +44,7 @@ internal sealed partial class QueryInstrumentation(
 
     private readonly Histogram<double> _mutationDuration = (meter ?? QueryTelemetry.Meter).CreateHistogram<double>(
         "dotnetquery.mutation.duration",
-        "ms",
+        "s",
         "Duration of mutation operations."
     );
 
@@ -94,23 +94,26 @@ internal sealed partial class QueryInstrumentation(
         LogFetchStarted(key.ToString());
     }
 
-    internal void RecordFetchSuccess(QueryKey key, string name, double durationMs, int attempts, FetchTrigger trigger)
+    internal void RecordFetchSuccess(QueryKey key, string name, TimeSpan duration, int attempts, FetchTrigger trigger)
     {
         _activeFetches.Add(-1, BuildTags(name, key));
-        _fetchDuration.Record(durationMs, BuildTags(name, key, QueryTelemetryTags.StatusSuccess, trigger: trigger));
+        _fetchDuration.Record(
+            duration.TotalSeconds,
+            BuildTags(name, key, QueryTelemetryTags.StatusSuccess, trigger: trigger)
+        );
 
         if (attempts > 1)
         {
             _queryRetries.Add(attempts - 1, BuildTags(name, key));
         }
 
-        LogFetchSucceeded(key.ToString(), durationMs);
+        LogFetchSucceeded(key.ToString(), duration.TotalMilliseconds);
     }
 
     internal void RecordFetchFailure(
         QueryKey key,
         string name,
-        double durationMs,
+        TimeSpan duration,
         Exception ex,
         int attempts,
         FetchTrigger trigger
@@ -118,7 +121,7 @@ internal sealed partial class QueryInstrumentation(
     {
         _activeFetches.Add(-1, BuildTags(name, key));
         _fetchDuration.Record(
-            durationMs,
+            duration.TotalSeconds,
             BuildTags(name, key, QueryTelemetryTags.StatusFailure, ex.GetType().Name, trigger)
         );
 
@@ -127,13 +130,16 @@ internal sealed partial class QueryInstrumentation(
             _queryRetries.Add(attempts - 1, BuildTags(name, key));
         }
 
-        LogFetchFailed(ex, key.ToString(), durationMs);
+        LogFetchFailed(ex, key.ToString(), duration.TotalMilliseconds);
     }
 
-    internal void RecordFetchCancelled(QueryKey key, string name, double durationMs, FetchTrigger trigger)
+    internal void RecordFetchCancelled(QueryKey key, string name, TimeSpan duration, FetchTrigger trigger)
     {
         _activeFetches.Add(-1, BuildTags(name, key));
-        _fetchDuration.Record(durationMs, BuildTags(name, key, QueryTelemetryTags.StatusCancelled, trigger: trigger));
+        _fetchDuration.Record(
+            duration.TotalSeconds,
+            BuildTags(name, key, QueryTelemetryTags.StatusCancelled, trigger: trigger)
+        );
         LogFetchCancelled(key.ToString());
     }
 
@@ -159,6 +165,17 @@ internal sealed partial class QueryInstrumentation(
         LogCacheEvicted(key.ToString());
     }
 
+    /// <summary>
+    /// Records an entry released because the whole cache was disposed — decrements the entry gauge
+    /// without counting an eviction. Without this, scoped (SSR) clients would leak their live-entry
+    /// count into the process-wide gauge on every scope disposal.
+    /// </summary>
+    internal void RecordCacheDisposed(QueryKey key, string name)
+    {
+        _cacheEntries.Add(-1, BuildTags(name, key));
+        LogCacheDisposed(key.ToString());
+    }
+
     // ── Mutation ──────────────────────────────────────────────────────────────
 
     internal void RecordMutationStart(string name)
@@ -166,10 +183,10 @@ internal sealed partial class QueryInstrumentation(
         LogMutationStarted(name);
     }
 
-    internal void RecordMutationSuccess(string name, double durationMs, int attempts)
+    internal void RecordMutationSuccess(string name, TimeSpan duration, int attempts)
     {
         _mutationDuration.Record(
-            durationMs,
+            duration.TotalSeconds,
             new TagList
             {
                 { QueryTelemetryTags.TagMutationName, name },
@@ -182,13 +199,13 @@ internal sealed partial class QueryInstrumentation(
             _mutationRetries.Add(attempts - 1, new TagList { { QueryTelemetryTags.TagMutationName, name } });
         }
 
-        LogMutationSucceeded(name, durationMs);
+        LogMutationSucceeded(name, duration.TotalMilliseconds);
     }
 
-    internal void RecordMutationFailure(string name, double durationMs, Exception ex, int attempts)
+    internal void RecordMutationFailure(string name, TimeSpan duration, Exception ex, int attempts)
     {
         _mutationDuration.Record(
-            durationMs,
+            duration.TotalSeconds,
             new TagList
             {
                 { QueryTelemetryTags.TagMutationName, name },
@@ -202,13 +219,13 @@ internal sealed partial class QueryInstrumentation(
             _mutationRetries.Add(attempts - 1, new TagList { { QueryTelemetryTags.TagMutationName, name } });
         }
 
-        LogMutationFailed(ex, name, durationMs);
+        LogMutationFailed(ex, name, duration.TotalMilliseconds);
     }
 
-    internal void RecordMutationCancelled(string name, double durationMs)
+    internal void RecordMutationCancelled(string name, TimeSpan duration)
     {
         _mutationDuration.Record(
-            durationMs,
+            duration.TotalSeconds,
             new TagList
             {
                 { QueryTelemetryTags.TagMutationName, name },
@@ -243,6 +260,9 @@ internal sealed partial class QueryInstrumentation(
         Message = "Cache entry for key '{QueryKey}' evicted after CacheTime elapsed"
     )]
     private partial void LogCacheEvicted(string queryKey);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Cache entry for key '{QueryKey}' released on cache dispose")]
+    private partial void LogCacheDisposed(string queryKey);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Mutation '{MutationName}' started")]
     private partial void LogMutationStarted(string mutationName);

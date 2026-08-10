@@ -124,7 +124,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetStatus(ActivityStatusCode.Ok);
-            _instrumentation.RecordMutationSuccess(_options.Name, stopwatch.Elapsed.TotalMilliseconds, attempts);
+            _instrumentation.RecordMutationSuccess(_options.Name, stopwatch.Elapsed, attempts);
 
             if (!_disposed)
             {
@@ -138,7 +138,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
-            _instrumentation.RecordMutationCancelled(_options.Name, stopwatch.Elapsed.TotalMilliseconds);
+            _instrumentation.RecordMutationCancelled(_options.Name, stopwatch.Elapsed);
 
             if (!_disposed)
             {
@@ -153,7 +153,7 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetTag(QueryTelemetryTags.TagErrorType, ex.GetType().Name);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            _instrumentation.RecordMutationFailure(_options.Name, stopwatch.Elapsed.TotalMilliseconds, ex, attempts);
+            _instrumentation.RecordMutationFailure(_options.Name, stopwatch.Elapsed, ex, attempts);
 
             if (!_disposed)
             {

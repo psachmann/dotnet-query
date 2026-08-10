@@ -3,6 +3,9 @@ bin/
 obj/
 TestResults/
 
+# Test coverage output (see the CI test command in CLAUDE.md)
+coverage/
+
 # Direnv excludes
 .direnv/
 

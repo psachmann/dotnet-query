@@ -35,7 +35,13 @@ public class QueryInstrumentationTests
     [Test]
     public async Task RecordFetchSuccess_LogsDebugWithKeyAndDuration()
     {
-        _sut.RecordFetchSuccess(QueryKey.From("users", 1), "users", 42.5, 1, FetchTrigger.Manual);
+        _sut.RecordFetchSuccess(
+            QueryKey.From("users", 1),
+            "users",
+            TimeSpan.FromMilliseconds(42.5),
+            1,
+            FetchTrigger.Manual
+        );
 
         var entry = _logger.Entries.Single();
 
@@ -49,7 +55,14 @@ public class QueryInstrumentationTests
     public async Task RecordFetchFailure_LogsWarningWithKeyAndException()
     {
         var ex = new InvalidOperationException("boom");
-        _sut.RecordFetchFailure(QueryKey.From("users", 1), "users", 10.0, ex, 1, FetchTrigger.Manual);
+        _sut.RecordFetchFailure(
+            QueryKey.From("users", 1),
+            "users",
+            TimeSpan.FromMilliseconds(10),
+            ex,
+            1,
+            FetchTrigger.Manual
+        );
 
         var entry = _logger.Entries.Single();
 
@@ -62,7 +75,12 @@ public class QueryInstrumentationTests
     [Test]
     public async Task RecordFetchCancelled_LogsDebugWithKey()
     {
-        _sut.RecordFetchCancelled(QueryKey.From("users", 1), "users", 5.0, FetchTrigger.Manual);
+        _sut.RecordFetchCancelled(
+            QueryKey.From("users", 1),
+            "users",
+            TimeSpan.FromMilliseconds(5),
+            FetchTrigger.Manual
+        );
 
         var entry = _logger.Entries.Single();
 
@@ -122,7 +140,7 @@ public class QueryInstrumentationTests
     [Test]
     public async Task RecordMutationSuccess_LogsDebugWithDuration()
     {
-        _sut.RecordMutationSuccess("createTodo", 99.0, 1);
+        _sut.RecordMutationSuccess("createTodo", TimeSpan.FromMilliseconds(99), 1);
 
         var entry = _logger.Entries.Single();
 
@@ -135,7 +153,7 @@ public class QueryInstrumentationTests
     public async Task RecordMutationFailure_LogsWarningWithException()
     {
         var ex = new InvalidOperationException("oops");
-        _sut.RecordMutationFailure("createTodo", 5.0, ex, 1);
+        _sut.RecordMutationFailure("createTodo", TimeSpan.FromMilliseconds(5), ex, 1);
 
         var entry = _logger.Entries.Single();
 
@@ -147,7 +165,7 @@ public class QueryInstrumentationTests
     [Test]
     public async Task RecordMutationCancelled_LogsDebug()
     {
-        _sut.RecordMutationCancelled("createTodo", 3.0);
+        _sut.RecordMutationCancelled("createTodo", TimeSpan.FromMilliseconds(3));
 
         var entry = _logger.Entries.Single();
         await Assert.That(entry.LogLevel).IsEqualTo(LogLevel.Debug);
@@ -171,10 +189,10 @@ public class QueryInstrumentationTests
         );
 
         _sut.RecordFetchStart(key, "inst-fetch-success");
-        _sut.RecordFetchSuccess(key, "inst-fetch-success", 123.0, 1, FetchTrigger.Manual);
+        _sut.RecordFetchSuccess(key, "inst-fetch-success", TimeSpan.FromSeconds(2), 1, FetchTrigger.Manual);
 
         using var _ = Assert.Multiple();
-        await Assert.That(recorded).IsEqualTo(123.0);
+        await Assert.That(recorded).IsEqualTo(2.0);
         await Assert
             .That(recordedTags)
             .Contains(
@@ -207,14 +225,14 @@ public class QueryInstrumentationTests
         _sut.RecordFetchFailure(
             key,
             "inst-fetch-failure",
-            55.0,
+            TimeSpan.FromSeconds(1.5),
             new InvalidOperationException("err"),
             1,
             FetchTrigger.Invalidate
         );
 
         using var _ = Assert.Multiple();
-        await Assert.That(recorded).IsEqualTo(55.0);
+        await Assert.That(recorded).IsEqualTo(1.5);
         await Assert
             .That(recordedTags)
             .Contains(
@@ -245,10 +263,10 @@ public class QueryInstrumentationTests
         );
 
         _sut.RecordFetchStart(key, "inst-fetch-cancelled");
-        _sut.RecordFetchCancelled(key, "inst-fetch-cancelled", 20.0, FetchTrigger.Interval);
+        _sut.RecordFetchCancelled(key, "inst-fetch-cancelled", TimeSpan.FromSeconds(0.5), FetchTrigger.Interval);
 
         using var _ = Assert.Multiple();
-        await Assert.That(recorded).IsEqualTo(20.0);
+        await Assert.That(recorded).IsEqualTo(0.5);
         await Assert
             .That(recordedTags)
             .Contains(
@@ -272,7 +290,7 @@ public class QueryInstrumentationTests
         );
 
         _sut.RecordFetchStart(key, "inst-retries");
-        _sut.RecordFetchSuccess(key, "inst-retries", 12.0, attempts: 3, FetchTrigger.Manual);
+        _sut.RecordFetchSuccess(key, "inst-retries", TimeSpan.FromMilliseconds(12), attempts: 3, FetchTrigger.Manual);
 
         await Assert.That(recorded).IsEqualTo(2);
     }
@@ -293,7 +311,7 @@ public class QueryInstrumentationTests
         _sut.RecordFetchFailure(
             key,
             "inst-failure-retries",
-            12.0,
+            TimeSpan.FromMilliseconds(12),
             new InvalidOperationException("err"),
             attempts: 3,
             FetchTrigger.Manual
@@ -318,7 +336,12 @@ public class QueryInstrumentationTests
             }
         );
 
-        _sut.RecordMutationFailure("createTodo", 33.0, new InvalidOperationException("fail"), attempts: 4);
+        _sut.RecordMutationFailure(
+            "createTodo",
+            TimeSpan.FromMilliseconds(33),
+            new InvalidOperationException("fail"),
+            attempts: 4
+        );
 
         await Assert.That(recorded).IsEqualTo(3);
     }
@@ -336,7 +359,13 @@ public class QueryInstrumentationTests
         );
 
         _sut.RecordFetchStart(key, "inst-no-retries");
-        _sut.RecordFetchSuccess(key, "inst-no-retries", 12.0, attempts: 1, FetchTrigger.Manual);
+        _sut.RecordFetchSuccess(
+            key,
+            "inst-no-retries",
+            TimeSpan.FromMilliseconds(12),
+            attempts: 1,
+            FetchTrigger.Manual
+        );
 
         await Assert.That(recorded).IsNull();
     }
@@ -371,7 +400,7 @@ public class QueryInstrumentationTests
         );
 
         _sut.RecordFetchStart(key, "inst-active-dec");
-        _sut.RecordFetchSuccess(key, "inst-active-dec", 10.0, 1, FetchTrigger.Manual);
+        _sut.RecordFetchSuccess(key, "inst-active-dec", TimeSpan.FromMilliseconds(10), 1, FetchTrigger.Manual);
 
         await Assert.That(deltas).IsEquivalentTo([1, -1]);
     }
@@ -445,6 +474,32 @@ public class QueryInstrumentationTests
     }
 
     [Test]
+    public async Task RecordCacheDisposed_DecrementsEntriesWithoutRecordingEviction()
+    {
+        var key = QueryKey.From("inst-cache-disposed");
+        var entryDeltas = new List<int>();
+        long? evictions = null;
+
+        using var entriesListener = CreateNamedMeterListener<int>(
+            "dotnetquery.cache.entries",
+            "inst-cache-disposed",
+            (m, _) => entryDeltas.Add(m)
+        );
+        using var evictionsListener = CreateNamedMeterListener<long>(
+            "dotnetquery.cache.evictions",
+            "inst-cache-disposed",
+            (m, _) => evictions = m
+        );
+
+        _sut.RecordCacheMiss(key, "inst-cache-disposed");
+        _sut.RecordCacheDisposed(key, "inst-cache-disposed");
+
+        using var _ = Assert.Multiple();
+        await Assert.That(entryDeltas).IsEquivalentTo([1, -1]);
+        await Assert.That(evictions).IsNull();
+    }
+
+    [Test]
     public async Task RecordMutationSuccess_RecordsMutationDurationWithNameAndStatusTag()
     {
         double? recorded = null;
@@ -460,10 +515,10 @@ public class QueryInstrumentationTests
             }
         );
 
-        _sut.RecordMutationSuccess("createTodo", 77.0, 1);
+        _sut.RecordMutationSuccess("createTodo", TimeSpan.FromSeconds(3), 1);
 
         using var _ = Assert.Multiple();
-        await Assert.That(recorded).IsEqualTo(77.0);
+        await Assert.That(recorded).IsEqualTo(3.0);
         await Assert
             .That(recordedTags)
             .Contains(new KeyValuePair<string, object?>(QueryTelemetryTags.TagMutationName, "createTodo"));
@@ -485,7 +540,7 @@ public class QueryInstrumentationTests
             }
         );
 
-        _sut.RecordMutationSuccess("createTodo", 77.0, attempts: 4);
+        _sut.RecordMutationSuccess("createTodo", TimeSpan.FromMilliseconds(77), attempts: 4);
 
         await Assert.That(recorded).IsEqualTo(3);
     }
@@ -506,10 +561,10 @@ public class QueryInstrumentationTests
             }
         );
 
-        _sut.RecordMutationFailure("createTodo", 33.0, new InvalidOperationException("fail"), 1);
+        _sut.RecordMutationFailure("createTodo", TimeSpan.FromSeconds(2.5), new InvalidOperationException("fail"), 1);
 
         using var _ = Assert.Multiple();
-        await Assert.That(recorded).IsEqualTo(33.0);
+        await Assert.That(recorded).IsEqualTo(2.5);
         await Assert
             .That(recordedTags)
             .Contains(
@@ -533,10 +588,10 @@ public class QueryInstrumentationTests
             }
         );
 
-        _sut.RecordMutationCancelled("createTodo", 8.0);
+        _sut.RecordMutationCancelled("createTodo", TimeSpan.FromSeconds(0.25));
 
         using var _ = Assert.Multiple();
-        await Assert.That(recorded).IsEqualTo(8.0);
+        await Assert.That(recorded).IsEqualTo(0.25);
         await Assert
             .That(recordedTags)
             .Contains(new KeyValuePair<string, object?>(QueryTelemetryTags.TagMutationName, "createTodo"));
