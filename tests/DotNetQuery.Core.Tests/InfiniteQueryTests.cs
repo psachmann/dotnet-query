@@ -17,7 +17,9 @@ public class InfiniteQueryTests
         TimeSpan? refetchInterval = null,
         int args = 0,
         string? initialData = null,
-        string? name = null
+        string? name = null,
+        IRetryHandler? retryHandler = null,
+        QueryKey? key = null
     )
     {
         var options = new EffectiveInfiniteQueryOptions<int, string, int>
@@ -30,14 +32,20 @@ public class InfiniteQueryTests
             StaleTime = staleTime ?? TimeSpan.Zero,
             CacheTime = cacheTime ?? TimeSpan.FromMinutes(5),
             RefetchInterval = refetchInterval,
-            RetryHandler = new DefaultRetryHandler(),
+            RetryHandler = retryHandler ?? new DefaultRetryHandler(),
             IsEnabled = true,
             DataComparer = EqualityComparer<string>.Default,
             InitialData = initialData,
             Name = name,
         };
 
-        return new InfiniteQuery<int, string, int>(QueryKey.From("test"), args, options, _scheduler, _instrumentation);
+        return new InfiniteQuery<int, string, int>(
+            key ?? QueryKey.From("test"),
+            args,
+            options,
+            _scheduler,
+            _instrumentation
+        );
     }
 
     [Test]
@@ -682,5 +690,156 @@ public class InfiniteQueryTests
         using var _ = Assert.Multiple();
         await Assert.That(named.MetricName).IsEqualTo("pages");
         await Assert.That(unnamed.MetricName).IsEqualTo("test");
+    }
+
+    [Test]
+    public async Task Status_ReflectsCurrentStateStatus()
+    {
+        using var sut = CreateQuery();
+
+        await Assert.That(sut.Status).IsEqualTo(QueryStatus.Idle);
+
+        using var sub = sut.State.Subscribe();
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(sut.Status).IsEqualTo(QueryStatus.Success);
+    }
+
+    [Test]
+    public async Task LastUpdatedAt_NullInitially_SetAfterSuccessfulFetch()
+    {
+        using var sut = CreateQuery();
+
+        await Assert.That(sut.LastUpdatedAt).IsNull();
+
+        using var sub = sut.State.Subscribe();
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(sut.LastUpdatedAt).IsNotNull();
+    }
+
+    [Test]
+    public async Task ObserverCount_IncrementsAndDecrementsWithSubscribers()
+    {
+        using var sut = CreateQuery();
+
+        await Assert.That(sut.ObserverCount).IsEqualTo(0);
+
+        var sub = sut.State.Subscribe();
+        await Assert.That(sut.ObserverCount).IsEqualTo(1);
+
+        sub.Dispose();
+        await Assert.That(sut.ObserverCount).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task CurrentData_IsNull_WhenNoPagesLoaded()
+    {
+        using var sut = CreateQuery();
+
+        await Assert.That(sut.CurrentData).IsNull();
+    }
+
+    [Test]
+    public async Task Dispose_WhileNextPageFetchInFlight_RecordsCancelledWithoutThrowing()
+    {
+        var key = QueryKey.From("dispose-inflight-next");
+        var fetchStarted = new TaskCompletionSource();
+        var pageTcs = new TaskCompletionSource<string>();
+
+        using var sut = CreateQuery(
+            key: key,
+            fetcher: (_, page, _) =>
+            {
+                if (page == 1)
+                {
+                    fetchStarted.TrySetResult();
+                    return pageTcs.Task;
+                }
+
+                return Task.FromResult($"page{page}");
+            }
+        );
+
+        using var sub = sut.State.Subscribe();
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        var activityStopped = new TaskCompletionSource<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == QueryTelemetry.SourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = a =>
+            {
+                if (Equals(a.GetTagItem(QueryTelemetryTags.TagQueryKey), key.ToString()))
+                {
+                    activityStopped.TrySetResult(a);
+                }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        sut.FetchNextPage();
+        await fetchStarted.Task;
+
+        sut.Dispose();
+        pageTcs.SetResult("page1");
+
+        var activity = await activityStopped.Task;
+
+        using var _ = Assert.Multiple();
+        await Assert.That(activity.Status).IsEqualTo(ActivityStatusCode.Error);
+        await Assert.That(activity.StatusDescription).IsEqualTo("cancelled");
+    }
+
+    [Test]
+    public async Task Refetch_WithRetryingHandler_RecordsRetryAttemptsOnActivity()
+    {
+        var key = QueryKey.From("retry-activity-test");
+        Activity? recorded = null;
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == QueryTelemetry.SourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = a =>
+            {
+                if (Equals(a.GetTagItem(QueryTelemetryTags.TagQueryKey), key.ToString()))
+                {
+                    recorded = a;
+                }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        using var sut = CreateQuery(key: key, retryHandler: new InvokeNTimesRetryHandler(3));
+
+        using var sub = sut.State.Subscribe();
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(recorded).IsNotNull();
+        await Assert.That(recorded!.GetTagItem(QueryTelemetryTags.TagAttempts)).IsEqualTo(3);
+    }
+
+    private sealed class InvokeNTimesRetryHandler(int times) : IRetryHandler
+    {
+        public async Task<TResult> ExecuteAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> action,
+            CancellationToken cancellationToken = default
+        )
+        {
+            TResult result = default!;
+
+            for (var i = 0; i < times; i++)
+            {
+                result = await action(cancellationToken);
+            }
+
+            return result;
+        }
     }
 }

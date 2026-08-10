@@ -38,6 +38,60 @@ public class QueryClientTests
     }
 
     [Test]
+    public async Task CreateInfiniteQuery_PushingArgs_FetchesAndEmitsSuccess()
+    {
+        var query = _sut.CreateInfiniteQuery(
+            new InfiniteQueryOptions<int, string, int>
+            {
+                KeyFactory = _ => QueryKey.From("infinite-a"),
+                Fetcher = (_, page, _) => Task.FromResult($"page{page}"),
+                InitialPageParam = 0,
+                GetNextPageParam = info => info.PageParam + 1,
+            }
+        );
+
+        using var _ = query.State.Subscribe();
+        query.SetArgs(0);
+
+        var state = await query.State.Where(s => s.IsSuccess).FirstAsync();
+        await Assert.That(state.Pages).IsEquivalentTo(["page0"]);
+    }
+
+    [Test]
+    public async Task CreateInfiniteQuery_SameKey_SharesCacheEntry()
+    {
+        var fetchCount = 0;
+        var key = QueryKey.From("infinite-shared");
+        var options = new InfiniteQueryOptions<int, string, int>
+        {
+            KeyFactory = _ => key,
+            Fetcher = (_, page, _) =>
+            {
+                fetchCount++;
+                return Task.FromResult($"page{page}");
+            },
+            InitialPageParam = 0,
+            GetNextPageParam = info => info.PageParam + 1,
+            StaleTime = TimeSpan.FromMinutes(5),
+        };
+
+        var queryA = _sut.CreateInfiniteQuery(options);
+        var queryB = _sut.CreateInfiniteQuery(options);
+
+        using var subA = queryA.State.Subscribe();
+        using var subB = queryB.State.Subscribe();
+
+        queryA.SetArgs(0);
+        await queryA.State.Where(s => s.IsSuccess).FirstAsync();
+
+        // Push the same key to queryB — cache hit, StaleTime not elapsed, no second fetch
+        queryB.SetArgs(0);
+        await Task.Delay(50);
+
+        await Assert.That(fetchCount).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task CreateQuery_SameKey_SharesCacheEntry()
     {
         var fetchCount = 0;

@@ -109,4 +109,48 @@ public class InfiniteSuspenseTests
 
         cut.WaitForAssertion(() => cut.MarkupMatches("<span>a:False</span>"));
     }
+
+    [Test]
+    public async Task OnParametersSet_SameQueryInstance_DoesNotResubscribe()
+    {
+        // Regression: previously, every OnParametersSet unconditionally disposed and recreated the
+        // subscription even when the Query reference had not changed, causing subscription churn.
+        var subscribeCount = 0;
+        // Assign to _stateMock so the [After(Test)] teardown can call OnCompleted/Dispose safely.
+        _ = CreateQuery(InfiniteQueryState<string, int>.CreateIdle());
+
+        var observableWithCounter = Observable.Create<InfiniteQueryState<string, int>>(observer =>
+        {
+            subscribeCount++;
+            return _stateMock.Subscribe(observer);
+        });
+
+        _queryMock.State.Returns(observableWithCounter);
+        var query = _queryMock.Object;
+
+        RenderFragment content(InfiniteQueryState<string, int> state) =>
+            builder => builder.AddContent(0, $"<span>{string.Join("|", state.Pages)}</span>");
+
+        var cut = _context.Render<InfiniteSuspense<int, string, int>>(p =>
+            p.Add(c => c.Query, query).Add(c => c.Content, content)
+        );
+
+        var countAfterFirstRender = subscribeCount;
+
+        // Simulate a parent re-render passing the same Query reference — OnParametersSet fires again
+        await cut.InvokeAsync(() =>
+            cut.Instance.SetParametersAsync(
+                ParameterView.FromDictionary(
+                    new Dictionary<string, object?>
+                    {
+                        [nameof(InfiniteSuspense<int, string, int>.Query)] = (object)query,
+                        [nameof(InfiniteSuspense<int, string, int>.Content)] = (object)
+                            (RenderFragment<InfiniteQueryState<string, int>>)content,
+                    }
+                )
+            )
+        );
+
+        await Assert.That(subscribeCount).IsEqualTo(countAfterFirstRender);
+    }
 }
