@@ -1,6 +1,6 @@
 # MVVM View Models
 
-DotNet Query ships an MVVM binding layer for XAML-based UI frameworks — MAUI, WPF, WinUI, and UNO Platform. `QueryViewModel<TArgs, TData>` wraps an `IQuery<TArgs, TData>` and exposes its state as bindable `INotifyPropertyChanged` properties, marshaling every change notification onto the UI thread.
+DotNet Query ships an MVVM binding layer for XAML-based UI frameworks — MAUI, WPF, WinUI, UNO Platform, and Avalonia. `QueryViewModel<TArgs, TData>` wraps an `IQuery<TArgs, TData>` and exposes its state as bindable `INotifyPropertyChanged` properties, marshaling every change notification onto the UI thread.
 
 ## Installation
 
@@ -109,7 +109,7 @@ public interface IUiDispatcher
 }
 ```
 
-By default, the view model captures `SynchronizationContext.Current` at construction. **Construct view models on the UI thread** and this just works on MAUI, WPF, WinUI, and UNO. When no context is present (unit tests, console apps), notifications are invoked inline.
+By default, the view model captures `SynchronizationContext.Current` at construction. **Construct view models on the UI thread** and this just works on MAUI, WPF, WinUI, UNO, and Avalonia. When no context is present (unit tests, console apps), notifications are invoked inline.
 
 If your view models are constructed off the UI thread — or you prefer explicit platform wiring — supply a dispatcher:
 
@@ -130,6 +130,12 @@ public sealed class DispatcherQueueUiDispatcher(DispatcherQueue queue) : IUiDisp
 public sealed class WpfUiDispatcher(Dispatcher dispatcher) : IUiDispatcher
 {
     public void Post(Action action) => dispatcher.BeginInvoke(action);
+}
+
+// Avalonia
+public sealed class AvaloniaUiDispatcher : IUiDispatcher
+{
+    public void Post(Action action) => Dispatcher.UIThread.Post(action);
 }
 ```
 

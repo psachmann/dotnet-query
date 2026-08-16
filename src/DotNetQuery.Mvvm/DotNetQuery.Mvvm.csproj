@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
-    <Description>MVVM view models (INotifyPropertyChanged bindings) for DotNetQuery — MAUI, WPF, WinUI, and UNO Platform</Description>
+    <Description>MVVM view models (INotifyPropertyChanged bindings) for DotNetQuery — MAUI, WPF, WinUI, UNO Platform, and Avalonia</Description>
   </PropertyGroup>
 
   <ItemGroup>

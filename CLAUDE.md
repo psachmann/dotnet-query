@@ -43,7 +43,7 @@ The solution has five projects under `src/` and four test projects under `tests/
 | `DotNetQuery.Extensions.DependencyInjection` | `AddDotNetQuery()` extension; lifetime is Singleton (CSR) or Scoped (SSR) |
 | `DotNetQuery.Blazor` | `<Suspense>`, `<Transition>`, `<InfiniteSuspense>`, `<InfiniteTransition>`, `<QueryRefreshMonitor>` Blazor components |
 | `DotNetQuery.Blazor.DevTools` | `<QueryDevTools>` live cache inspector component |
-| `DotNetQuery.Mvvm` | `QueryViewModel<TArgs,TData>` INPC wrapper with `IUiDispatcher` UI-thread marshaling, for MAUI/WPF/WinUI/UNO |
+| `DotNetQuery.Mvvm` | `QueryViewModel<TArgs,TData>` INPC wrapper with `IUiDispatcher` UI-thread marshaling, for MAUI/WPF/WinUI/UNO/Avalonia |
 
 ### Core layer (`DotNetQuery.Core`)
 

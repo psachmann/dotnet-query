@@ -7,7 +7,7 @@ namespace DotNetQuery.Mvvm;
 /// The default implementation is <see cref="SynchronizationContextUiDispatcher"/>. Supply a
 /// platform-specific implementation to target the platform's dispatcher directly — e.g.
 /// <c>MainThread.BeginInvokeOnMainThread</c> (MAUI), <c>DispatcherQueue.TryEnqueue</c> (WinUI/UNO),
-/// or <c>Dispatcher.BeginInvoke</c> (WPF).
+/// <c>Dispatcher.BeginInvoke</c> (WPF), or <c>Dispatcher.UIThread.Post</c> (Avalonia).
 /// </para>
 /// </summary>
 public interface IUiDispatcher

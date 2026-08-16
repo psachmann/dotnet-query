@@ -2,7 +2,7 @@ namespace DotNetQuery.Mvvm;
 
 /// <summary>
 /// An <see cref="INotifyPropertyChanged"/> view model wrapping an <see cref="IQuery{TArgs, TData}"/>
-/// for MVVM-based UI frameworks (MAUI, WPF, WinUI, UNO). Exposes the query state as bindable
+/// for MVVM-based UI frameworks (MAUI, WPF, WinUI, UNO, Avalonia). Exposes the query state as bindable
 /// properties and marshals all change notifications onto the UI thread via an
 /// <see cref="IUiDispatcher"/>.
 /// <para>
