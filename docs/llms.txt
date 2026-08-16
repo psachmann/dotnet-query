@@ -9,6 +9,7 @@ NuGet packages:
 - `DotNetQuery.Extensions.DependencyInjection` — `AddDotNetQuery()` for Microsoft DI
 - `DotNetQuery.Blazor` — `<Suspense>`, `<Transition>`, `<QueryRefreshMonitor>` Razor components
 - `DotNetQuery.Blazor.DevTools` — `<QueryDevTools>` live cache inspector (development only)
+- `DotNetQuery.Mvvm` — `QueryViewModel<TArgs,TData>` INotifyPropertyChanged bindings for MAUI, WPF, WinUI, UNO, and Avalonia
 
 Target framework: net10.0. All code is in C# with `nullable enable`.
 
@@ -654,6 +655,102 @@ Live cache inspector panel (separate package `DotNetQuery.Blazor.DevTools`). Sho
 {
     <QueryDevTools />
 }
+```
+
+---
+
+## MVVM View Models (DotNetQuery.Mvvm)
+
+`QueryViewModel<TArgs, TData>` wraps an `IQuery<TArgs, TData>` for XAML-based MVVM frameworks (MAUI, WPF, WinUI, UNO, Avalonia). It implements `INotifyPropertyChanged`, marshals all notifications onto the UI thread, and holds a live `State` subscription for its lifetime (which is what retains the cache entry and triggers deferred stale fetches). Zero dependencies beyond `DotNetQuery.Core` — no MVVM toolkit, no platform references.
+
+```csharp
+public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable  where TData : class
+{
+    // Wraps an existing query; the CALLER keeps ownership (Dispose releases only the subscription)
+    QueryViewModel(IQuery<TArgs, TData> query, IUiDispatcher? dispatcher = null);
+
+    // Creates a new observer via client.CreateQuery(options); the VIEW MODEL owns and disposes it.
+    // Recommended for page view models with IQueryClient injected via DI.
+    QueryViewModel(IQueryClient client, QueryOptions<TArgs, TData> options, IUiDispatcher? dispatcher = null);
+
+    IQuery<TArgs, TData> Query { get; }  // escape hatch: Invalidate(), PrefetchAsync(), Select(), Rx
+
+    // Bindable properties — updated atomically; PropertyChanged raised only for actual changes
+    QueryState<TData> CurrentState { get; }
+    QueryStatus Status      { get; }
+    TData?     Data        { get; }  // CurrentData; null while fetching
+    TData?     LastData    { get; }
+    TData?     DisplayData { get; }  // Data ?? LastData — stale-while-revalidate binding target
+    Exception? Error       { get; }
+    bool IsIdle     { get; }
+    bool IsFetching { get; }  // any fetch, incl. background refetch (subtle refresh indicator)
+    bool IsSuccess  { get; }
+    bool IsFailure  { get; }
+    bool IsLoading  { get; }  // FIRST load only: fetching with no data to show (full-page spinner)
+    bool HasData    { get; }
+    bool HasError   { get; }
+
+    ICommand RefetchCommand { get; }  // Refetch(); CanExecute = !IsFetching
+    ICommand CancelCommand  { get; }  // Cancel();  CanExecute = IsFetching
+
+    void SetArgs(TArgs args);      // passthroughs to the wrapped query
+    void SetEnabled(bool enabled);
+    void SetData(TData data);
+    void Dispose();                // + protected virtual Dispose(bool) for derived view models
+}
+```
+
+### UI-thread marshaling
+
+```csharp
+public interface IUiDispatcher { void Post(Action action); }
+```
+
+Default: `SynchronizationContextUiDispatcher` captures `SynchronizationContext.Current` at construction — construct view models on the UI thread and MAUI/WPF/WinUI/UNO/Avalonia all work without extra wiring. Null context (unit tests, console) invokes inline. Rapid state bursts are coalesced latest-wins per UI hop; the whole state snapshot swaps before any `PropertyChanged` fires, so handlers never see torn sibling values. `CanExecuteChanged` is raised on the UI thread.
+
+Explicit platform adapters (one-liners):
+
+```csharp
+public sealed class MainThreadUiDispatcher : IUiDispatcher                      // MAUI
+{ public void Post(Action action) => MainThread.BeginInvokeOnMainThread(action); }
+
+public sealed class DispatcherQueueUiDispatcher(DispatcherQueue queue) : IUiDispatcher  // WinUI/UNO
+{ public void Post(Action action) => queue.TryEnqueue(() => action()); }
+
+public sealed class AvaloniaUiDispatcher : IUiDispatcher                        // Avalonia
+{ public void Post(Action action) => Dispatcher.UIThread.Post(action); }
+```
+
+### Lifecycle rules
+
+- **Dispose the view model when its page is torn down.** Disposing releases the state subscription (starting the CacheTime eviction clock) and disposes the query iff created via the `IQueryClient` ctor. A forgotten dispose pins the cache entry forever.
+- For temporarily hidden pages, use `SetEnabled(false)` on disappear / `SetEnabled(true)` on appear instead of disposing — invalidations defer while disabled and fetch on re-enable.
+- `BindableBase` (public INPC base with `RaisePropertyChanged` / `SetProperty`) is reusable for derived page view models. `QueryViewModel` is unsealed — derive and override `Dispose(bool)` for additional cleanup.
+
+### Typical usage
+
+```csharp
+public sealed class UserPageViewModel : IDisposable
+{
+    public UserPageViewModel(IQueryClient queryClient, IUserApi api) =>
+        User = new QueryViewModel<int, UserDto>(queryClient, new QueryOptions<int, UserDto>
+        {
+            KeyFactory = id => QueryKey.From("users", id),
+            Fetcher    = (id, ct) => api.GetUserAsync(id, ct),
+            StaleTime  = TimeSpan.FromMinutes(5),
+        });
+
+    public QueryViewModel<int, UserDto> User { get; }
+    public void Load(int userId) => User.SetArgs(userId);
+    public void Dispose() => User.Dispose();
+}
+```
+
+```xml
+<ActivityIndicator IsRunning="{Binding User.IsLoading}" />
+<Label Text="{Binding User.DisplayData.Name}" />
+<Label Text="{Binding User.Error.Message}" IsVisible="{Binding User.IsFailure}" />
+<Button Text="Refresh" Command="{Binding User.RefetchCommand}" />
 ```
 
 ---
