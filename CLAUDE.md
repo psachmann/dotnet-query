@@ -35,7 +35,7 @@ The formatter (`csharpier`) runs as a CI gate — always run it before committin
 
 ## Architecture
 
-The solution has four projects under `src/` and three test projects under `tests/`:
+The solution has five projects under `src/` and four test projects under `tests/`:
 
 | Project | Purpose |
 |---|---|
@@ -43,6 +43,7 @@ The solution has four projects under `src/` and three test projects under `tests
 | `DotNetQuery.Extensions.DependencyInjection` | `AddDotNetQuery()` extension; lifetime is Singleton (CSR) or Scoped (SSR) |
 | `DotNetQuery.Blazor` | `<Suspense>`, `<Transition>`, `<InfiniteSuspense>`, `<InfiniteTransition>`, `<QueryRefreshMonitor>` Blazor components |
 | `DotNetQuery.Blazor.DevTools` | `<QueryDevTools>` live cache inspector component |
+| `DotNetQuery.Mvvm` | `QueryViewModel<TArgs,TData>` INPC wrapper with `IUiDispatcher` UI-thread marshaling, for MAUI/WPF/WinUI/UNO/Avalonia |
 
 ### Core layer (`DotNetQuery.Core`)
 
@@ -75,6 +76,12 @@ The solution has four projects under `src/` and three test projects under `tests
 - `<InfiniteSuspense>` / `<InfiniteTransition>` — the `IInfiniteQuery` equivalents of the two components above. Unlike `<Suspense>` / `<Transition>`, their `Content` slot receives the whole `InfiniteQueryState<TData,TPageParam>` as context, so templates can render the accumulated `Pages` alongside the `IsFetchingNextPage` / `IsFetchingPreviousPage` flags.
 - `<QueryRefreshMonitor>` — JS interop component; registers `visibilitychange` and `online` event listeners via `QueryRefreshMonitor.js` and calls `QueryClient.Invalidate(_ => true)` on focus/reconnect.
 - `<QueryDevTools>` — live cache panel; subscribes to `IQueryClientInspector.CacheEntries`; uses `QueryDevTools.js` for drag-to-resize panel handles and theme persistence.
+
+### Mvvm layer (`DotNetQuery.Mvvm`)
+
+- `QueryViewModel<TArgs,TData>` — wraps `IQuery<TArgs,TData>` and exposes bindable properties (`Data`, `DisplayData` = stale-while-revalidate fallback, `IsLoading` = first-load-only vs `IsFetching` = any fetch, `RefetchCommand` / `CancelCommand`, ...). Holds a live `State` subscription for its lifetime (this is what retains the cache entry); `Dispose()` releases the subscription first, then disposes the query iff it was created via the `IQueryClient` + `QueryOptions` ctor (the `IQuery`-wrapping ctor leaves ownership with the caller).
+- State applies are marshaled through `IUiDispatcher.Post` (default: `SynchronizationContextUiDispatcher` capturing `SynchronizationContext.Current` at construction; null context invokes inline for tests/console). Emissions are coalesced latest-wins per UI hop; the whole `QueryState` snapshot is swapped before any `PropertyChanged` fires (no torn reads), and only actually-changed properties are raised.
+- `BindableBase` — public minimal INPC base (deliberately not named `ObservableObject` to avoid CommunityToolkit clashes). `RelayCommand` is `internal` for the same reason. Zero dependencies beyond `DotNetQuery.Core`.
 
 ### DI registration
 
