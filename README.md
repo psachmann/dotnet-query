@@ -21,6 +21,7 @@ DotNet Query brings the battle-tested data-fetching patterns of TanStack Query t
 - **Retry logic** — exponential backoff out of the box; plug in your own strategy via `IRetryHandler`
 - **Observability** — OTel-compatible distributed tracing (`ActivitySource`), metrics (`Meter`), and structured logging (`ILogger`) using only BCL APIs; no OpenTelemetry package required in the library
 - **Blazor components** — `<Suspense>` and `<Transition>` components for declarative query rendering
+- **MVVM view models** — `QueryViewModel<TArgs, TData>` with bindable `INotifyPropertyChanged` properties and UI-thread marshaling for MAUI, WPF, WinUI, and UNO Platform
 - **CSR / SSR support** — `QueryExecutionMode` controls Singleton (WebAssembly) vs Scoped (Server-Side Rendering) DI lifetime
 - **DI integration** — first-class support for `Microsoft.Extensions.DependencyInjection`
 
@@ -35,6 +36,9 @@ dotnet add package DotNetQuery.Extensions.DependencyInjection
 
 # Blazor components
 dotnet add package DotNetQuery.Blazor
+
+# MVVM view models (MAUI, WPF, WinUI, UNO)
+dotnet add package DotNetQuery.Mvvm
 ```
 
 ## Documentation

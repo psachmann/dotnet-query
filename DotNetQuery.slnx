@@ -4,10 +4,12 @@
     <Project Path="src/DotNetQuery.Blazor/DotNetQuery.Blazor.csproj" />
     <Project Path="src/DotNetQuery.Core/DotNetQuery.Core.csproj" />
     <Project Path="src/DotNetQuery.Extensions.DependencyInjection/DotNetQuery.Extensions.DependencyInjection.csproj" />
+    <Project Path="src/DotNetQuery.Mvvm/DotNetQuery.Mvvm.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DotNetQuery.Blazor.Tests/DotNetQuery.Blazor.Tests.csproj" />
     <Project Path="tests/DotNetQuery.Core.Tests/DotNetQuery.Core.Tests.csproj" />
     <Project Path="tests/DotNetQuery.Extensions.DependencyInjection.Tests/DotNetQuery.Extensions.DependencyInjection.Tests.csproj" />
+    <Project Path="tests/DotNetQuery.Mvvm.Tests/DotNetQuery.Mvvm.Tests.csproj" />
   </Folder>
 </Solution>
