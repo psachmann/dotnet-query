@@ -1,5 +1,10 @@
-﻿@page "/not-found"
+@page "/not-found"
 @layout MainLayout
 
-<h3>Not Found</h3>
-<p>Sorry, the content you are looking for does not exist.</p>
+<PageTitle>Not Found</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H3">Not Found</RadzenText>
+
+<RadzenAlert AlertStyle="AlertStyle.Warning" Variant="Variant.Flat" ShowIcon="true">
+    Sorry, the content you are looking for does not exist.
+</RadzenAlert>

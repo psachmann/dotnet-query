@@ -26,7 +26,10 @@ public sealed class TodosMutations : IDisposable
             new MutationOptions<string, TodoList>
             {
                 Mutator = (title, ct) => todosClient.CreateTodoListAsync(title, ct),
-                InvalidateKeys = [["todo-lists"]],
+                InvalidateKeys =
+                [
+                    ["todo-lists"],
+                ],
             }
         );
 
@@ -38,7 +41,10 @@ public sealed class TodosMutations : IDisposable
                     await todosClient.UpdateTodoListAsync(args.ListId, args.Title, ct);
                     return Unit.Default;
                 },
-                InvalidateKeys = [["todo-lists"]],
+                InvalidateKeys =
+                [
+                    ["todo-lists"],
+                ],
             }
         );
 
@@ -50,7 +56,10 @@ public sealed class TodosMutations : IDisposable
                     await todosClient.DeleteTodoListAsync(listId, ct);
                     return Unit.Default;
                 },
-                InvalidateKeys = [["todo-lists"]],
+                InvalidateKeys =
+                [
+                    ["todo-lists"],
+                ],
             }
         );
 

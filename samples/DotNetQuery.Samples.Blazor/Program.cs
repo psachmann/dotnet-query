@@ -1,21 +1,24 @@
+using DotNetQuery.Extensions.DependencyInjection;
 using DotNetQuery.Samples.Blazor.Components;
+using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddDotNetQuery(options =>
-    {
-        options.ExecutionMode = QueryExecutionMode.Ssr;
-        options.StaleTime       = TimeSpan.FromMinutes(1);   // data stays fresh for 1 minute
-        options.CacheTime       = TimeSpan.FromMinutes(10);  // cache entries live 10 minutes after last subscriber
-        options.RefetchInterval = TimeSpan.FromSeconds(30);  // automatically refetch every 30 seconds
-    });
+{
+    options.ExecutionMode = QueryExecutionMode.Ssr;
+    options.StaleTime = TimeSpan.FromMinutes(1); // data stays fresh for 1 minute
+    options.CacheTime = TimeSpan.FromMinutes(10); // cache entries live 10 minutes after last subscriber
+    options.RefetchInterval = TimeSpan.FromSeconds(30); // automatically refetch every 30 seconds
+});
 builder.Services.AddDotNetQuerySamplesShared();
 builder.Services.AddRadzenComponents();
 
 var app = builder.Build();
+
+await TodosContextSeed.SeedAsync(app.Services);
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -30,7 +33,6 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 app.Run();

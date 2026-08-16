@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    MSBuild only auto-imports the closest Directory.Build.props up the tree, so this file
+    must explicitly pull in the repo root one to keep LangVersion/Nullable/analyzers/MinVer/etc.
+  -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!--
+    Sample apps are not published packages, so the repo-wide XML doc requirement doesn't apply here.
+  -->
+  <PropertyGroup>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>
