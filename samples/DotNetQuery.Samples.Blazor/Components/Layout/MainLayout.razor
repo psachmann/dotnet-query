@@ -1,5 +1,7 @@
 ﻿@inherits LayoutComponentBase
 @inject IHostEnvironment Env
+@inject TodosQueries Queries
+@inject TodosMutations Mutations
 
 @if (Env.IsDevelopment())
 {
@@ -10,6 +12,43 @@
 <RadzenComponents @rendermode="InteractiveAuto" />
 
 <RadzenLayout>
+    <RadzenHeader>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0">
+            <RadzenSidebarToggle Click="@(() => IsExpanded = !IsExpanded)" />
+            <RadzenLabel Text="Sample Todos App" />
+        </RadzenStack>
+    </RadzenHeader>
+    <RadzenSidebar @bind-Expanded="@IsExpanded">
+        <Transition Query="@Queries.TodoListsQuery">
+            <Content Context="lists">
+                <RadzenPanelMenu>
+                    <RadzenPanelMenuItem
+                        Text="Home"
+                        Icon="home"
+                        Path="/"
+                    />
+                    @foreach(var list in lists)
+                    {
+                        <RadzenPanelMenuItem
+                            Text="@list.Title"
+                            Icon="assignment"
+                            Path="@($"/todos/{list.Id}")"
+                        />
+                    }
+                </RadzenPanelMenu>
+            </Content>
+            <Loading>
+                <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+            </Loading>
+        </Transition>
+        <div class="rz-p-4">
+            <RadzenButton
+                Text="Add"
+                ButtonStyle="ButtonStyle.Primary"
+                Click=@(args => Mutations.CreateTodoList.Execute($"New List {++ListCounter}"))
+            />
+        </div>
+    </RadzenSidebar>
     <RadzenBody>
         @Body
     </RadzenBody>
@@ -20,3 +59,9 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    public bool IsExpanded { get; set; } = true;
+
+    public int ListCounter { get; set; }
+}

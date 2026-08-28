@@ -6,11 +6,20 @@ public sealed class TodosQueries : IDisposable
 {
     public const int PageSize = 5;
 
+    public readonly IQuery<Guid, TodoList> TodoListQuery;
     public readonly IQuery<Unit, List<TodoList>> TodoListsQuery;
     public readonly IInfiniteQuery<Guid, List<TodoItem>, int> TodoItemsInfiniteQuery;
 
     public TodosQueries(IQueryClient queryClient, ITodosClient todosClient)
     {
+        TodoListQuery = queryClient.CreateQuery(
+            new QueryOptions<Guid, TodoList>
+            {
+                KeyFactory = listId => ["todo-list", listId],
+                Fetcher = (listId, ct) => todosClient.GetTodoListByIdAsync(listId, ct),
+            }
+        );
+
         TodoListsQuery = queryClient.CreateQuery(
             new QueryOptions<Unit, List<TodoList>>
             {
@@ -34,6 +43,7 @@ public sealed class TodosQueries : IDisposable
 
     public void Dispose()
     {
+        TodoListQuery.Dispose();
         TodoListsQuery.Dispose();
         TodoItemsInfiniteQuery.Dispose();
     }

@@ -9,7 +9,7 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddDotNetQuery(options =>
 {
     options.ExecutionMode = QueryExecutionMode.Ssr;
-    options.StaleTime = TimeSpan.FromMinutes(1); // data stays fresh for 1 minute
+    options.StaleTime = TimeSpan.Zero; // data is immediately stale
     options.CacheTime = TimeSpan.FromMinutes(10); // cache entries live 10 minutes after last subscriber
     options.RefetchInterval = TimeSpan.FromSeconds(30); // automatically refetch every 30 seconds
 });

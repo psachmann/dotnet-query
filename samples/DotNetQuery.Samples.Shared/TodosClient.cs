@@ -4,6 +4,8 @@ public interface ITodosClient
 {
     Task<TodoList> CreateTodoListAsync(string title, CancellationToken cts = default);
 
+    Task<TodoList> GetTodoListByIdAsync(Guid id, CancellationToken cts = default);
+
     Task<List<TodoList>> GetTodoListsAsync(CancellationToken cts = default);
 
     Task UpdateTodoListAsync(Guid listId, string title, CancellationToken cts = default);
@@ -32,6 +34,9 @@ internal sealed class TodosClientImpl(TodosContext context) : ITodosClient, IDis
         await context.SaveChangesAsync(cts);
         return list;
     }
+
+    public Task<TodoList> GetTodoListByIdAsync(Guid id, CancellationToken cts = default) =>
+        context.Set<TodoList>().Where(list => list.Id == id).FirstAsync(cts);
 
     public Task<List<TodoList>> GetTodoListsAsync(CancellationToken cts = default) =>
         context.Set<TodoList>().OrderBy(l => l.CreatedAt).ToListAsync(cts);

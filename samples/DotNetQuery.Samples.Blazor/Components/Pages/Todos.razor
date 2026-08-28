@@ -1,377 +1,99 @@
-@page "/"
-@using System.Reactive.Linq
-@implements IDisposable
+@page "/todos/{ListId}"
 @inject TodosQueries Queries
 @inject TodosMutations Mutations
 
 <PageTitle>Todos</PageTitle>
 
-<RadzenText TextStyle="TextStyle.H3" Text="Todos" />
+<Transition Query="@Queries.TodoListQuery">
+    <Content Context="list">
+        <RadzenText TextStyle="TextStyle.H3" Text="@list.Title" class="rz-pb-4"/>
+    </Content>
+    <Loading>
+        <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+    </Loading>
+</Transition>
 
-<RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter" ShowIcon="true" class="rz-mb-4">
-    A tour of DotNetQuery: <strong>TodoListsQuery</strong> caches and auto-refreshes the list panel
-    (30s polling + refetch on tab focus/reconnect, courtesy of <code>&lt;QueryRefreshMonitor&gt;</code> in the
-    layout). Selecting a list pushes new args into <strong>TodoItemsInfiniteQuery</strong> — a key-switching
-    proxy that fetches, caches, and paginates each list's items independently, with "Load more" driving
-    <code>FetchNextPage()</code>. Every create/rename/delete/toggle button is a <strong>mutation</strong> that
-    invalidates the affected query on success. Open <strong>DevTools</strong> (bottom-right, dev only) to watch
-    cache entries appear, go stale, and get evicted in real time.
-</RadzenAlert>
-
-@if (_lastError is { } error)
-{
-    <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" AllowClose="true" Close="() => _lastError = null" class="rz-mb-4">
-        @error
-    </RadzenAlert>
-}
-
-<RadzenRow Gap="1rem">
-    <RadzenColumn Size="12" SizeMD="4">
-        <RadzenCard Variant="Variant.Outlined">
-            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween" class="rz-mb-4">
-                <RadzenText TextStyle="TextStyle.H6" Text="Lists" class="rz-mb-0" />
-                <RadzenButton Icon="refresh" Variant="Variant.Text" Size="ButtonSize.Small" Click="RefreshLists" />
-            </RadzenStack>
-
-            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mb-4">
-                <RadzenTextBox @bind-Value="_newListTitle" Placeholder="New list title" Disabled="_creatingList"
-                               @onkeydown="OnNewListTitleKeyDown" class="rz-flex-grow-1" />
-                <RadzenButton Icon="add" Click="CreateList" IsBusy="_creatingList" BusyText="Adding..."
-                              Disabled="@(_creatingList || string.IsNullOrWhiteSpace(_newListTitle))" />
-            </RadzenStack>
-
-            <Transition Query="Queries.TodoListsQuery">
-                <Content Context="lists">
-                    @if (lists.Count == 0)
-                    {
-                        <RadzenText TextStyle="TextStyle.Body2">No lists yet — create one above.</RadzenText>
-                    }
-                    else
-                    {
-                        <RadzenStack Gap="0.25rem">
-                            @foreach (var list in lists)
-                            {
-                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
-                                             JustifyContent="JustifyContent.SpaceBetween" Gap="0.25rem"
-                                             class="@($"todo-row {(list.Id == _selectedListId ? "todo-row-selected" : "")}")">
-                                    @if (_renamingListId == list.Id)
-                                    {
-                                        <RadzenTextBox @bind-Value="_renameListTitle" class="rz-flex-grow-1"
-                                                        @onkeydown="OnRenameListKeyDown" />
-                                        <RadzenButton Icon="check" Size="ButtonSize.Small" Variant="Variant.Flat"
-                                                      ButtonStyle="ButtonStyle.Success" Click="CommitRenameList" />
-                                        <RadzenButton Icon="close" Size="ButtonSize.Small" Variant="Variant.Text"
-                                                      Click="CancelRenameList" />
-                                    }
-                                    else
-                                    {
-                                        <div class="rz-flex-grow-1 todo-row-title" @onclick="() => SelectList(list.Id)">
-                                            @list.Title
-                                        </div>
-                                        <RadzenButton Icon="edit" Size="ButtonSize.Small" Variant="Variant.Text"
-                                                      Click="() => StartRenameList(list)" />
-                                        <RadzenButton Icon="delete" Size="ButtonSize.Small" Variant="Variant.Text"
-                                                      ButtonStyle="ButtonStyle.Danger" Click="() => DeleteList(list.Id)" />
-                                    }
-                                </RadzenStack>
-                            }
+<InfiniteTransition Query="@Queries.TodoItemsInfiniteQuery">
+    <Content Context="items">
+        <RadzenStack Gap="0.5rem" class="rz-mb-4">
+            @foreach (var item in items.Pages.SelectMany(page => page))
+            {
+                <RadzenCard>
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                            <RadzenCheckBox
+                                TValue="bool"
+                                Value="@item.IsDone"
+                                Change="@(_ => Mutations.ToggleTodoItem.Execute(new TodoItemArgs(item.Id, ListGuid)))"
+                            />
+                            <RadzenText
+                                TextStyle="TextStyle.Body1"
+                                TagName="TagName.Span"
+                                class="@(item.IsDone ? "rz-text-disabled-color" : null)"
+                                style="@(item.IsDone ? "text-decoration: line-through;" : null)"
+                                Text="@item.Description"
+                            />
                         </RadzenStack>
-                    }
-                </Content>
-                <Loading>
-                    <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
-                </Loading>
-                <Failure Context="error">
-                    <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@error.Message</RadzenAlert>
-                </Failure>
-            </Transition>
-        </RadzenCard>
-    </RadzenColumn>
-
-    <RadzenColumn Size="12" SizeMD="8">
-        <RadzenCard Variant="Variant.Outlined">
-            @if (_selectedListId is not { } listId)
-            {
-                <RadzenText TextStyle="TextStyle.Body2">Select a list on the left to see its items.</RadzenText>
+                        <RadzenButton
+                            Icon="delete"
+                            ButtonStyle="ButtonStyle.Danger"
+                            Variant="Variant.Text"
+                            Size="ButtonSize.Small"
+                            Click="@(() => Mutations.DeleteTodoItem.Execute(new TodoItemArgs(item.Id, ListGuid)))"
+                        />
+                    </RadzenStack>
+                </RadzenCard>
             }
-            else
-            {
-                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween" class="rz-mb-4">
-                    <RadzenText TextStyle="TextStyle.H6" Text="Items" class="rz-mb-0" />
-                    <RadzenButton Icon="refresh" Variant="Variant.Text" Size="ButtonSize.Small" Click="RefreshItems" />
-                </RadzenStack>
+        </RadzenStack>
 
-                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mb-4">
-                    <RadzenTextBox @bind-Value="_newItemDescription" Placeholder="New item" Disabled="_addingItem"
-                                   @onkeydown="OnNewItemDescriptionKeyDown" class="rz-flex-grow-1" />
-                    <RadzenButton Icon="add" Click="AddItem" IsBusy="_addingItem" BusyText="Adding..."
-                                  Disabled="@(_addingItem || string.IsNullOrWhiteSpace(_newItemDescription))" />
-                </RadzenStack>
+        @if (items.HasNextPage)
+        {
+            <RadzenButton
+                Text="Load more"
+                ButtonStyle="ButtonStyle.Light"
+                IsBusy="@items.IsFetchingNextPage"
+                Disabled="@items.IsFetchingNextPage"
+                Click="@Queries.TodoItemsInfiniteQuery.FetchNextPage"
+                class="rz-mb-4"
+            />
+        }
+    </Content>
+    <Loading>
+        <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+    </Loading>
+</InfiniteTransition>
 
-                <InfiniteTransition Query="Queries.TodoItemsInfiniteQuery">
-                    <Content Context="state">
-                        @{ var items = state.Pages.SelectMany(page => page).ToList(); }
-                        @if (items.Count == 0)
-                        {
-                            <RadzenText TextStyle="TextStyle.Body2">No items yet — add one above.</RadzenText>
-                        }
-                        else
-                        {
-                            <RadzenStack Gap="0.25rem" class="rz-mb-4">
-                                @foreach (var item in items)
-                                {
-                                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="todo-row">
-                                        <RadzenCheckBox TValue="bool" Value="@item.IsDone" Change="@(_ => ToggleItem(item, listId))" />
-                                        @if (_editingItemId == item.Id)
-                                        {
-                                            <RadzenTextBox @bind-Value="_editItemDescription" class="rz-flex-grow-1"
-                                                            @onkeydown="e => OnEditItemKeyDown(e, listId)" />
-                                            <RadzenButton Icon="check" Size="ButtonSize.Small" Variant="Variant.Flat"
-                                                          ButtonStyle="ButtonStyle.Success" Click="() => CommitEditItem(listId)" />
-                                            <RadzenButton Icon="close" Size="ButtonSize.Small" Variant="Variant.Text"
-                                                          Click="CancelEditItem" />
-                                        }
-                                        else
-                                        {
-                                            <span class="@($"rz-flex-grow-1 {(item.IsDone ? "todo-item-done" : "")}")">
-                                                @item.Description
-                                            </span>
-                                            <RadzenButton Icon="edit" Size="ButtonSize.Small" Variant="Variant.Text"
-                                                          Click="() => StartEditItem(item)" />
-                                            <RadzenButton Icon="delete" Size="ButtonSize.Small" Variant="Variant.Text"
-                                                          ButtonStyle="ButtonStyle.Danger" Click="() => DeleteItem(item.Id, listId)" />
-                                        }
-                                    </RadzenStack>
-                                }
-                            </RadzenStack>
-                        }
-
-                        @if (state.HasNextPage)
-                        {
-                            <RadzenButton Text="Load more" Variant="Variant.Outlined" IsBusy="state.IsFetchingNextPage"
-                                          BusyText="Loading..." Disabled="state.IsFetchingNextPage" Click="LoadMoreItems" />
-                        }
-                    </Content>
-                    <Loading>
-                        <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
-                    </Loading>
-                    <Failure Context="error">
-                        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@error.Message</RadzenAlert>
-                    </Failure>
-                </InfiniteTransition>
-            }
-        </RadzenCard>
-    </RadzenColumn>
-</RadzenRow>
+<RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+    <RadzenTextBox @bind-Value="NewItemDescription" Placeholder="New item" class="rz-w-100" />
+    <RadzenButton
+        Text="Add"
+        ButtonStyle="ButtonStyle.Primary"
+        Disabled="@string.IsNullOrWhiteSpace(NewItemDescription)"
+        Click="@AddItem"
+    />
+</RadzenStack>
 
 @code {
-    private string _newListTitle = string.Empty;
-    private string _newItemDescription = string.Empty;
-    private Guid? _selectedListId;
-    private Guid? _renamingListId;
-    private string _renameListTitle = string.Empty;
-    private Guid? _editingItemId;
-    private string _editItemDescription = string.Empty;
-    private bool _creatingList;
-    private bool _addingItem;
-    private string? _lastError;
-    private readonly List<IDisposable> _subscriptions = [];
+    [Parameter]
+    public string ListId { get; set; } = string.Empty;
 
-    protected override void OnInitialized()
+    private string NewItemDescription = string.Empty;
+    private Guid ListGuid => Guid.Parse(ListId);
+
+    protected override void OnParametersSet()
     {
-        // TodosQueries.TodoListsQuery is already active (SetArgs was called when the scoped service was
-        // constructed), so subscribing here replays its current state immediately if already loaded —
-        // this is what lets us auto-select the first list whether this is the first navigation or a return visit.
-        _subscriptions.Add(
-            Queries.TodoListsQuery.Success.Subscribe(lists =>
-                RunOnUiThread(() =>
-                {
-                    if (_selectedListId is null && lists.Count > 0)
-                    {
-                        SelectList(lists[0].Id);
-                    }
-                })
-            )
-        );
-
-        _subscriptions.Add(Mutations.CreateTodoList.State.Subscribe(state => RunOnUiThread(() => _creatingList = state.IsRunning)));
-        _subscriptions.Add(
-            Mutations.CreateTodoList.Success.Subscribe(list =>
-                RunOnUiThread(() =>
-                {
-                    _newListTitle = string.Empty;
-                    SelectList(list.Id);
-                })
-            )
-        );
-
-        _subscriptions.Add(Mutations.AddTodoItem.State.Subscribe(state => RunOnUiThread(() => _addingItem = state.IsRunning)));
-        _subscriptions.Add(Mutations.AddTodoItem.Success.Subscribe(_ => RunOnUiThread(() => _newItemDescription = string.Empty)));
-
-        // All mutation Failure streams are IObservable<Exception> regardless of their TArgs/TData —
-        // Observable.Merge combines them into a single error banner for the whole page.
-        _subscriptions.Add(
-            Observable
-                .Merge(
-                    Mutations.CreateTodoList.Failure,
-                    Mutations.UpdateTodoList.Failure,
-                    Mutations.DeleteTodoList.Failure,
-                    Mutations.AddTodoItem.Failure,
-                    Mutations.ToggleTodoItem.Failure,
-                    Mutations.UpdateTodoItem.Failure,
-                    Mutations.DeleteTodoItem.Failure
-                )
-                .Subscribe(error => RunOnUiThread(() => _lastError = error.Message))
-        );
-    }
-
-    // Mutation and query observables emit off background threads (fetch/mutator continuations), so
-    // subscription callbacks must marshal back to the renderer's sync context before touching state —
-    // the same pattern <Suspense>/<Transition> use internally via InvokeAsync(StateHasChanged).
-    private void RunOnUiThread(Action action) =>
-        _ = InvokeAsync(() =>
-        {
-            action();
-            StateHasChanged();
-        });
-
-    private void SelectList(Guid listId)
-    {
-        if (_selectedListId == listId)
-        {
-            return;
-        }
-
-        _selectedListId = listId;
-        _editingItemId = null;
-        Queries.TodoItemsInfiniteQuery.SetArgs(listId);
-    }
-
-    private void RefreshLists() => Queries.TodoListsQuery.Refetch();
-
-    private void RefreshItems() => Queries.TodoItemsInfiniteQuery.Refetch();
-
-    private void CreateList()
-    {
-        if (string.IsNullOrWhiteSpace(_newListTitle))
-        {
-            return;
-        }
-
-        Mutations.CreateTodoList.Execute(_newListTitle.Trim());
-    }
-
-    private void OnNewListTitleKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter")
-        {
-            CreateList();
-        }
-    }
-
-    private void StartRenameList(TodoList list)
-    {
-        _renamingListId = list.Id;
-        _renameListTitle = list.Title;
-    }
-
-    private void CommitRenameList()
-    {
-        if (_renamingListId is not { } listId || string.IsNullOrWhiteSpace(_renameListTitle))
-        {
-            return;
-        }
-
-        Mutations.UpdateTodoList.Execute(new UpdateTodoListArgs(listId, _renameListTitle.Trim()));
-        _renamingListId = null;
-    }
-
-    private void CancelRenameList() => _renamingListId = null;
-
-    private void OnRenameListKeyDown(KeyboardEventArgs e)
-    {
-        switch (e.Key)
-        {
-            case "Enter":
-                CommitRenameList();
-                break;
-            case "Escape":
-                CancelRenameList();
-                break;
-        }
-    }
-
-    private void DeleteList(Guid listId)
-    {
-        if (_selectedListId == listId)
-        {
-            _selectedListId = null;
-        }
-
-        Mutations.DeleteTodoList.Execute(listId);
+        Queries.TodoListQuery.SetArgs(ListGuid);
+        Queries.TodoItemsInfiniteQuery.SetArgs(ListGuid);
     }
 
     private void AddItem()
     {
-        if (_selectedListId is not { } listId || string.IsNullOrWhiteSpace(_newItemDescription))
+        if (string.IsNullOrWhiteSpace(NewItemDescription))
         {
             return;
         }
 
-        Mutations.AddTodoItem.Execute(new AddTodoItemArgs(listId, _newItemDescription.Trim()));
-    }
-
-    private void OnNewItemDescriptionKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter")
-        {
-            AddItem();
-        }
-    }
-
-    private void ToggleItem(TodoItem item, Guid listId) => Mutations.ToggleTodoItem.Execute(new TodoItemArgs(item.Id, listId));
-
-    private void StartEditItem(TodoItem item)
-    {
-        _editingItemId = item.Id;
-        _editItemDescription = item.Description;
-    }
-
-    private void CommitEditItem(Guid listId)
-    {
-        if (_editingItemId is not { } itemId || string.IsNullOrWhiteSpace(_editItemDescription))
-        {
-            return;
-        }
-
-        Mutations.UpdateTodoItem.Execute(new UpdateTodoItemArgs(itemId, listId, _editItemDescription.Trim()));
-        _editingItemId = null;
-    }
-
-    private void CancelEditItem() => _editingItemId = null;
-
-    private void OnEditItemKeyDown(KeyboardEventArgs e, Guid listId)
-    {
-        switch (e.Key)
-        {
-            case "Enter":
-                CommitEditItem(listId);
-                break;
-            case "Escape":
-                CancelEditItem();
-                break;
-        }
-    }
-
-    private void DeleteItem(Guid itemId, Guid listId) => Mutations.DeleteTodoItem.Execute(new TodoItemArgs(itemId, listId));
-
-    private void LoadMoreItems() => Queries.TodoItemsInfiniteQuery.FetchNextPage();
-
-    public void Dispose()
-    {
-        foreach (var subscription in _subscriptions)
-        {
-            subscription.Dispose();
-        }
+        Mutations.AddTodoItem.Execute(new AddTodoItemArgs(ListGuid, NewItemDescription));
+        NewItemDescription = string.Empty;
     }
 }
