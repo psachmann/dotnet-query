@@ -16,15 +16,36 @@
         };
       in
       {
-        devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            nixd
-            dotnet-sdk_10
-            omnisharp-roslyn
-            netcoredbg
-          ];
-          DOTNET_ROOT = "${pkgs.dotnet-sdk_10}/share/dotnet";
-        };
+        devShells.default =
+          let
+            avaloniaNativeLibs = with pkgs; [
+              fontconfig
+              freetype
+              icu
+              libGL
+              libGLU
+              libX11
+              libICE
+              libSM
+              libXi
+              libXcursor
+              libXrandr
+              libXext
+              libXrender
+              libXtst
+              libXfixes
+            ];
+          in
+          pkgs.mkShell {
+            packages = with pkgs; [
+              nixd
+              dotnet-sdk_10
+              omnisharp-roslyn
+              netcoredbg
+            ] ++ avaloniaNativeLibs;
+            DOTNET_ROOT = "${pkgs.dotnet-sdk_10}/share/dotnet";
+            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath avaloniaNativeLibs;
+          };
       }
     );
 }

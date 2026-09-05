@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/samples/">
+    <Project Path="samples/DotNetQuery.Samples.Avalonia/DotNetQuery.Samples.Avalonia.csproj" />
     <Project Path="samples/DotNetQuery.Samples.Blazor/DotNetQuery.Samples.Blazor.csproj" />
     <Project Path="samples/DotNetQuery.Samples.Shared/DotNetQuery.Samples.Shared.csproj" />
   </Folder>
