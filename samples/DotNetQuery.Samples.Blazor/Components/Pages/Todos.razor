@@ -1,0 +1,99 @@
+@page "/todos/{ListId}"
+@inject TodosQueries Queries
+@inject TodosMutations Mutations
+
+<PageTitle>Todos</PageTitle>
+
+<Transition Query="@Queries.TodoListQuery">
+    <Content Context="list">
+        <RadzenText TextStyle="TextStyle.H3" Text="@list.Title" class="rz-pb-4"/>
+    </Content>
+    <Loading>
+        <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+    </Loading>
+</Transition>
+
+<InfiniteTransition Query="@Queries.TodoItemsInfiniteQuery">
+    <Content Context="items">
+        <RadzenStack Gap="0.5rem" class="rz-mb-4">
+            @foreach (var item in items.Pages.SelectMany(page => page))
+            {
+                <RadzenCard>
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                            <RadzenCheckBox
+                                TValue="bool"
+                                Value="@item.IsDone"
+                                Change="@(_ => Mutations.ToggleTodoItem.Execute(new TodoItemArgs(item.Id, ListGuid)))"
+                            />
+                            <RadzenText
+                                TextStyle="TextStyle.Body1"
+                                TagName="TagName.Span"
+                                class="@(item.IsDone ? "rz-text-disabled-color" : null)"
+                                style="@(item.IsDone ? "text-decoration: line-through;" : null)"
+                                Text="@item.Description"
+                            />
+                        </RadzenStack>
+                        <RadzenButton
+                            Icon="delete"
+                            ButtonStyle="ButtonStyle.Danger"
+                            Variant="Variant.Text"
+                            Size="ButtonSize.Small"
+                            Click="@(() => Mutations.DeleteTodoItem.Execute(new TodoItemArgs(item.Id, ListGuid)))"
+                        />
+                    </RadzenStack>
+                </RadzenCard>
+            }
+        </RadzenStack>
+
+        @if (items.HasNextPage)
+        {
+            <RadzenButton
+                Text="Load more"
+                ButtonStyle="ButtonStyle.Light"
+                IsBusy="@items.IsFetchingNextPage"
+                Disabled="@items.IsFetchingNextPage"
+                Click="@Queries.TodoItemsInfiniteQuery.FetchNextPage"
+                class="rz-mb-4"
+            />
+        }
+    </Content>
+    <Loading>
+        <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+    </Loading>
+</InfiniteTransition>
+
+<RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+    <RadzenTextBox @bind-Value="NewItemDescription" Placeholder="New item" class="rz-w-100" />
+    <RadzenButton
+        Text="Add"
+        ButtonStyle="ButtonStyle.Primary"
+        Disabled="@string.IsNullOrWhiteSpace(NewItemDescription)"
+        Click="@AddItem"
+    />
+</RadzenStack>
+
+@code {
+    [Parameter]
+    public string ListId { get; set; } = string.Empty;
+
+    private string NewItemDescription = string.Empty;
+    private Guid ListGuid => Guid.Parse(ListId);
+
+    protected override void OnParametersSet()
+    {
+        Queries.TodoListQuery.SetArgs(ListGuid);
+        Queries.TodoItemsInfiniteQuery.SetArgs(ListGuid);
+    }
+
+    private void AddItem()
+    {
+        if (string.IsNullOrWhiteSpace(NewItemDescription))
+        {
+            return;
+        }
+
+        Mutations.AddTodoItem.Execute(new AddTodoItemArgs(ListGuid, NewItemDescription));
+        NewItemDescription = string.Empty;
+    }
+}

@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/DotNetQuery.Samples.Avalonia/DotNetQuery.Samples.Avalonia.csproj" />
+    <Project Path="samples/DotNetQuery.Samples.Blazor/DotNetQuery.Samples.Blazor.csproj" />
+    <Project Path="samples/DotNetQuery.Samples.Shared/DotNetQuery.Samples.Shared.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/DotNetQuery.Blazor.DevTools/DotNetQuery.Blazor.DevTools.csproj" />
     <Project Path="src/DotNetQuery.Blazor/DotNetQuery.Blazor.csproj" />

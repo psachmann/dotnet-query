@@ -1,0 +1,125 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:vm="using:DotNetQuery.Samples.Avalonia.ViewModels"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  mc:Ignorable="d"
+  d:DesignWidth="600"
+  d:DesignHeight="500"
+  x:Class="DotNetQuery.Samples.Avalonia.Views.TodoDetailsView"
+  x:DataType="vm:TodoDetailsViewModel"
+>
+  <Panel>
+    <TextBlock
+      Text="Select a list to get started."
+      Opacity="0.6"
+      HorizontalAlignment="Center"
+      VerticalAlignment="Center"
+      IsVisible="{Binding !HasList}"
+    />
+
+    <DockPanel IsVisible="{Binding HasList}">
+      <!-- Title -->
+      <TextBlock
+        DockPanel.Dock="Top"
+        Text="{Binding Title}"
+        FontSize="28"
+        FontWeight="SemiBold"
+        Margin="0,0,0,4"
+      />
+      <ProgressBar
+        DockPanel.Dock="Top"
+        IsIndeterminate="True"
+        IsVisible="{Binding IsLoadingTitle}"
+        Margin="0,0,0,12"
+      />
+
+      <!-- New item -->
+      <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto" Margin="0,16,0,0">
+        <TextBox PlaceholderText="New item" Text="{Binding NewItemDescription}" Margin="0,0,8,0">
+          <TextBox.KeyBindings>
+            <KeyBinding Gesture="Enter" Command="{Binding AddItemCommand}" />
+          </TextBox.KeyBindings>
+        </TextBox>
+        <Button Grid.Column="1" Classes="accent" Content="Add" Command="{Binding AddItemCommand}" />
+      </Grid>
+
+      <TextBlock
+        DockPanel.Dock="Bottom"
+        Text="{Binding ErrorMessage}"
+        Foreground="{DynamicResource AppDangerBrush}"
+        TextWrapping="Wrap"
+        Margin="0,8,0,0"
+        IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+      />
+
+      <!-- Items -->
+      <Panel>
+        <ProgressBar
+          IsIndeterminate="True"
+          VerticalAlignment="Top"
+          IsVisible="{Binding IsLoadingItems}"
+        />
+
+        <ScrollViewer IsVisible="{Binding !IsLoadingItems}">
+          <StackPanel Spacing="8">
+            <ItemsControl ItemsSource="{Binding Items}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="8" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:TodoItemViewModel">
+                  <Border
+                    Padding="12,8"
+                    CornerRadius="6"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource AppBorderBrush}"
+                  >
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <CheckBox
+                        IsChecked="{Binding IsDone, Mode=OneWay}"
+                        Command="{Binding ToggleCommand}"
+                        VerticalAlignment="Center"
+                      />
+                      <TextBlock
+                        Grid.Column="1"
+                        Text="{Binding Description}"
+                        VerticalAlignment="Center"
+                        TextTrimming="CharacterEllipsis"
+                        Classes.done="{Binding IsDone}"
+                      >
+                        <TextBlock.Styles>
+                          <Style Selector="TextBlock.done">
+                            <Setter Property="TextDecorations" Value="Strikethrough" />
+                            <Setter Property="Opacity" Value="0.5" />
+                          </Style>
+                        </TextBlock.Styles>
+                      </TextBlock>
+                      <Button
+                        Grid.Column="2"
+                        Content="Delete"
+                        Command="{Binding DeleteCommand}"
+                        Foreground="{DynamicResource AppDangerBrush}"
+                      />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Button
+              HorizontalAlignment="Center"
+              Content="Load more"
+              Command="{Binding LoadMoreCommand}"
+              IsEnabled="{Binding !IsLoadingMore}"
+              IsVisible="{Binding HasNextPage}"
+            />
+          </StackPanel>
+        </ScrollViewer>
+      </Panel>
+    </DockPanel>
+  </Panel>
+</UserControl>

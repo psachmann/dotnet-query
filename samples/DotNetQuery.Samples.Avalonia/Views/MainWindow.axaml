@@ -1,0 +1,97 @@
+<Window
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:vm="using:DotNetQuery.Samples.Avalonia.ViewModels"
+  xmlns:shared="using:DotNetQuery.Samples.Shared"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  mc:Ignorable="d"
+  d:DesignWidth="900"
+  d:DesignHeight="600"
+  x:Class="DotNetQuery.Samples.Avalonia.Views.MainWindow"
+  x:DataType="vm:MainViewModel"
+  Icon="/Assets/avalonia-logo.ico"
+  Title="Sample Todos App"
+  Width="900"
+  Height="600"
+>
+  <DockPanel>
+    <!-- Header -->
+    <Border
+      DockPanel.Dock="Top"
+      Height="52"
+      Padding="12,0"
+      Background="{DynamicResource AppHeaderBrush}"
+    >
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <Button
+            Content="&#8801;"
+            FontSize="18"
+            Padding="10,2"
+            Command="{Binding ToggleSidebarCommand}"
+            ToolTip.Tip="Toggle sidebar"
+          />
+          <TextBlock
+            Text="Sample Todos App"
+            FontSize="18"
+            FontWeight="SemiBold"
+            VerticalAlignment="Center"
+            Foreground="{DynamicResource AppHeaderForegroundBrush}"
+          />
+        </StackPanel>
+        <Button
+          Grid.Column="2"
+          Content="Refresh"
+          VerticalAlignment="Center"
+          Command="{Binding RefreshCommand}"
+          ToolTip.Tip="Invalidate every cache entry"
+        />
+      </Grid>
+    </Border>
+
+    <!-- Sidebar -->
+    <Border
+      DockPanel.Dock="Left"
+      Width="260"
+      BorderThickness="0,0,1,0"
+      BorderBrush="{DynamicResource AppBorderBrush}"
+      IsVisible="{Binding IsSidebarExpanded}"
+    >
+      <DockPanel>
+        <Border DockPanel.Dock="Bottom" Padding="12">
+          <Button
+            HorizontalAlignment="Stretch"
+            HorizontalContentAlignment="Center"
+            Classes="accent"
+            Content="Add list"
+            Command="{Binding CreateListCommand}"
+          />
+        </Border>
+
+        <ProgressBar
+          DockPanel.Dock="Top"
+          IsIndeterminate="True"
+          IsVisible="{Binding IsLoadingLists}"
+          Margin="12,12,12,0"
+        />
+
+        <ListBox
+          ItemsSource="{Binding Lists}"
+          SelectedItem="{Binding SelectedList}"
+          Padding="6"
+          Background="Transparent"
+        >
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="shared:TodoList">
+              <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <!-- Body: resolved to TodoDetailsView through ViewLocator -->
+    <ContentControl Content="{Binding Details}" Margin="24" />
+  </DockPanel>
+</Window>

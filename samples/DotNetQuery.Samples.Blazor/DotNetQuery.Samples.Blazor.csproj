@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Radzen.Blazor" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DotNetQuery.Samples.Shared\DotNetQuery.Samples.Shared.csproj" />
+    <ProjectReference Include="..\..\src\DotNetQuery.Blazor\DotNetQuery.Blazor.csproj" />
+    <ProjectReference Include="..\..\src\DotNetQuery.Blazor.DevTools\DotNetQuery.Blazor.DevTools.csproj" />
+    <ProjectReference Include="..\..\src\DotNetQuery.Core\DotNetQuery.Core.csproj" />
+    <ProjectReference Include="..\..\src\DotNetQuery.Extensions.DependencyInjection\DotNetQuery.Extensions.DependencyInjection.csproj" />
+  </ItemGroup>
+</Project>
