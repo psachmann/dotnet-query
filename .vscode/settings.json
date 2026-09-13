@@ -1,9 +1,19 @@
 {
-    "cSpell.words": [
-        "Avalonia",
-        "Blazor",
-        "bunit",
-        "Mvvm",
-        "Radzen"
-    ]
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/bin": true,
+    "**/obj": true
+  },
+  "cSpell.words": [
+    "Avalonia",
+    "Blazor",
+    "bunit",
+    "Mvvm",
+    "nullable",
+    "Radzen"
+  ]
 }

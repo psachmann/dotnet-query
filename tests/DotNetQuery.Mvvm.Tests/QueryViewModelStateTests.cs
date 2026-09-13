@@ -161,4 +161,51 @@ public class QueryViewModelStateTests
         await Assert.That(sut.HasError).IsTrue();
         await Assert.That(sut.Error).IsSameReferenceAs(error);
     }
+
+    [Test]
+    public async Task StateChanged_OnAppliedState_IsRaisedAfterEveryPropertyChanged()
+    {
+        using var sut = CreateSut(QueryState<string>.CreateFetching());
+        var events = new List<string>();
+        sut.PropertyChanged += (_, e) => events.Add(e.PropertyName!);
+        sut.StateChanged += (_, _) => events.Add(nameof(sut.StateChanged));
+
+        _stateSubject.OnNext(QueryState<string>.CreateSuccess("hello"));
+        _uiContext.DrainAll();
+
+        await Assert.That(events).Contains(nameof(sut.StateChanged));
+        // StateChanged must be the last event of the batch — every PropertyChanged for this
+        // applied state has already fired by the time page-specific logic (e.g. syncing a
+        // collection) runs off StateChanged.
+        await Assert.That(events[^1]).IsEqualTo(nameof(sut.StateChanged));
+    }
+
+    [Test]
+    public async Task StateChanged_WhenStateDoesNotActuallyChange_IsNotRaised()
+    {
+        using var sut = CreateSut(QueryState<string>.CreateIdle());
+        var raisedStateChanged = false;
+        sut.StateChanged += (_, _) => raisedStateChanged = true;
+
+        // Same reference as the state already applied at construction — UiStateBinding's
+        // ReferenceEquals guard must skip this, exactly as it does for PropertyChanged.
+        _stateSubject.OnNext(_stateSubject.Value);
+        _uiContext.DrainAll();
+
+        await Assert.That(raisedStateChanged).IsFalse();
+    }
+
+    [Test]
+    public async Task StateChanged_BurstEmissionsBeforeDrain_RaisesOnceForTheCoalescedState()
+    {
+        using var sut = CreateSut(QueryState<string>.CreateIdle());
+        var raiseCount = 0;
+        sut.StateChanged += (_, _) => raiseCount++;
+
+        _stateSubject.OnNext(QueryState<string>.CreateFetching());
+        _stateSubject.OnNext(QueryState<string>.CreateSuccess("hello"));
+        _uiContext.DrainAll();
+
+        await Assert.That(raiseCount).IsEqualTo(1);
+    }
 }
