@@ -1,1 +1,2 @@
 #nullable enable
+DotNetQuery.Core.IMutation<TArgs, TData>.CurrentState.get -> DotNetQuery.Core.MutationState<TData>!

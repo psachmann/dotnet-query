@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\DotNetQuery.Core\DotNetQuery.Core.csproj" />
     <ProjectReference Include="..\..\src\DotNetQuery.Extensions.DependencyInjection\DotNetQuery.Extensions.DependencyInjection.csproj" />
+    <ProjectReference Include="..\..\src\DotNetQuery.Mvvm\DotNetQuery.Mvvm.csproj" />
     <ProjectReference Include="..\DotNetQuery.Samples.Shared\DotNetQuery.Samples.Shared.csproj" />
   </ItemGroup>
 </Project>
