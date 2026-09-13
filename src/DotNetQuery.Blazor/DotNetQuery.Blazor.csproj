@@ -4,6 +4,7 @@
     <!-- RS0041: the Razor-generated BuildRenderTree overrides use oblivious reference
          types; the generated code is not ours to annotate. -->
     <NoWarn>$(NoWarn);RS0041</NoWarn>
+    <TrackPublicApi>true</TrackPublicApi>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,9 +13,5 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DotNetQuery.Core\DotNetQuery.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

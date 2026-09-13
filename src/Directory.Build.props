@@ -22,17 +22,25 @@
   <!--
     Track the public API surface in PublicAPI.Shipped.txt / PublicAPI.Unshipped.txt so that
     adding or removing public members is a deliberate, reviewable edit rather than a silent
-    side effect. DevTools opts out: it ships a drop-in debugging component rather than an API
-    consumers program against, so tracking it buys no compat guarantee worth the Razor churn.
+    side effect. There is no default: every project under src/ must set <TrackPublicApi>
+    explicitly in its own .csproj (DevTools sets it to false — it ships a drop-in debugging
+    component rather than an API consumers program against, so tracking it buys no compat
+    guarantee worth the Razor churn). The target below fails the build if a project omits it,
+    so a forgotten property is a build error rather than a silently untracked surface.
   -->
-  <PropertyGroup>
-    <TrackPublicApi Condition="'$(MSBuildProjectName)' == 'DotNetQuery.Blazor.DevTools'">false</TrackPublicApi>
-    <TrackPublicApi Condition="'$(TrackPublicApi)' == ''">true</TrackPublicApi>
-  </PropertyGroup>
+  <Target Name="RequireExplicitTrackPublicApi" BeforeTargets="Build;Pack">
+    <Error
+      Condition="'$(TrackPublicApi)' == ''"
+      Text="'$(MSBuildProjectName)' must set &lt;TrackPublicApi&gt; explicitly (true or false) in its own project file; there is no default." />
+  </Target>
 
   <ItemGroup Condition="'$(TrackPublicApi)' == 'true'">
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="All" />
     <AdditionalFiles Include="PublicAPI.Shipped.txt" />
     <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>
