@@ -13,6 +13,8 @@ NuGet packages:
 
 Target framework: net10.0. All code is in C# with `nullable enable`.
 
+Upgrading from 1.x? The migration guide at https://psachmann.github.io/dotnet-query/doc/migrating-to-v2.html lists every breaking change: query `TData` constrained to reference types, new `IQueryClient`/`IMutation` members, `AddDotNetQuery` using `TryAdd`, automatic cache eviction, and telemetry unit/tag changes.
+
 ---
 
 ## Core Concepts

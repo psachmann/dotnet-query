@@ -46,13 +46,20 @@ gate that works this way, extend that one target rather than adding a parallel o
 
 ### Package validation (breaking changes)
 
-`EnablePackageValidation` diffs each packed assembly against the last published release, set by
-`PackageValidationBaselineVersion` (currently `2.0.0-beta.2`, uniform across all five packages). It runs on
-`dotnet pack`, not `dotnet build`, and it compares the real assemblies against what consumers installed —
-so it catches breaks the API text files cannot, including ones that only manifest on one target framework.
+`EnablePackageValidation` diffs each packed assembly against the last **stable** release, set by
+`PackageValidationBaselineVersion` (currently `1.3.0`). It runs on `dotnet pack`, not `dotnet build`, and it
+compares the real assemblies against what consumers installed — so it catches breaks the API text files
+cannot, including ones that only manifest on one target framework.
 
-**Bump the baseline after every release.** For an intentional break, generate a suppression file rather than
-weakening the gate:
+The baseline is deliberately the last stable release rather than the latest prerelease: it measures what
+breaks for someone upgrading from the version they run in production, and each project's
+`CompatibilitySuppressions.xml` doubles as the list of intentional breaks in the upcoming major. The
+trade-off is that churn *between* prereleases goes unflagged. `DotNetQuery.Mvvm` overrides the baseline to
+`2.0.0-beta.2` in its own `.csproj` because it has no `1.3.0` package (pack fails restore with `NU1102`);
+drop that override once the shared baseline reaches `2.0.0`.
+
+**Bump the baseline after every stable release.** For an intentional break, generate a suppression file
+rather than weakening the gate:
 
 ```bash
 dotnet pack -c Release -p:GenerateCompatibilitySuppressionFile=true
@@ -67,9 +74,21 @@ member fails the Release build (`RS0016` / `RS0017`) until the line is added to 
 debugging component rather than an API consumers program against, so tracking it buys no compat guarantee
 worth the Razor churn.
 
-`PublicAPI.Shipped.txt` was seeded from the `v2.0.0-beta.2` surface, so a PR's diff to
-`PublicAPI.Unshipped.txt` is exactly the API it adds. When cutting a release, move the accumulated
-`Unshipped` lines into `Shipped` and leave `Unshipped` with just its `#nullable enable` header.
+`PublicAPI.Shipped.txt` holds the `v1.3.0` surface — the same last stable release package validation
+compares against — so `PublicAPI.Unshipped.txt` is the full API delta of the upcoming release: additions,
+plus `*REMOVED*` lines for 1.3.0 members since dropped or changed. A PR's diff to `Unshipped` is exactly the
+API it changes. `DotNetQuery.Mvvm` did not exist at 1.3.0, so its `Shipped` file is just the header.
+
+One exception to "Shipped is the 1.3.0 text": members whose only change since 1.3.0 is nullability
+annotation (`!`, `?`, or the oblivious `~` prefix — e.g. `TData` becoming `TData!` once `TData : class` was
+added) appear in `Shipped` in their *current* form. The analyzer matches symbols ignoring annotations, so it
+treats them as the same member and rejects a `*REMOVED*`/re-added pair (`RS0025`, `RS0050`) as well as the
+stale annotations (`RS0036`). Such changes are still visible to package validation, which reports the
+underlying constraint change.
+
+When cutting a **stable** release, move the accumulated `Unshipped` additions into `Shipped`, delete each
+`*REMOVED*` line together with its `Shipped` counterpart, and leave `Unshipped` with just its
+`#nullable enable` header. Prereleases leave both files alone.
 
 To regenerate entries after an API change, either apply the IDE code fix ("Add to public API") or run:
 

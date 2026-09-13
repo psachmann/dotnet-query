@@ -4,6 +4,9 @@
     <!-- RS0026: QueryViewModel has two intentional constructor overloads with an optional
          dispatcher; they are unambiguous, distinguished by their first parameter. -->
     <NoWarn>$(NoWarn);RS0026</NoWarn>
+    <!-- First shipped in 2.0.0-beta.2, so there is no package at the shared 1.3.0 baseline to
+         compare against. Drop this override once the shared baseline reaches 2.0.0. -->
+    <PackageValidationBaselineVersion>2.0.0-beta.2</PackageValidationBaselineVersion>
     <TrackPublicApi>true</TrackPublicApi>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
