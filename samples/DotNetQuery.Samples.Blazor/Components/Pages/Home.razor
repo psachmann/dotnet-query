@@ -1,0 +1,17 @@
+@page "/"
+@inject TodosQueries Queries
+@inject TodosMutations Mutations
+
+<PageTitle>Todos</PageTitle>
+
+ <RadzenText TextStyle="TextStyle.H3" Text="Home" class="rz-pb-4"/>
+
+<RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter" ShowIcon="true" class="rz-mb-4">
+    A tour of DotNetQuery: <strong>TodoListsQuery</strong> caches and auto-refreshes the list panel
+    (30s polling + refetch on tab focus/reconnect, courtesy of <code>&lt;QueryRefreshMonitor&gt;</code> in the
+    layout). Selecting a list pushes new args into <strong>TodoItemsInfiniteQuery</strong> — a key-switching
+    proxy that fetches, caches, and paginates each list's items independently, with "Load more" driving
+    <code>FetchNextPage()</code>. Every create/rename/delete/toggle button is a <strong>mutation</strong> that
+    invalidates the affected query on success. Open <strong>DevTools</strong> (bottom-right, dev only) to watch
+    cache entries appear, go stale, and get evicted in real time.
+</RadzenAlert>

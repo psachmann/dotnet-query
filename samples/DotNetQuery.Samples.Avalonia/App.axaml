@@ -1,0 +1,36 @@
+<Application
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  x:Class="DotNetQuery.Samples.Avalonia.App"
+  xmlns:local="using:DotNetQuery.Samples.Avalonia"
+  RequestedThemeVariant="Default"
+>
+  <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+  <Application.DataTemplates>
+    <local:ViewLocator />
+  </Application.DataTemplates>
+
+  <Application.Styles>
+    <FluentTheme />
+  </Application.Styles>
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="AppHeaderBrush" Color="#2563EB" />
+          <SolidColorBrush x:Key="AppHeaderForegroundBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="AppBorderBrush" Color="#E2E8F0" />
+          <SolidColorBrush x:Key="AppDangerBrush" Color="#DC2626" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="AppHeaderBrush" Color="#1E3A8A" />
+          <SolidColorBrush x:Key="AppHeaderForegroundBrush" Color="#F8FAFC" />
+          <SolidColorBrush x:Key="AppBorderBrush" Color="#334155" />
+          <SolidColorBrush x:Key="AppDangerBrush" Color="#F87171" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>

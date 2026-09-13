@@ -174,9 +174,63 @@ The solution has five projects under `src/` and four test projects under `tests/
 
 ### Mvvm layer (`DotNetQuery.Mvvm`)
 
-- `QueryViewModel<TArgs,TData>` — wraps `IQuery<TArgs,TData>` and exposes bindable properties (`Data`, `DisplayData` = stale-while-revalidate fallback, `IsLoading` = first-load-only vs `IsFetching` = any fetch, `RefetchCommand` / `CancelCommand`, ...). Holds a live `State` subscription for its lifetime (this is what retains the cache entry); `Dispose()` releases the subscription first, then disposes the query iff it was created via the `IQueryClient` + `QueryOptions` ctor (the `IQuery`-wrapping ctor leaves ownership with the caller).
-- State applies are marshaled through `IUiDispatcher.Post` (default: `SynchronizationContextUiDispatcher` capturing `SynchronizationContext.Current` at construction; null context invokes inline for tests/console). Emissions are coalesced latest-wins per UI hop; the whole `QueryState` snapshot is swapped before any `PropertyChanged` fires (no torn reads), and only actually-changed properties are raised.
-- `BindableBase` — public minimal INPC base (deliberately not named `ObservableObject` to avoid CommunityToolkit clashes). `RelayCommand` is `internal` for the same reason. Zero dependencies beyond `DotNetQuery.Core`.
+Three view models — `QueryViewModel<TArgs,TData>`, `InfiniteQueryViewModel<TArgs,TData,TPageParam>`,
+`MutationViewModel<TArgs,TData>` — wrap the correspondingly-named Core type and expose its state as
+bindable `INotifyPropertyChanged` properties. All three share the same mechanics, factored into one
+internal helper rather than copied three times:
+
+- `UiStateBinding<TState>` (`internal sealed`) — owns the state subscription, the
+  latest-wins coalescing (a burst of emissions collapses into one dispatcher `Post`), and the
+  atomic-swap-before-diffed-raise sequencing (`Current` is updated *before* `apply(previous, next)`
+  runs, so a handler reading a sibling property never sees a torn state). Each view model holds one
+  and forwards `ApplyState` into it; `Current` backs every bindable property.
+- Ownership follows the constructor used: wrapping an existing query/mutation (or `ToViewModel()`,
+  which is sugar for that constructor) leaves ownership with the caller — `Dispose()` releases only
+  the subscription. The `IQueryClient` + options constructor makes the view model own what it
+  creates — `Dispose()` disposes it too. Holding the live subscription is what retains a query's
+  cache entry; a forgotten dispose pins it indefinitely.
+- `StateChanged` (`event EventHandler?`) — raised on the UI thread after every `PropertyChanged` for
+  an applied state, on all three view models. The hook for page-specific work that needs to run once
+  per state change without a second raw subscription — most commonly syncing an
+  `ObservableCollection` via `SyncFrom` (see below).
+- `MutationViewModel.ExecuteCommand` / `ToCommand(...)` guard against double-submit by reading the
+  wrapped `IMutation.CurrentState` directly (not the dispatcher-marshaled `CurrentState` the view
+  model itself exposes) — this closes the gap between a click starting a run and that run's state
+  reaching the view model one dispatcher hop later, and also disables the command when a run starts
+  directly on a shared `IMutation`. `ToCommand<TParam>` (parameter maps to `TArgs`) and
+  `ToCommand(Func<TArgs>, ...)` (args come from the page VM) both return `IMutationCommand`
+  (`ICommand` + public `RaiseCanExecuteChanged()`) — call `ToCommand` once per command, typically in
+  a constructor; each call permanently appends to an internal refresh list with no removal path, so
+  calling it per-row in a list leaks. `ExecuteCommand.Execute(object?)` casts strictly to `TArgs` —
+  throws `ArgumentException` naming both types on a mismatch, never coerces.
+- `IUiDispatcher.Post` is what all of the above marshal through (default: `SynchronizationContextUiDispatcher`
+  capturing `SynchronizationContext.Current` at construction; null context invokes inline for
+  tests/console). **Event streams (`Success`/`Failure`/`Settled` on either a query or a mutation)
+  must *not* use this coalescing path** — `ObserveOnUi()` (`QueryViewModelExtensions`) exists
+  specifically for them: it posts one callback per emission, nothing dropped or collapsed, with the
+  dispatcher captured when `ObserveOnUi` is *called* (not when the returned observable is
+  subscribed). Named `ObserveOnUi`, not `SubscribeOnUi`, because Rx's `SubscribeOn` means something
+  unrelated.
+- `QueryViewModelExtensions.ToViewModel()` — three overloads, one per query/mutation interface;
+  always wraps (never takes ownership), despite the name not saying so on its own. Optional
+  `CompositeDisposable? disposeWith` (deliberately *before* `dispatcher`, since it's the argument
+  callers pass far more often) adds the view model to that container. It's a parameter rather than a
+  general `DisposeWith()` extension so it can't clash with ReactiveUI's `DisposableMixins.DisposeWith`.
+- `ObservableCollectionExtensions.SyncFrom` — reconciles an `ObservableCollection<T>` in place
+  (`Move`/`Insert`/`Remove`, and same-type-overload-only `Replace`) against a new source sequence,
+  rather than `Clear()` + re-add, which drops whatever a bound control tracks by position (e.g. a
+  list box's selection). Two overloads: same-type (`itemComparer` decides whether a matched item
+  needs `Replace`ing — there's no in-place update for a plain `T`) and projection
+  (`TSource`→`T`, e.g. building row view models from models; `update` refreshes a matched row in
+  place instead of ever replacing it, which is what lets a bound selection survive a refetch — see
+  `TodoDetailsViewModel`/`TodoItemViewModel` in the Avalonia sample). Worst case O(n²) moves,
+  documented as acceptable only for UI-sized lists. Duplicate keys in `source` throw
+  `ArgumentException`.
+- `BindableBase` — public minimal INPC base (deliberately not named `ObservableObject` to avoid
+  CommunityToolkit clashes). `RelayCommand` is `internal` for the same reason;
+  `IMutationCommand.RaiseCanExecuteChanged()` is deliberately *not* named
+  `NotifyCanExecuteChanged()` either, so CommunityToolkit's `[NotifyCanExecuteChangedFor]` codegen
+  doesn't silently target it. Zero dependencies beyond `DotNetQuery.Core`.
 
 ### DI registration
 

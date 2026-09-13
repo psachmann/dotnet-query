@@ -47,6 +47,79 @@ public class MutationTests
     }
 
     [Test]
+    public async Task CurrentState_BeforeExecute_IsIdle()
+    {
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string> { Mutator = (_, _) => Task.FromResult("ok") }
+        );
+
+        await Assert.That(mutation.CurrentState.IsIdle).IsTrue();
+    }
+
+    [Test]
+    public async Task CurrentState_ImmediatelyAfterExecute_IsRunning()
+    {
+        // The whole point of a synchronous CurrentState is double-submit protection: a caller must
+        // be able to see "running" right after Execute returns, without waiting for a State
+        // subscription to be scheduled. This relies on ExecuteAsync setting the Running state
+        // before its first await, and on the Rx pipeline (Subject.OnNext -> Select -> Switch)
+        // subscribing to the new inner observable synchronously.
+        var tcs = new TaskCompletionSource<string>();
+        var mutation = _client.CreateMutation(new MutationOptions<int, string> { Mutator = (_, _) => tcs.Task });
+
+        mutation.Execute(0);
+
+        await Assert.That(mutation.CurrentState.IsRunning).IsTrue();
+        tcs.SetResult("done");
+    }
+
+    [Test]
+    public async Task CurrentState_SecondExecuteWhileRunning_StillReportsRunning()
+    {
+        // Guards the double-submit scenario directly: calling Execute again while CurrentState
+        // already reports Running (as a command's CanExecute would observe) must not leave
+        // CurrentState looking idle in between the two calls.
+        var firstStarted = new TaskCompletionSource();
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string>
+            {
+                Mutator = async (args, ct) =>
+                {
+                    if (args == 1)
+                    {
+                        firstStarted.TrySetResult();
+                    }
+
+                    await Task.Delay(200, ct);
+                    return args.ToString();
+                },
+            }
+        );
+
+        mutation.Execute(1);
+        await firstStarted.Task;
+        await Assert.That(mutation.CurrentState.IsRunning).IsTrue();
+
+        mutation.Execute(2);
+        await Assert.That(mutation.CurrentState.IsRunning).IsTrue();
+
+        await mutation.Success.FirstAsync();
+    }
+
+    [Test]
+    public async Task CurrentState_AfterSuccess_MatchesLatestEmittedState()
+    {
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string> { Mutator = (_, _) => Task.FromResult("result") }
+        );
+
+        mutation.Execute(0);
+        var emitted = await mutation.State.Where(s => s.IsSuccess).FirstAsync();
+
+        await Assert.That(mutation.CurrentState).IsEqualTo(emitted);
+    }
+
+    [Test]
     public async Task Execute_OnSuccess_TransitionsToSuccess()
     {
         var mutation = _client.CreateMutation(

@@ -9,6 +9,13 @@ namespace DotNetQuery.Core;
 public interface IMutation<TArgs, TData> : IDisposable
 {
     /// <summary>
+    /// The current state snapshot. Can be read synchronously without subscribing — in particular,
+    /// this is updated to <see cref="MutationStatus.Running"/> before <see cref="Execute"/> returns,
+    /// so callers can check it to avoid double-submitting while a dispatched UI update is in flight.
+    /// </summary>
+    public MutationState<TData> CurrentState { get; }
+
+    /// <summary>
     /// Enables or disables the mutation. When <c>false</c>, calls to <see cref="Execute"/> are silently
     /// ignored. Pass <c>true</c> to allow subsequent executions.
     /// </summary>

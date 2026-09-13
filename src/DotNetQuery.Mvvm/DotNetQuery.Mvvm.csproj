@@ -11,8 +11,4 @@
   <ItemGroup>
     <ProjectReference Include="..\DotNetQuery.Core\DotNetQuery.Core.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
-  </ItemGroup>
 </Project>

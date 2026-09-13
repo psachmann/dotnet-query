@@ -9,7 +9,7 @@ NuGet packages:
 - `DotNetQuery.Extensions.DependencyInjection` — `AddDotNetQuery()` for Microsoft DI
 - `DotNetQuery.Blazor` — `<Suspense>`, `<Transition>`, `<QueryRefreshMonitor>` Razor components
 - `DotNetQuery.Blazor.DevTools` — `<QueryDevTools>` live cache inspector (development only)
-- `DotNetQuery.Mvvm` — `QueryViewModel<TArgs,TData>` INotifyPropertyChanged bindings for MAUI, WPF, WinUI, UNO, and Avalonia
+- `DotNetQuery.Mvvm` — `QueryViewModel`/`InfiniteQueryViewModel`/`MutationViewModel` INotifyPropertyChanged bindings for MAUI, WPF, WinUI, UNO, and Avalonia
 
 Target framework: net10.0. All code is in C# with `nullable enable`.
 
@@ -751,6 +751,150 @@ public sealed class UserPageViewModel : IDisposable
 <Label Text="{Binding User.DisplayData.Name}" />
 <Label Text="{Binding User.Error.Message}" IsVisible="{Binding User.IsFailure}" />
 <Button Text="Refresh" Command="{Binding User.RefetchCommand}" />
+```
+
+### InfiniteQueryViewModel<TArgs, TData, TPageParam>
+
+Wraps `IInfiniteQuery<TArgs, TData, TPageParam>`. `TData` is a single page — not flattened, since it isn't necessarily enumerable.
+
+```csharp
+public class InfiniteQueryViewModel<TArgs, TData, TPageParam> : BindableBase, IDisposable  where TData : class
+{
+    InfiniteQueryViewModel(IInfiniteQuery<TArgs, TData, TPageParam> query, IUiDispatcher? dispatcher = null);
+    InfiniteQueryViewModel(IQueryClient client, InfiniteQueryOptions<TArgs, TData, TPageParam> options, IUiDispatcher? dispatcher = null);
+
+    IInfiniteQuery<TArgs, TData, TPageParam> Query { get; }
+
+    InfiniteQueryState<TData, TPageParam> CurrentState { get; }
+    QueryStatus Status { get; }
+    IReadOnlyList<TData>       Pages      { get; }
+    IReadOnlyList<TPageParam>  PageParams { get; }  // PageParams[i] fetched Pages[i]
+    Exception? Error { get; }
+    bool IsIdle    { get; }
+    bool IsFetching { get; }  // full RefetchAll only -- see IsFetchingNextPage/Previous below
+    bool IsSuccess { get; }
+    bool IsFailure { get; }
+    bool IsLoading { get; }  // first load only: fetching with no pages yet
+    bool HasData   { get; }
+    bool HasError  { get; }
+    bool HasNextPage / HasPreviousPage           { get; }
+    bool IsFetchingNextPage / IsFetchingPreviousPage { get; }  // Status stays Success during these
+
+    ICommand RefetchCommand           { get; }  // Refetch(); CanExecute = no fetch in flight
+    ICommand CancelCommand            { get; }  // Cancel();  CanExecute = any fetch in flight
+    ICommand FetchNextPageCommand     { get; }  // CanExecute = HasNextPage && no fetch in flight
+    ICommand FetchPreviousPageCommand { get; }  // mirror of the above
+
+    void SetArgs(TArgs args);
+    void SetEnabled(bool enabled);
+    void Dispose();
+}
+```
+
+### MutationViewModel<TArgs, TData>
+
+Wraps `IMutation<TArgs, TData>`. No `where TData : class` constraint (unlike the two above).
+
+```csharp
+public class MutationViewModel<TArgs, TData> : BindableBase, IDisposable
+{
+    MutationViewModel(IMutation<TArgs, TData> mutation, IUiDispatcher? dispatcher = null);
+    MutationViewModel(IQueryClient client, MutationOptions<TArgs, TData> options, IUiDispatcher? dispatcher = null);
+
+    IMutation<TArgs, TData> Mutation { get; }
+
+    MutationState<TData> CurrentState { get; }
+    MutationStatus Status { get; }
+    TData?     Data  { get; }
+    Exception? Error { get; }
+    bool IsIdle / IsRunning / IsSuccess / IsFailure { get; }
+    bool HasData / HasError { get; }
+
+    ICommand ExecuteCommand { get; }  // parameter is TArgs, cast strictly; CanExecute = !IsRunning
+    ICommand CancelCommand  { get; }  // Cancel(); CanExecute = IsRunning
+
+    void Execute(TArgs args);  // same as ExecuteCommand, typed
+
+    // Builds an ICommand from this mutation. Call ONCE per command (typically in a ctor) --
+    // each call appends to an internal refresh list with no removal path; calling it per-row leaks.
+    IMutationCommand ToCommand<TParam>(Func<TParam, TArgs> map, Func<TParam, bool>? canExecute = null);
+    IMutationCommand ToCommand(Func<TArgs> args, Func<bool>? canExecute = null);  // args from the page VM
+
+    void Dispose();
+}
+
+public interface IMutationCommand : ICommand
+{
+    void RaiseCanExecuteChanged();  // NOT NotifyCanExecuteChanged -- won't be picked up by
+                                     // CommunityToolkit's [NotifyCanExecuteChangedFor], on purpose
+}
+```
+
+**Double-submit protection:** `ExecuteCommand`/`ToCommand`-built commands read the wrapped `IMutation.CurrentState` directly (not this view model's own dispatcher-marshaled `CurrentState`) before starting a run — closes the race between a click and that click's state reaching the view model one dispatcher hop later, and also disables the command when a run starts directly on a shared `IMutation` from elsewhere.
+
+```csharp
+// Per-row command: parameter maps to TArgs, one shared instance handed to every row
+// (calling ToCommand per row would leak -- see above).
+public ICommand ToggleCommand { get; } = ToggleItem.ToCommand<TodoItem>(item => new ToggleArgs(item.Id));
+
+// Args come from the page VM's own state instead of the command parameter.
+public ICommand AddItemCommand { get; } = AddItem.ToCommand(() => new AddItemArgs(NewItemText));
+```
+
+### StateChanged
+
+All three view models raise `event EventHandler? StateChanged`, on the UI thread, after every `PropertyChanged` for an applied state. Use it for page-specific work that runs once per state change -- most commonly syncing an `ObservableCollection` via `SyncFrom` (below) -- instead of a second raw subscription to the wrapped query/mutation's `State`.
+
+### Ownership and ToViewModel()
+
+```csharp
+public static QueryViewModel<TArgs, TData> ToViewModel<TArgs, TData>(
+    this IQuery<TArgs, TData> query, IUiDispatcher? dispatcher = null) where TData : class;
+public static InfiniteQueryViewModel<TArgs, TData, TPageParam> ToViewModel<TArgs, TData, TPageParam>(
+    this IInfiniteQuery<TArgs, TData, TPageParam> query, IUiDispatcher? dispatcher = null) where TData : class;
+public static MutationViewModel<TArgs, TData> ToViewModel<TArgs, TData>(
+    this IMutation<TArgs, TData> mutation, IUiDispatcher? dispatcher = null);
+```
+
+`ToViewModel()` is sugar for the wrapping constructor: it always wraps and never takes ownership, on all three view models -- Dispose() releases only the subscription. The client+options constructor is the other option, and DOES take ownership (Dispose() disposes what it created). Wrap an existing query/mutation from a shared service (the service/facade pattern); create-and-own for a view model whose IQueryClient came straight from DI.
+
+### ObserveOnUi
+
+```csharp
+public static IObservable<T> ObserveOnUi<T>(this IObservable<T> source, IUiDispatcher? dispatcher = null);
+```
+
+The bindable properties and `StateChanged` above all coalesce latest-wins -- correct for a state snapshot, wrong for an **event** stream where every emission matters (`Success`/`Failure`/`Settled` on a query or mutation). `ObserveOnUi` posts one callback per emission instead, nothing dropped:
+
+```csharp
+mutations.CreateTodoList.Success.ObserveOnUi().Subscribe(list => _pendingSelectionId = list.Id);
+```
+
+The dispatcher is captured when `ObserveOnUi` is *called*, not when the returned observable is subscribed. Named `ObserveOnUi`, not `SubscribeOnUi` -- Rx's own `SubscribeOn` means something unrelated. A callback already posted when the subscription is disposed, but not yet run, becomes a no-op.
+
+### SyncFrom (ObservableCollectionExtensions)
+
+```csharp
+// Same element type: keySelector identifies identity across syncs; itemComparer (default:
+// EqualityComparer<T>.Default) decides whether a matched item needs Replace-ing.
+public static void SyncFrom<T, TKey>(this ObservableCollection<T> target, IEnumerable<T> source,
+    Func<T, TKey> keySelector, IEqualityComparer<T>? itemComparer = null);
+
+// Projection: rows are view models built from models (TodoItemViewModel from TodoItem).
+public static void SyncFrom<TSource, T, TKey>(this ObservableCollection<T> target, IEnumerable<TSource> source,
+    Func<TSource, TKey> sourceKey, Func<T, TKey> targetKey,
+    Func<TSource, T> create, Action<T, TSource>? update = null);
+```
+
+Reconciles the collection **in place** (`Move`/`Insert`/`Remove`, same-type overload also `Replace`) instead of `Clear()` + re-add, which drops whatever a bound control tracks by position (e.g. a list box's selection). The projection overload never replaces a matched row -- `create` only ever runs for a genuinely new key; a matched row is refreshed via `update` every sync (write it through property setters that no-op when unchanged) or, if `update` is omitted, left untouched -- this is what lets a bound selection survive a refetch. Duplicate keys in `source` throw `ArgumentException`. Worst case O(n²) moves -- fine for UI-sized lists, not for large ones.
+
+```csharp
+Lists.SyncFrom(freshLists, list => list.Id);  // same-type: TodoList is a plain record
+
+ItemRows.SyncFrom(                             // projection: build/refresh row view models
+    freshItems, model => model.Id, row => row.Model.Id,
+    model => new TodoItemViewModel(model),
+    (row, model) => row.Update(model));
 ```
 
 ---

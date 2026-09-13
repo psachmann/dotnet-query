@@ -17,14 +17,11 @@ namespace DotNetQuery.Mvvm;
 public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
     where TData : class
 {
-    private readonly IUiDispatcher _dispatcher;
     private readonly bool _ownsQuery;
     private readonly RelayCommand _refetchCommand;
     private readonly RelayCommand _cancelCommand;
-    private readonly IDisposable _subscription;
+    private readonly UiStateBinding<QueryState<TData>> _stateBinding;
 
-    private QueryState<TData> _state;
-    private QueryState<TData>? _pendingState;
     private bool _isDisposed;
 
     /// <summary>
@@ -61,15 +58,28 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
 
         Query = query;
         _ownsQuery = ownsQuery;
-        _dispatcher = dispatcher ?? SynchronizationContextUiDispatcher.CaptureCurrent();
+
+        // These CanExecute closures read _stateBinding.Current lazily: RelayCommand doesn't invoke
+        // canExecute from its own constructor, so by the time anything calls CanExecute, _stateBinding
+        // below has long since been assigned — the null-forgiving operator just overrides the
+        // compiler's constructor-local flow analysis, which can't see that far ahead.
+        // These are created before _stateBinding itself (rather than the other way around) so that
+        // if UiStateBinding's constructor happens to invoke ApplyState synchronously — e.g. the
+        // dispatcher has no captured SynchronizationContext, as in tests and console apps, so Post
+        // runs inline, and the replay Subscribe delivers turns out to differ by reference from
+        // "initial" — ApplyState's own use of these fields does not see them unassigned either.
+        _refetchCommand = new RelayCommand(query.Refetch, () => !_stateBinding!.Current.IsFetching);
+        _cancelCommand = new RelayCommand(query.Cancel, () => _stateBinding!.Current.IsFetching);
 
         // Apply the current state synchronously so bindings evaluated right after construction
-        // read correct values without waiting for a dispatcher hop. The replay delivered by the
-        // subsequent Subscribe is deduped by the ReferenceEquals guard in ApplyState.
-        _state = query.CurrentState;
-        _refetchCommand = new RelayCommand(query.Refetch, () => !_state.IsFetching);
-        _cancelCommand = new RelayCommand(query.Cancel, () => _state.IsFetching);
-        _subscription = query.State.Subscribe(OnStateEmitted);
+        // read correct values without waiting for a dispatcher hop. See UiStateBinding for how the
+        // replay delivered by the subsequent Subscribe is deduped.
+        _stateBinding = new UiStateBinding<QueryState<TData>>(
+            query.State,
+            query.CurrentState,
+            dispatcher ?? SynchronizationContextUiDispatcher.CaptureCurrent(),
+            ApplyState
+        );
     }
 
     /// <summary>
@@ -80,56 +90,56 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
     public IQuery<TArgs, TData> Query { get; }
 
     /// <summary>The raw state snapshot, for bindings and converters that need the whole state.</summary>
-    public QueryState<TData> CurrentState => _state;
+    public QueryState<TData> CurrentState => _stateBinding.Current;
 
     /// <summary>The current lifecycle status of the query.</summary>
-    public QueryStatus Status => _state.Status;
+    public QueryStatus Status => _stateBinding.Current.Status;
 
     /// <summary>
     /// The data returned by the most recent successful fetch; <c>null</c> while fetching.
     /// Bind to <see cref="DisplayData"/> to keep showing stale data during background re-fetches.
     /// </summary>
-    public TData? Data => _state.CurrentData;
+    public TData? Data => _stateBinding.Current.CurrentData;
 
     /// <summary>The data from the previous successful fetch, carried across fetches and failures.</summary>
-    public TData? LastData => _state.LastData;
+    public TData? LastData => _stateBinding.Current.LastData;
 
     /// <summary>
     /// <see cref="Data"/>, falling back to <see cref="LastData"/> while a re-fetch is in progress —
     /// the stale-while-revalidate binding target, mirroring the Blazor <c>&lt;Transition&gt;</c> component.
     /// </summary>
-    public TData? DisplayData => _state.CurrentData ?? _state.LastData;
+    public TData? DisplayData => _stateBinding.Current.CurrentData ?? _stateBinding.Current.LastData;
 
     /// <summary>The exception from the most recent failed fetch. <c>null</c> when not in a failure state.</summary>
-    public Exception? Error => _state.Error;
+    public Exception? Error => _stateBinding.Current.Error;
 
     /// <summary><c>true</c> when the query is idle.</summary>
-    public bool IsIdle => _state.IsIdle;
+    public bool IsIdle => _stateBinding.Current.IsIdle;
 
     /// <summary>
     /// <c>true</c> while any fetch is in flight, including background re-fetches.
     /// See <see cref="IsLoading"/> for the first-load-only variant.
     /// </summary>
-    public bool IsFetching => _state.IsFetching;
+    public bool IsFetching => _stateBinding.Current.IsFetching;
 
     /// <summary><c>true</c> when the most recent fetch succeeded.</summary>
-    public bool IsSuccess => _state.IsSuccess;
+    public bool IsSuccess => _stateBinding.Current.IsSuccess;
 
     /// <summary><c>true</c> when the most recent fetch failed.</summary>
-    public bool IsFailure => _state.IsFailure;
+    public bool IsFailure => _stateBinding.Current.IsFailure;
 
     /// <summary><c>true</c> when <see cref="Data"/> is not <c>null</c>.</summary>
-    public bool HasData => _state.HasData;
+    public bool HasData => _stateBinding.Current.HasData;
 
     /// <summary><c>true</c> when <see cref="Error"/> is not <c>null</c>.</summary>
-    public bool HasError => _state.HasError;
+    public bool HasError => _stateBinding.Current.HasError;
 
     /// <summary>
     /// <c>true</c> only during the first load — fetching with no current or previous data to show.
     /// Bind a full-page loading indicator to this and a subtle refresh indicator to
     /// <see cref="IsFetching"/>.
     /// </summary>
-    public bool IsLoading => ComputeIsLoading(_state);
+    public bool IsLoading => ComputeIsLoading(_stateBinding.Current);
 
     /// <summary>
     /// Triggers <see cref="IQuery.Refetch"/>. Disabled while a fetch is in flight.
@@ -140,6 +150,14 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
     /// Triggers <see cref="IQuery.Cancel"/>. Enabled only while a fetch is in flight.
     /// </summary>
     public ICommand CancelCommand => _cancelCommand;
+
+    /// <summary>
+    /// Raised on the UI thread after every <see cref="INotifyPropertyChanged.PropertyChanged"/> notification for an applied
+    /// state. Use this — instead of a second raw subscription to <see cref="Query"/>'s state — for
+    /// page-specific work such as syncing an <see cref="System.Collections.ObjectModel.ObservableCollection{T}"/>
+    /// from <see cref="DisplayData"/>.
+    /// </summary>
+    public event EventHandler? StateChanged;
 
     /// <inheritdoc cref="IQuery{TArgs, TData}.SetArgs" />
     public void SetArgs(TArgs args) => Query.SetArgs(args);
@@ -176,7 +194,7 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
 
         if (disposing)
         {
-            _subscription.Dispose();
+            _stateBinding.Dispose();
 
             if (_ownsQuery)
             {
@@ -196,36 +214,10 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
     private static bool ComputeIsLoading(QueryState<TData> state) =>
         state.IsFetching && !state.HasData && state.LastData is null;
 
-    // Called on whatever thread the query pushed from. Latest-wins coalescing: a burst of
-    // emissions collapses into a single dispatcher post applying only the newest state.
-    private void OnStateEmitted(QueryState<TData> state)
+    // Invoked by _stateBinding on the UI thread, once per applied state change; next has already
+    // been swapped in as _stateBinding.Current by the time this runs.
+    private void ApplyState(QueryState<TData> previous, QueryState<TData> next)
     {
-        if (Interlocked.Exchange(ref _pendingState, state) is null)
-        {
-            _dispatcher.Post(DrainPendingState);
-        }
-    }
-
-    private void DrainPendingState()
-    {
-        if (Interlocked.Exchange(ref _pendingState, null) is { } state)
-        {
-            ApplyState(state);
-        }
-    }
-
-    private void ApplyState(QueryState<TData> next)
-    {
-        if (_isDisposed || ReferenceEquals(_state, next))
-        {
-            return;
-        }
-
-        // Swap the whole snapshot before raising anything so PropertyChanged handlers reading
-        // sibling properties always see a consistent state.
-        var previous = _state;
-        _state = next;
-
         RaisePropertyChanged(nameof(CurrentState));
 
         if (previous.Status != next.Status)
@@ -289,5 +281,7 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
             _refetchCommand.RaiseCanExecuteChanged();
             _cancelCommand.RaiseCanExecuteChanged();
         }
+
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 }

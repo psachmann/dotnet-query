@@ -29,6 +29,8 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         );
     }
 
+    public MutationState<TData> CurrentState => _state.Value;
+
     public void SetEnabled(bool enabled) => _isEnabled.OnNext(enabled);
 
     public IObservable<MutationState<TData>> State => _state.AsObservable();
