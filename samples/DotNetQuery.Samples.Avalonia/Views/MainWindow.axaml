@@ -72,7 +72,7 @@
         <ProgressBar
           DockPanel.Dock="Top"
           IsIndeterminate="True"
-          IsVisible="{Binding IsLoadingLists}"
+          IsVisible="{Binding TodoLists.IsLoading}"
           Margin="12,12,12,0"
         />
 

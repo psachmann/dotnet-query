@@ -32,14 +32,19 @@ internal sealed class TodosClientImpl(TodosContext context) : ITodosClient, IDis
         var list = new TodoList { Title = title };
         context.Set<TodoList>().Add(list);
         await context.SaveChangesAsync(cts);
-        return list;
+
+        // Detached copy: the context stays open (and tracking this entity) for the app's whole
+        // lifetime, so returning the tracked instance itself would let a later mutation on the same
+        // row silently mutate whatever earlier query result the caller is still holding onto.
+        return list with
+        { };
     }
 
     public Task<TodoList> GetTodoListByIdAsync(Guid id, CancellationToken cts = default) =>
-        context.Set<TodoList>().Where(list => list.Id == id).FirstAsync(cts);
+        context.Set<TodoList>().AsNoTracking().Where(list => list.Id == id).FirstAsync(cts);
 
     public Task<List<TodoList>> GetTodoListsAsync(CancellationToken cts = default) =>
-        context.Set<TodoList>().OrderBy(l => l.CreatedAt).ToListAsync(cts);
+        context.Set<TodoList>().AsNoTracking().OrderBy(l => l.CreatedAt).ToListAsync(cts);
 
     public async Task UpdateTodoListAsync(Guid listId, string title, CancellationToken cts = default)
     {
@@ -62,7 +67,12 @@ internal sealed class TodosClientImpl(TodosContext context) : ITodosClient, IDis
     }
 
     public Task<List<TodoItem>> GetTodoItemsAsync(Guid listId, CancellationToken cts = default) =>
-        context.Set<TodoItem>().Where(i => i.ListId == listId).OrderBy(i => i.CreatedAt).ToListAsync(cts);
+        context
+            .Set<TodoItem>()
+            .AsNoTracking()
+            .Where(i => i.ListId == listId)
+            .OrderBy(i => i.CreatedAt)
+            .ToListAsync(cts);
 
     public Task<List<TodoItem>> GetTodoItemsPagedAsync(
         Guid listId,
@@ -72,6 +82,7 @@ internal sealed class TodosClientImpl(TodosContext context) : ITodosClient, IDis
     ) =>
         context
             .Set<TodoItem>()
+            .AsNoTracking()
             .Where(i => i.ListId == listId)
             .OrderBy(i => i.CreatedAt)
             .Skip((page - 1) * pageSize)
@@ -83,7 +94,10 @@ internal sealed class TodosClientImpl(TodosContext context) : ITodosClient, IDis
         var item = new TodoItem { ListId = listId, Description = description };
         context.Set<TodoItem>().Add(item);
         await context.SaveChangesAsync(cts);
-        return item;
+
+        // Detached copy -- see CreateTodoListAsync.
+        return item with
+        { };
     }
 
     public async Task ToggleTodoItemAsync(Guid itemId, CancellationToken cts = default)

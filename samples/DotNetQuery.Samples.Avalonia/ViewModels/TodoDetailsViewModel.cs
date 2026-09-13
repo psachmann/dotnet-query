@@ -2,60 +2,64 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Reactive.Disposables;
+using System.Reactive;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using DotNetQuery.Mvvm;
 
 namespace DotNetQuery.Samples.Avalonia.ViewModels;
 
 /// <summary>
 /// The detail pane: the title of the selected list (a plain query) plus its items
-/// (an infinite query paged through with "Load more").
+/// (an infinite query paged through with "Load more"). Composed entirely from
+/// <c>DotNetQuery.Mvvm</c> view models — no hand-rolled loading flags or state tracking.
 /// </summary>
 public sealed partial class TodoDetailsViewModel : ViewModelBase, IDisposable
 {
-    private readonly TodosQueries _queries;
-    private readonly TodosMutations _mutations;
-    private readonly CompositeDisposable _subscriptions = [];
+    private readonly MutationViewModel<TodoItemArgs, Unit> _toggleItem;
+    private readonly MutationViewModel<TodoItemArgs, Unit> _deleteItem;
+    private readonly ICommand _toggleItemCommand;
+    private readonly ICommand _deleteItemCommand;
+    private readonly IMutationCommand _addItemCommand;
 
     private Guid? _listId;
 
     public TodoDetailsViewModel(TodosQueries queries, TodosMutations mutations)
     {
-        _queries = queries;
-        _mutations = mutations;
+        // This view model is constructed on the UI thread — it's a constructor parameter of
+        // MainViewModel, which App.OnFrameworkInitializationCompleted resolves from DI on the UI
+        // thread — so every ToViewModel() call below captures Avalonia's dispatcher via
+        // SynchronizationContext.Current without needing to pass one explicitly.
+        List = queries.TodoListQuery.ToViewModel();
+        Items = queries.TodoItemsInfiniteQuery.ToViewModel();
+        AddItem = mutations.AddTodoItem.ToViewModel();
 
-        // Both queries push their state from whatever thread the fetch completed on,
-        // so everything is marshalled onto the UI thread before it touches a bound property.
-        _subscriptions.Add(_queries.TodoListQuery.State.SubscribeOnUiThread(ApplyListState));
-        _subscriptions.Add(_queries.TodoItemsInfiniteQuery.State.SubscribeOnUiThread(ApplyItemsState));
+        // Shared across every row: built once here, not per row, so ToCommand's bookkeeping doesn't
+        // grow with every item ever created.
+        _toggleItem = mutations.ToggleTodoItem.ToViewModel();
+        _deleteItem = mutations.DeleteTodoItem.ToViewModel();
+        _toggleItemCommand = _toggleItem.ToCommand<TodoItem>(item => new TodoItemArgs(item.Id, item.ListId));
+        _deleteItemCommand = _deleteItem.ToCommand<TodoItem>(item => new TodoItemArgs(item.Id, item.ListId));
+
+        _addItemCommand = AddItem.ToCommand(BuildAddItemArgs, CanAddItem);
+
+        Items.StateChanged += (_, _) => SyncItemRows();
     }
 
-    public ObservableCollection<TodoItemViewModel> Items { get; } = [];
+    public QueryViewModel<Guid, TodoList> List { get; }
+
+    public InfiniteQueryViewModel<Guid, List<TodoItem>, int> Items { get; }
+
+    public MutationViewModel<AddTodoItemArgs, TodoItem> AddItem { get; }
+
+    public ICommand AddItemCommand => _addItemCommand;
+
+    public ObservableCollection<TodoItemViewModel> ItemRows { get; } = [];
 
     [ObservableProperty]
     public partial bool HasList { get; private set; }
 
     [ObservableProperty]
-    public partial string Title { get; private set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial bool IsLoadingTitle { get; private set; }
-
-    [ObservableProperty]
-    public partial bool IsLoadingItems { get; private set; }
-
-    [ObservableProperty]
-    public partial bool IsLoadingMore { get; private set; }
-
-    [ObservableProperty]
-    public partial bool HasNextPage { get; private set; }
-
-    [ObservableProperty]
-    public partial string? ErrorMessage { get; private set; }
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(AddItemCommand))]
     public partial string NewItemDescription { get; set; } = string.Empty;
 
     /// <summary>
@@ -72,73 +76,48 @@ public sealed partial class TodoDetailsViewModel : ViewModelBase, IDisposable
         _listId = listId;
         HasList = listId.HasValue;
         NewItemDescription = string.Empty;
+        _addItemCommand.RaiseCanExecuteChanged();
 
         if (listId is not { } id)
         {
-            Title = string.Empty;
-            Items.Clear();
-            HasNextPage = false;
+            ItemRows.Clear();
             return;
         }
 
-        _queries.TodoListQuery.SetArgs(id);
-        _queries.TodoItemsInfiniteQuery.SetArgs(id);
+        List.SetArgs(id);
+        Items.SetArgs(id);
     }
 
-    public void ToggleItem(TodoItem item) => _mutations.ToggleTodoItem.Execute(new TodoItemArgs(item.Id, item.ListId));
-
-    public void DeleteItem(TodoItem item) => _mutations.DeleteTodoItem.Execute(new TodoItemArgs(item.Id, item.ListId));
-
-    public void Dispose() => _subscriptions.Dispose();
-
-    [RelayCommand(CanExecute = nameof(CanAddItem))]
-    private void AddItem()
+    public void Dispose()
     {
-        if (_listId is not { } id || string.IsNullOrWhiteSpace(NewItemDescription))
-        {
-            return;
-        }
+        List.Dispose();
+        Items.Dispose();
+        AddItem.Dispose();
+        _toggleItem.Dispose();
+        _deleteItem.Dispose();
+    }
 
-        _mutations.AddTodoItem.Execute(new AddTodoItemArgs(id, NewItemDescription.Trim()));
+    partial void OnNewItemDescriptionChanged(string value) => _addItemCommand.RaiseCanExecuteChanged();
+
+    private AddTodoItemArgs BuildAddItemArgs()
+    {
+        var args = new AddTodoItemArgs(_listId!.Value, NewItemDescription.Trim());
+
+        // Optimistic clear, mirrors the original hand-written command's behavior: the field empties
+        // immediately on submit rather than waiting for the mutation to settle.
         NewItemDescription = string.Empty;
+
+        return args;
     }
 
-    private bool CanAddItem() => !string.IsNullOrWhiteSpace(NewItemDescription);
+    private bool CanAddItem() => _listId is not null && !string.IsNullOrWhiteSpace(NewItemDescription);
 
-    [RelayCommand]
-    private void LoadMore() => _queries.TodoItemsInfiniteQuery.FetchNextPage();
-
-    private void ApplyListState(QueryState<TodoList> state)
-    {
-        // Transition semantics: keep showing the previous title while a re-fetch is running.
-        IsLoadingTitle = state.IsFetching && state.LastData is null;
-        Title = (state.CurrentData ?? state.LastData)?.Title ?? string.Empty;
-    }
-
-    private void ApplyItemsState(InfiniteQueryState<List<TodoItem>, int> state)
-    {
-        IsLoadingItems = state.IsFetching && !state.HasData;
-        IsLoadingMore = state.IsFetchingNextPage;
-        HasNextPage = state.HasNextPage;
-        ErrorMessage = state.Error?.Message;
-
-        SyncItems(state.Pages.SelectMany(page => page).ToList());
-    }
-
-    private void SyncItems(IReadOnlyList<TodoItem> items)
-    {
-        // TodoItem is a record, so value equality is enough to skip a rebuild on
-        // re-fetches that returned the same data.
-        if (Items.Count == items.Count && Items.Select(vm => vm.Model).SequenceEqual(items))
-        {
-            return;
-        }
-
-        Items.Clear();
-
-        foreach (var item in items)
-        {
-            Items.Add(new TodoItemViewModel(item, this));
-        }
-    }
+    private void SyncItemRows() =>
+        ItemRows.SyncFrom(
+            Items.Pages.SelectMany(page => page),
+            model => model.Id,
+            row => row.Model.Id,
+            model => new TodoItemViewModel(model, _toggleItemCommand, _deleteItemCommand),
+            (row, model) => row.Update(model)
+        );
 }

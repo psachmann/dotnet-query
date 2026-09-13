@@ -2,25 +2,25 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Reactive;
 using System.Reactive.Disposables;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DotNetQuery.Mvvm;
 
 namespace DotNetQuery.Samples.Avalonia.ViewModels;
 
 /// <summary>
-/// The shell: a sidebar driven by <c>TodoListsQuery</c> and a detail pane whose args are
-/// pushed from the current selection.
+/// The shell: a sidebar driven by a <see cref="QueryViewModel{TArgs, TData}"/> and a detail pane
+/// whose args are pushed from the current selection.
 /// </summary>
 public sealed partial class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly IQueryClient _queryClient;
-    private readonly TodosQueries _queries;
     private readonly TodosMutations _mutations;
     private readonly CompositeDisposable _subscriptions = [];
 
     private Guid? _pendingSelectionId;
-    private bool _isSyncingLists;
     private int _listCounter;
 
     public MainViewModel(
@@ -30,21 +30,35 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         TodoDetailsViewModel details
     )
     {
+        // Resolved from DI in App.OnFrameworkInitializationCompleted, on the UI thread, so ToViewModel()
+        // below captures Avalonia's dispatcher via SynchronizationContext.Current without an explicit
+        // dispatcher argument. TodoDetailsViewModel (a constructor parameter here) relies on the same
+        // thing.
         _queryClient = queryClient;
-        _queries = queries;
         _mutations = mutations;
         Details = details;
 
-        _subscriptions.Add(_queries.TodoListsQuery.State.SubscribeOnUiThread(ApplyState));
+        TodoLists = queries.TodoListsQuery.ToViewModel();
+        TodoLists.StateChanged += (_, _) =>
+        {
+            if (TodoLists.DisplayData is { } lists)
+            {
+                ApplyLists(lists);
+            }
+        };
 
         // The mutation invalidates "todo-lists" on success; remember the new id so the refreshed
-        // sidebar can select it.
+        // sidebar can select it. Success is an event stream, not a state snapshot — ObserveOnUi,
+        // not TodoLists.StateChanged's coalescing, since missing an emission here would leave the
+        // wrong list selected.
         _subscriptions.Add(
-            _mutations.CreateTodoList.Success.SubscribeOnUiThread(list => _pendingSelectionId = list.Id)
+            _mutations.CreateTodoList.Success.ObserveOnUi().Subscribe(list => _pendingSelectionId = list.Id)
         );
     }
 
     public TodoDetailsViewModel Details { get; }
+
+    public QueryViewModel<Unit, List<TodoList>> TodoLists { get; }
 
     public ObservableCollection<TodoList> Lists { get; } = [];
 
@@ -52,24 +66,15 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     public partial bool IsSidebarExpanded { get; set; } = true;
 
     [ObservableProperty]
-    public partial bool IsLoadingLists { get; private set; }
-
-    [ObservableProperty]
     public partial TodoList? SelectedList { get; set; }
 
-    public void Dispose() => _subscriptions.Dispose();
-
-    partial void OnSelectedListChanged(TodoList? value)
+    public void Dispose()
     {
-        // Clearing the collection makes the ListBox push a null selection back; ignore it so the
-        // detail pane isn't torn down and rebuilt on every background re-fetch.
-        if (_isSyncingLists)
-        {
-            return;
-        }
-
-        Details.SetList(value?.Id);
+        TodoLists.Dispose();
+        _subscriptions.Dispose();
     }
+
+    partial void OnSelectedListChanged(TodoList? value) => Details.SetList(value?.Id);
 
     [RelayCommand]
     private void ToggleSidebar() => IsSidebarExpanded = !IsSidebarExpanded;
@@ -84,37 +89,13 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void Refresh() => _queryClient.Invalidate(_ => true);
 
-    private void ApplyState(QueryState<List<TodoList>> state)
-    {
-        IsLoadingLists = state.IsFetching && state.LastData is null;
-
-        // Transition semantics: keep the previous lists on screen during a background re-fetch.
-        if ((state.CurrentData ?? state.LastData) is { } lists)
-        {
-            ApplyLists(lists);
-        }
-    }
-
     private void ApplyLists(IReadOnlyList<TodoList> lists)
     {
         var selectedId = _pendingSelectionId ?? SelectedList?.Id;
         _pendingSelectionId = null;
 
-        // TodoList is a record, so value equality is enough to skip a rebuild on
-        // re-fetches that returned the same data.
-        if (!Lists.SequenceEqual(lists))
-        {
-            _isSyncingLists = true;
-            Lists.Clear();
+        Lists.SyncFrom(lists, list => list.Id);
 
-            foreach (var list in lists)
-            {
-                Lists.Add(list);
-            }
-
-            _isSyncingLists = false;
-        }
-
-        SelectedList = lists.FirstOrDefault(list => list.Id == selectedId) ?? lists.FirstOrDefault();
+        SelectedList = Lists.FirstOrDefault(list => list.Id == selectedId) ?? Lists.FirstOrDefault();
     }
 }

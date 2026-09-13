@@ -23,7 +23,7 @@
       <!-- Title -->
       <TextBlock
         DockPanel.Dock="Top"
-        Text="{Binding Title}"
+        Text="{Binding List.DisplayData.Title}"
         FontSize="28"
         FontWeight="SemiBold"
         Margin="0,0,0,4"
@@ -31,7 +31,7 @@
       <ProgressBar
         DockPanel.Dock="Top"
         IsIndeterminate="True"
-        IsVisible="{Binding IsLoadingTitle}"
+        IsVisible="{Binding List.IsLoading}"
         Margin="0,0,0,12"
       />
 
@@ -47,11 +47,11 @@
 
       <TextBlock
         DockPanel.Dock="Bottom"
-        Text="{Binding ErrorMessage}"
+        Text="{Binding Items.Error.Message}"
         Foreground="{DynamicResource AppDangerBrush}"
         TextWrapping="Wrap"
         Margin="0,8,0,0"
-        IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+        IsVisible="{Binding Items.HasError}"
       />
 
       <!-- Items -->
@@ -59,12 +59,12 @@
         <ProgressBar
           IsIndeterminate="True"
           VerticalAlignment="Top"
-          IsVisible="{Binding IsLoadingItems}"
+          IsVisible="{Binding Items.IsLoading}"
         />
 
-        <ScrollViewer IsVisible="{Binding !IsLoadingItems}">
+        <ScrollViewer IsVisible="{Binding !Items.IsLoading}">
           <StackPanel Spacing="8">
-            <ItemsControl ItemsSource="{Binding Items}">
+            <ItemsControl ItemsSource="{Binding ItemRows}">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                   <StackPanel Spacing="8" />
@@ -82,6 +82,7 @@
                       <CheckBox
                         IsChecked="{Binding IsDone, Mode=OneWay}"
                         Command="{Binding ToggleCommand}"
+                        CommandParameter="{Binding Model}"
                         VerticalAlignment="Center"
                       />
                       <TextBlock
@@ -102,6 +103,7 @@
                         Grid.Column="2"
                         Content="Delete"
                         Command="{Binding DeleteCommand}"
+                        CommandParameter="{Binding Model}"
                         Foreground="{DynamicResource AppDangerBrush}"
                       />
                     </Grid>
@@ -110,12 +112,13 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
 
+            <!-- No explicit IsEnabled binding: FetchNextPageCommand's own CanExecute already
+                 disables it while any fetch is in flight. -->
             <Button
               HorizontalAlignment="Center"
               Content="Load more"
-              Command="{Binding LoadMoreCommand}"
-              IsEnabled="{Binding !IsLoadingMore}"
-              IsVisible="{Binding HasNextPage}"
+              Command="{Binding Items.FetchNextPageCommand}"
+              IsVisible="{Binding Items.HasNextPage}"
             />
           </StackPanel>
         </ScrollViewer>
