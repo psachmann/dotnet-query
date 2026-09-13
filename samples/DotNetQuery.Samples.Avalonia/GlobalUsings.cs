@@ -1,2 +1,9 @@
+global using System.Collections.ObjectModel;
+global using System.Linq;
+global using System.Reactive;
+global using System.Reactive.Disposables;
+global using CommunityToolkit.Mvvm.ComponentModel;
+global using CommunityToolkit.Mvvm.Input;
 global using DotNetQuery.Core;
+global using DotNetQuery.Mvvm;
 global using DotNetQuery.Samples.Shared;

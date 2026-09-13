@@ -1,13 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Reactive;
-using System.Reactive.Disposables;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using DotNetQuery.Mvvm;
-
 namespace DotNetQuery.Samples.Avalonia.ViewModels;
 
 /// <summary>
@@ -18,8 +8,6 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly IQueryClient _queryClient;
     private readonly TodosMutations _mutations;
-    private readonly CompositeDisposable _subscriptions = [];
-
     private Guid? _pendingSelectionId;
     private int _listCounter;
 
@@ -38,7 +26,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         _mutations = mutations;
         Details = details;
 
-        TodoLists = queries.TodoListsQuery.ToViewModel();
+        TodoLists = queries.TodoListsQuery.ToViewModel(Disposables);
         TodoLists.StateChanged += (_, _) =>
         {
             if (TodoLists.DisplayData is { } lists)
@@ -51,7 +39,7 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
         // sidebar can select it. Success is an event stream, not a state snapshot — ObserveOnUi,
         // not TodoLists.StateChanged's coalescing, since missing an emission here would leave the
         // wrong list selected.
-        _subscriptions.Add(
+        Disposables.Add(
             _mutations.CreateTodoList.Success.ObserveOnUi().Subscribe(list => _pendingSelectionId = list.Id)
         );
     }
@@ -67,12 +55,6 @@ public sealed partial class MainViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     public partial TodoList? SelectedList { get; set; }
-
-    public void Dispose()
-    {
-        TodoLists.Dispose();
-        _subscriptions.Dispose();
-    }
 
     partial void OnSelectedListChanged(TodoList? value) => Details.SetList(value?.Id);
 

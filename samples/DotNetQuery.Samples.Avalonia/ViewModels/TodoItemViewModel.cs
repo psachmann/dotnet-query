@@ -1,5 +1,4 @@
 using System.Windows.Input;
-using DotNetQuery.Mvvm;
 
 namespace DotNetQuery.Samples.Avalonia.ViewModels;
 

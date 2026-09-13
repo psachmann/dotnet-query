@@ -1,11 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Reactive;
 using System.Windows.Input;
-using CommunityToolkit.Mvvm.ComponentModel;
-using DotNetQuery.Mvvm;
 
 namespace DotNetQuery.Samples.Avalonia.ViewModels;
 
@@ -14,10 +7,8 @@ namespace DotNetQuery.Samples.Avalonia.ViewModels;
 /// (an infinite query paged through with "Load more"). Composed entirely from
 /// <c>DotNetQuery.Mvvm</c> view models — no hand-rolled loading flags or state tracking.
 /// </summary>
-public sealed partial class TodoDetailsViewModel : ViewModelBase, IDisposable
+public sealed partial class TodoDetailsViewModel : ViewModelBase
 {
-    private readonly MutationViewModel<TodoItemArgs, Unit> _toggleItem;
-    private readonly MutationViewModel<TodoItemArgs, Unit> _deleteItem;
     private readonly ICommand _toggleItemCommand;
     private readonly ICommand _deleteItemCommand;
     private readonly IMutationCommand _addItemCommand;
@@ -29,17 +20,19 @@ public sealed partial class TodoDetailsViewModel : ViewModelBase, IDisposable
         // This view model is constructed on the UI thread — it's a constructor parameter of
         // MainViewModel, which App.OnFrameworkInitializationCompleted resolves from DI on the UI
         // thread — so every ToViewModel() call below captures Avalonia's dispatcher via
-        // SynchronizationContext.Current without needing to pass one explicitly.
-        List = queries.TodoListQuery.ToViewModel();
-        Items = queries.TodoItemsInfiniteQuery.ToViewModel();
-        AddItem = mutations.AddTodoItem.ToViewModel();
+        // SynchronizationContext.Current without needing to pass one explicitly. Each one is added
+        // to _disposables, so Dispose() releases them all in one call.
+        List = queries.TodoListQuery.ToViewModel(Disposables);
+        Items = queries.TodoItemsInfiniteQuery.ToViewModel(Disposables);
+        AddItem = mutations.AddTodoItem.ToViewModel(Disposables);
 
         // Shared across every row: built once here, not per row, so ToCommand's bookkeeping doesn't
-        // grow with every item ever created.
-        _toggleItem = mutations.ToggleTodoItem.ToViewModel();
-        _deleteItem = mutations.DeleteTodoItem.ToViewModel();
-        _toggleItemCommand = _toggleItem.ToCommand<TodoItem>(item => new TodoItemArgs(item.Id, item.ListId));
-        _deleteItemCommand = _deleteItem.ToCommand<TodoItem>(item => new TodoItemArgs(item.Id, item.ListId));
+        // grow with every item ever created. Only the commands are kept — the view models behind them
+        // live on in _disposables.
+        var toggleItem = mutations.ToggleTodoItem.ToViewModel(Disposables);
+        var deleteItem = mutations.DeleteTodoItem.ToViewModel(Disposables);
+        _toggleItemCommand = toggleItem.ToCommand<TodoItem>(item => new TodoItemArgs(item.Id, item.ListId));
+        _deleteItemCommand = deleteItem.ToCommand<TodoItem>(item => new TodoItemArgs(item.Id, item.ListId));
 
         _addItemCommand = AddItem.ToCommand(BuildAddItemArgs, CanAddItem);
 
@@ -86,15 +79,6 @@ public sealed partial class TodoDetailsViewModel : ViewModelBase, IDisposable
 
         List.SetArgs(id);
         Items.SetArgs(id);
-    }
-
-    public void Dispose()
-    {
-        List.Dispose();
-        Items.Dispose();
-        AddItem.Dispose();
-        _toggleItem.Dispose();
-        _deleteItem.Dispose();
     }
 
     partial void OnNewItemDescriptionChanged(string value) => _addItemCommand.RaiseCanExecuteChanged();

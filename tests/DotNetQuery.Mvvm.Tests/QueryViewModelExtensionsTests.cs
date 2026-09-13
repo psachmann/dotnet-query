@@ -1,3 +1,5 @@
+using System.Reactive.Disposables;
+
 namespace DotNetQuery.Mvvm.Tests;
 
 public class QueryViewModelExtensionsTests
@@ -12,7 +14,7 @@ public class QueryViewModelExtensionsTests
         queryMock.CurrentState.Returns(stateSubject.Value);
         queryMock.State.Returns(stateSubject.AsObservable());
 
-        var sut = queryMock.Object.ToViewModel(new SynchronizationContextUiDispatcher(_uiContext));
+        var sut = queryMock.Object.ToViewModel(dispatcher: new SynchronizationContextUiDispatcher(_uiContext));
 
         await Assert.That(sut.Query).IsSameReferenceAs(queryMock.Object);
 
@@ -34,7 +36,7 @@ public class QueryViewModelExtensionsTests
         queryMock.CurrentState.Returns(stateSubject.Value);
         queryMock.State.Returns(stateSubject.AsObservable());
 
-        var sut = queryMock.Object.ToViewModel(new SynchronizationContextUiDispatcher(_uiContext));
+        var sut = queryMock.Object.ToViewModel(dispatcher: new SynchronizationContextUiDispatcher(_uiContext));
 
         await Assert.That(sut.Query).IsSameReferenceAs(queryMock.Object);
 
@@ -54,7 +56,7 @@ public class QueryViewModelExtensionsTests
         mutationMock.CurrentState.Returns(stateSubject.Value);
         mutationMock.State.Returns(stateSubject.AsObservable());
 
-        var sut = mutationMock.Object.ToViewModel(new SynchronizationContextUiDispatcher(_uiContext));
+        var sut = mutationMock.Object.ToViewModel(dispatcher: new SynchronizationContextUiDispatcher(_uiContext));
 
         await Assert.That(sut.Mutation).IsSameReferenceAs(mutationMock.Object);
 
@@ -63,6 +65,97 @@ public class QueryViewModelExtensionsTests
         await Assert
             .That(Mock.Invocations(mutationMock).Any(i => i.MemberName == nameof(IDisposable.Dispose)))
             .IsFalse();
+
+        stateSubject.OnCompleted();
+        stateSubject.Dispose();
+    }
+
+    [Test]
+    public async Task ToViewModel_OnQuery_WithDisposeWith_DisposedWithContainer_WithoutDisposingQuery()
+    {
+        var queryMock = Mock.Of<IQuery<int, string>>();
+        var stateSubject = new BehaviorSubject<QueryState<string>>(QueryState<string>.CreateIdle());
+        queryMock.CurrentState.Returns(stateSubject.Value);
+        queryMock.State.Returns(stateSubject.AsObservable());
+        var disposables = new CompositeDisposable();
+
+        var sut = queryMock.Object.ToViewModel(disposables, new SynchronizationContextUiDispatcher(_uiContext));
+
+        await Assert.That(disposables.Contains(sut)).IsTrue();
+        await Assert.That(stateSubject.HasObservers).IsTrue();
+
+        disposables.Dispose();
+
+        await Assert.That(stateSubject.HasObservers).IsFalse();
+        await Assert.That(Mock.Invocations(queryMock).Any(i => i.MemberName == nameof(IDisposable.Dispose))).IsFalse();
+
+        stateSubject.OnCompleted();
+        stateSubject.Dispose();
+    }
+
+    [Test]
+    public async Task ToViewModel_OnInfiniteQuery_WithDisposeWith_DisposedWithContainer_WithoutDisposingQuery()
+    {
+        var queryMock = Mock.Of<IInfiniteQuery<int, string, int>>();
+        var stateSubject = new BehaviorSubject<InfiniteQueryState<string, int>>(
+            InfiniteQueryState<string, int>.CreateIdle()
+        );
+        queryMock.CurrentState.Returns(stateSubject.Value);
+        queryMock.State.Returns(stateSubject.AsObservable());
+        var disposables = new CompositeDisposable();
+
+        var sut = queryMock.Object.ToViewModel(disposables, new SynchronizationContextUiDispatcher(_uiContext));
+
+        await Assert.That(disposables.Contains(sut)).IsTrue();
+        await Assert.That(stateSubject.HasObservers).IsTrue();
+
+        disposables.Dispose();
+
+        await Assert.That(stateSubject.HasObservers).IsFalse();
+        await Assert.That(Mock.Invocations(queryMock).Any(i => i.MemberName == nameof(IDisposable.Dispose))).IsFalse();
+
+        stateSubject.OnCompleted();
+        stateSubject.Dispose();
+    }
+
+    [Test]
+    public async Task ToViewModel_OnMutation_WithDisposeWith_DisposedWithContainer_WithoutDisposingMutation()
+    {
+        var mutationMock = Mock.Of<IMutation<int, string>>();
+        var stateSubject = new BehaviorSubject<MutationState<string>>(MutationState<string>.CreateIdle());
+        mutationMock.CurrentState.Returns(stateSubject.Value);
+        mutationMock.State.Returns(stateSubject.AsObservable());
+        var disposables = new CompositeDisposable();
+
+        var sut = mutationMock.Object.ToViewModel(disposables, new SynchronizationContextUiDispatcher(_uiContext));
+
+        await Assert.That(disposables.Contains(sut)).IsTrue();
+        await Assert.That(stateSubject.HasObservers).IsTrue();
+
+        disposables.Dispose();
+
+        await Assert.That(stateSubject.HasObservers).IsFalse();
+        await Assert
+            .That(Mock.Invocations(mutationMock).Any(i => i.MemberName == nameof(IDisposable.Dispose)))
+            .IsFalse();
+
+        stateSubject.OnCompleted();
+        stateSubject.Dispose();
+    }
+
+    [Test]
+    public async Task ToViewModel_WithAlreadyDisposedContainer_DisposesViewModelImmediately()
+    {
+        var queryMock = Mock.Of<IQuery<int, string>>();
+        var stateSubject = new BehaviorSubject<QueryState<string>>(QueryState<string>.CreateIdle());
+        queryMock.CurrentState.Returns(stateSubject.Value);
+        queryMock.State.Returns(stateSubject.AsObservable());
+        var disposables = new CompositeDisposable();
+        disposables.Dispose();
+
+        _ = queryMock.Object.ToViewModel(disposables, new SynchronizationContextUiDispatcher(_uiContext));
+
+        await Assert.That(stateSubject.HasObservers).IsFalse();
 
         stateSubject.OnCompleted();
         stateSubject.Dispose();

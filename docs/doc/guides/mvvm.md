@@ -271,16 +271,40 @@ Because `CreateQuery`/`CreateInfiniteQuery`/`CreateMutation` are cheap (queries 
 
 ```csharp
 public static QueryViewModel<TArgs, TData> ToViewModel<TArgs, TData>(
-    this IQuery<TArgs, TData> query, IUiDispatcher? dispatcher = null);
+    this IQuery<TArgs, TData> query,
+    CompositeDisposable? disposeWith = null, IUiDispatcher? dispatcher = null);
 
 public static InfiniteQueryViewModel<TArgs, TData, TPageParam> ToViewModel<TArgs, TData, TPageParam>(
-    this IInfiniteQuery<TArgs, TData, TPageParam> query, IUiDispatcher? dispatcher = null);
+    this IInfiniteQuery<TArgs, TData, TPageParam> query,
+    CompositeDisposable? disposeWith = null, IUiDispatcher? dispatcher = null);
 
 public static MutationViewModel<TArgs, TData> ToViewModel<TArgs, TData>(
-    this IMutation<TArgs, TData> mutation, IUiDispatcher? dispatcher = null);
+    this IMutation<TArgs, TData> mutation,
+    CompositeDisposable? disposeWith = null, IUiDispatcher? dispatcher = null);
 ```
 
 `ToViewModel()` always **wraps** — the caller keeps ownership, exactly like constructor form 2. The name alone doesn't say so, which is why it's worth stating plainly: disposing a view model built with `ToViewModel()` never disposes the query or mutation it wraps.
+
+Pass a `CompositeDisposable` as `disposeWith` to add the view model to it, so a page view model wrapping several queries and mutations disposes them all in one call. If the container has already been disposed, the view model is disposed immediately. The dispatcher comes second, so to pass only a dispatcher, name it: `ToViewModel(dispatcher: myDispatcher)`.
+
+```csharp
+public sealed class TodoPageViewModel : IDisposable
+{
+    private readonly CompositeDisposable _disposables = [];
+
+    public TodoPageViewModel(TodosQueries queries, TodosMutations mutations)
+    {
+        List = queries.TodoListQuery.ToViewModel(_disposables);
+        AddItem = mutations.AddTodoItem.ToViewModel(_disposables);
+    }
+
+    public QueryViewModel<Guid, TodoList> List { get; }
+
+    public MutationViewModel<AddTodoItemArgs, TodoItem> AddItem { get; }
+
+    public void Dispose() => _disposables.Dispose(); // releases both view models; TodosQueries/TodosMutations still own the originals
+}
+```
 
 ## ObserveOnUi
 

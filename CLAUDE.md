@@ -212,7 +212,10 @@ internal helper rather than copied three times:
   subscribed). Named `ObserveOnUi`, not `SubscribeOnUi`, because Rx's `SubscribeOn` means something
   unrelated.
 - `QueryViewModelExtensions.ToViewModel()` — three overloads, one per query/mutation interface;
-  always wraps (never takes ownership), despite the name not saying so on its own.
+  always wraps (never takes ownership), despite the name not saying so on its own. Optional
+  `CompositeDisposable? disposeWith` (deliberately *before* `dispatcher`, since it's the argument
+  callers pass far more often) adds the view model to that container. It's a parameter rather than a
+  general `DisposeWith()` extension so it can't clash with ReactiveUI's `DisposableMixins.DisposeWith`.
 - `ObservableCollectionExtensions.SyncFrom` — reconciles an `ObservableCollection<T>` in place
   (`Move`/`Insert`/`Remove`, and same-type-overload-only `Replace`) against a new source sequence,
   rather than `Clear()` + re-add, which drops whatever a bound control tracks by position (e.g. a
