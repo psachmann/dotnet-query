@@ -1,7 +1,36 @@
 <Project>
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
-  <ItemGroup>
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!--
+    Compare each package against the last published release and fail the build on an
+    unintentional breaking change. Unlike the public API files below, this diffs the real
+    assemblies against the package consumers actually installed, so it also catches breaks
+    that only manifest on one target framework.
+
+    Bump the baseline after every release. An intentional break needs a suppression file
+    (build with -p:GenerateCompatibilitySuppressionFile=true to produce one).
+  -->
+  <PropertyGroup>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>2.0.0-beta.2</PackageValidationBaselineVersion>
+  </PropertyGroup>
+
+  <!--
+    Track the public API surface in PublicAPI.Shipped.txt / PublicAPI.Unshipped.txt so that
+    adding or removing public members is a deliberate, reviewable edit rather than a silent
+    side effect. DevTools opts out: it ships a drop-in debugging component rather than an API
+    consumers program against, so tracking it buys no compat guarantee worth the Razor churn.
+  -->
+  <PropertyGroup>
+    <TrackPublicApi Condition="'$(MSBuildProjectName)' == 'DotNetQuery.Blazor.DevTools'">false</TrackPublicApi>
+    <TrackPublicApi Condition="'$(TrackPublicApi)' == ''">true</TrackPublicApi>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TrackPublicApi)' == 'true'">
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="All" />
     <AdditionalFiles Include="PublicAPI.Shipped.txt" />
     <AdditionalFiles Include="PublicAPI.Unshipped.txt" />

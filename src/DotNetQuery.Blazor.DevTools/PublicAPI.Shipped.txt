@@ -1,9 +1,0 @@
-#nullable enable
-DotNetQuery.Blazor.DevTools.QueryDevTools
-DotNetQuery.Blazor.DevTools.QueryDevTools.DisposeAsync() -> System.Threading.Tasks.ValueTask
-DotNetQuery.Blazor.DevTools.QueryDevTools.OnDetailResizeEnd(int width) -> void
-DotNetQuery.Blazor.DevTools.QueryDevTools.OnResizeEnd(int height) -> void
-DotNetQuery.Blazor.DevTools.QueryDevTools.QueryDevTools() -> void
-DotNetQuery.Blazor.DevTools._Imports
-DotNetQuery.Blazor.DevTools._Imports.Execute() -> void
-DotNetQuery.Blazor.DevTools._Imports._Imports() -> void

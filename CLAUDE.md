@@ -33,6 +33,51 @@ dotnet csharpier format .
 
 The formatter (`csharpier`) runs as a CI gate — always run it before committing. Indentation is 4 spaces for C#/Razor/JS files, 2 spaces for XML/config files (see `.editorconfig`).
 
+## Public API and binary compatibility
+
+Two independent gates guard the shipping surface, both wired up in `src/Directory.Build.props` (which
+applies to `src/` only — tests and samples are untouched).
+
+### Package validation (breaking changes)
+
+`EnablePackageValidation` diffs each packed assembly against the last published release, set by
+`PackageValidationBaselineVersion` (currently `2.0.0-beta.2`, uniform across all five packages). It runs on
+`dotnet pack`, not `dotnet build`, and it compares the real assemblies against what consumers installed —
+so it catches breaks the API text files cannot, including ones that only manifest on one target framework.
+
+**Bump the baseline after every release.** For an intentional break, generate a suppression file rather than
+weakening the gate:
+
+```bash
+dotnet pack -c Release -p:GenerateCompatibilitySuppressionFile=true
+```
+
+### Public API files (surface tracking)
+
+Every `src/` project except `DotNetQuery.Blazor.DevTools` carries a `PublicAPI.Shipped.txt` /
+`PublicAPI.Unshipped.txt` pair listing its entire public surface. Adding, removing, or changing a public
+member fails the Release build (`RS0016` / `RS0017`) until the line is added to or removed from
+`PublicAPI.Unshipped.txt`. DevTools opts out via `<TrackPublicApi>` — it ships a drop-in debugging component
+rather than an API consumers program against, so tracking it buys no compat guarantee worth the Razor churn.
+
+`PublicAPI.Shipped.txt` was seeded from the `v2.0.0-beta.2` surface, so a PR's diff to
+`PublicAPI.Unshipped.txt` is exactly the API it adds. When cutting a release, move the accumulated
+`Unshipped` lines into `Shipped` and leave `Unshipped` with just its `#nullable enable` header.
+
+To regenerate entries after an API change, either apply the IDE code fix ("Add to public API") or run:
+
+```bash
+# repeat until the line count stops growing; the fixer applies one batch per pass
+dotnet format analyzers DotNetQuery.slnx --diagnostics RS0016 --severity warn
+```
+
+`dotnet format` cannot fix `.razor` files, so `<Suspense>`-style component members must be added to
+`src/DotNetQuery.Blazor/PublicAPI.Unshipped.txt` by hand — the `RS0016` message text is the exact line to paste.
+
+Two rules are suppressed per-project, each with a comment in the `.csproj`: `RS0041` in `DotNetQuery.Blazor`
+(the Razor-generated `BuildRenderTree` overrides use oblivious reference types) and `RS0026` in
+`DotNetQuery.Mvvm` (`QueryViewModel` has two intentional constructor overloads with an optional dispatcher).
+
 ## Architecture
 
 The solution has five projects under `src/` and four test projects under `tests/`:
