@@ -1,0 +1,65 @@
+#nullable enable
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Content.get -> Microsoft.AspNetCore.Components.RenderFragment<DotNetQuery.Core.InfiniteQueryState<TData!, TPageParam>!>!
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Content.set -> void
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Dispose() -> void
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Failure.get -> Microsoft.AspNetCore.Components.RenderFragment<System.Exception!>?
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Failure.set -> void
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.InfiniteSuspense() -> void
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Loading.get -> Microsoft.AspNetCore.Components.RenderFragment?
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Loading.set -> void
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Query.get -> DotNetQuery.Core.IInfiniteQuery<TArgs, TData!, TPageParam>!
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Query.set -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Content.get -> Microsoft.AspNetCore.Components.RenderFragment<DotNetQuery.Core.InfiniteQueryState<TData!, TPageParam>!>!
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Content.set -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Dispose() -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Failure.get -> Microsoft.AspNetCore.Components.RenderFragment<System.Exception!>?
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Failure.set -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.InfiniteTransition() -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Loading.get -> Microsoft.AspNetCore.Components.RenderFragment?
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Loading.set -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Query.get -> DotNetQuery.Core.IInfiniteQuery<TArgs, TData!, TPageParam>!
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Query.set -> void
+DotNetQuery.Blazor.QueryRefreshMonitor
+DotNetQuery.Blazor.QueryRefreshMonitor.DisposeAsync() -> System.Threading.Tasks.ValueTask
+DotNetQuery.Blazor.QueryRefreshMonitor.OnFocus() -> void
+DotNetQuery.Blazor.QueryRefreshMonitor.OnReconnect() -> void
+DotNetQuery.Blazor.QueryRefreshMonitor.QueryRefreshMonitor() -> void
+DotNetQuery.Blazor.QueryRefreshMonitor.RefetchOnFocus.get -> bool
+DotNetQuery.Blazor.QueryRefreshMonitor.RefetchOnFocus.set -> void
+DotNetQuery.Blazor.QueryRefreshMonitor.RefetchOnReconnect.get -> bool
+DotNetQuery.Blazor.QueryRefreshMonitor.RefetchOnReconnect.set -> void
+DotNetQuery.Blazor.Suspense<TArgs, TData>
+DotNetQuery.Blazor.Suspense<TArgs, TData>.Content.get -> Microsoft.AspNetCore.Components.RenderFragment<TData!>!
+DotNetQuery.Blazor.Suspense<TArgs, TData>.Content.set -> void
+DotNetQuery.Blazor.Suspense<TArgs, TData>.Dispose() -> void
+DotNetQuery.Blazor.Suspense<TArgs, TData>.Failure.get -> Microsoft.AspNetCore.Components.RenderFragment<System.Exception!>?
+DotNetQuery.Blazor.Suspense<TArgs, TData>.Failure.set -> void
+DotNetQuery.Blazor.Suspense<TArgs, TData>.Loading.get -> Microsoft.AspNetCore.Components.RenderFragment?
+DotNetQuery.Blazor.Suspense<TArgs, TData>.Loading.set -> void
+DotNetQuery.Blazor.Suspense<TArgs, TData>.Query.get -> DotNetQuery.Core.IQuery<TArgs, TData!>!
+DotNetQuery.Blazor.Suspense<TArgs, TData>.Query.set -> void
+DotNetQuery.Blazor.Suspense<TArgs, TData>.Suspense() -> void
+DotNetQuery.Blazor.Transition<TArgs, TData>
+DotNetQuery.Blazor.Transition<TArgs, TData>.Content.get -> Microsoft.AspNetCore.Components.RenderFragment<TData!>!
+DotNetQuery.Blazor.Transition<TArgs, TData>.Content.set -> void
+DotNetQuery.Blazor.Transition<TArgs, TData>.Dispose() -> void
+DotNetQuery.Blazor.Transition<TArgs, TData>.Failure.get -> Microsoft.AspNetCore.Components.RenderFragment<System.Exception!>?
+DotNetQuery.Blazor.Transition<TArgs, TData>.Failure.set -> void
+DotNetQuery.Blazor.Transition<TArgs, TData>.Loading.get -> Microsoft.AspNetCore.Components.RenderFragment?
+DotNetQuery.Blazor.Transition<TArgs, TData>.Loading.set -> void
+DotNetQuery.Blazor.Transition<TArgs, TData>.Query.get -> DotNetQuery.Core.IQuery<TArgs, TData!>!
+DotNetQuery.Blazor.Transition<TArgs, TData>.Query.set -> void
+DotNetQuery.Blazor.Transition<TArgs, TData>.Transition() -> void
+DotNetQuery.Blazor._Imports
+DotNetQuery.Blazor._Imports.Execute() -> void
+DotNetQuery.Blazor._Imports._Imports() -> void
+override DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.OnParametersSet() -> void
+override DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.OnParametersSet() -> void
+override DotNetQuery.Blazor.Suspense<TArgs, TData>.OnParametersSet() -> void
+override DotNetQuery.Blazor.Transition<TArgs, TData>.OnParametersSet() -> void
+~override DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder __builder) -> void
+~override DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder __builder) -> void
+~override DotNetQuery.Blazor.Suspense<TArgs, TData>.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder __builder) -> void
+~override DotNetQuery.Blazor.Transition<TArgs, TData>.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder __builder) -> void

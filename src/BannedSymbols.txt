@@ -1,0 +1,11 @@
+P:System.DateTime.Now;Use the injected IScheduler.Now so tests can drive virtual time.
+P:System.DateTime.UtcNow;Use the injected IScheduler.Now so tests can drive virtual time.
+P:System.DateTime.Today;Use the injected IScheduler.Now so tests can drive virtual time.
+P:System.DateTimeOffset.Now;Use the injected IScheduler.Now so tests can drive virtual time.
+P:System.DateTimeOffset.UtcNow;Use the injected IScheduler.Now so tests can drive virtual time.
+M:System.Threading.Thread.Sleep(System.Int32);Schedule on the injected IScheduler instead of blocking.
+M:System.Threading.Thread.Sleep(System.TimeSpan);Schedule on the injected IScheduler instead of blocking.
+M:System.Threading.Tasks.Task.Delay(System.Int32);Use Observable.Timer on the injected IScheduler.
+M:System.Threading.Tasks.Task.Delay(System.TimeSpan);Use Observable.Timer on the injected IScheduler.
+M:System.Threading.Tasks.Task.Delay(System.Int32,System.Threading.CancellationToken);Use Observable.Timer on the injected IScheduler.
+M:System.Threading.Tasks.Task.Delay(System.TimeSpan,System.Threading.CancellationToken);Use Observable.Timer on the injected IScheduler.
