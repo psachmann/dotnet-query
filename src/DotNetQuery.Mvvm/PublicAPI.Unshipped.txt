@@ -29,3 +29,27 @@ DotNetQuery.Mvvm.InfiniteQueryViewModel<TArgs, TData, TPageParam>.SetEnabled(boo
 DotNetQuery.Mvvm.InfiniteQueryViewModel<TArgs, TData, TPageParam>.StateChanged -> System.EventHandler?
 DotNetQuery.Mvvm.InfiniteQueryViewModel<TArgs, TData, TPageParam>.Status.get -> DotNetQuery.Core.QueryStatus
 virtual DotNetQuery.Mvvm.InfiniteQueryViewModel<TArgs, TData, TPageParam>.Dispose(bool disposing) -> void
+DotNetQuery.Mvvm.IMutationCommand
+DotNetQuery.Mvvm.IMutationCommand.RaiseCanExecuteChanged() -> void
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.CancelCommand.get -> System.Windows.Input.ICommand!
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.CurrentState.get -> DotNetQuery.Core.MutationState<TData>!
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.Data.get -> TData?
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.Dispose() -> void
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.Error.get -> System.Exception?
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.ExecuteCommand.get -> System.Windows.Input.ICommand!
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.Execute(TArgs args) -> void
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.HasData.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.HasError.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.IsFailure.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.IsIdle.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.IsRunning.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.IsSuccess.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.Mutation.get -> DotNetQuery.Core.IMutation<TArgs, TData>!
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.MutationViewModel(DotNetQuery.Core.IMutation<TArgs, TData>! mutation, DotNetQuery.Mvvm.IUiDispatcher? dispatcher = null) -> void
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.MutationViewModel(DotNetQuery.Core.IQueryClient! client, DotNetQuery.Core.MutationOptions<TArgs, TData>! options, DotNetQuery.Mvvm.IUiDispatcher? dispatcher = null) -> void
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.StateChanged -> System.EventHandler?
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.Status.get -> DotNetQuery.Core.MutationStatus
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.ToCommand(System.Func<TArgs>! args, System.Func<bool>? canExecute = null) -> DotNetQuery.Mvvm.IMutationCommand!
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.ToCommand<TParam>(System.Func<TParam, TArgs>! map, System.Func<TParam, bool>? canExecute = null) -> DotNetQuery.Mvvm.IMutationCommand!
+virtual DotNetQuery.Mvvm.MutationViewModel<TArgs, TData>.Dispose(bool disposing) -> void
