@@ -1,6 +1,0 @@
-{
-  "hidden_files": ["**/.direnv", "**/bin", "**/obj"],
-  "file_types": {
-    "HTML": ["razor", "cshtml"],
-  },
-}

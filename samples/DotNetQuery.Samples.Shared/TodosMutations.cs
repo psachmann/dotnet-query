@@ -26,8 +26,9 @@ public sealed class TodosMutations : IDisposable
             new MutationOptions<string, TodoList>
             {
                 Mutator = (title, ct) => todosClient.CreateTodoListAsync(title, ct),
-                InvalidateKeys = [
-                    ["todo-lists"]
+                InvalidateKeys =
+                [
+                    ["todo-lists"],
                 ],
             }
         );
