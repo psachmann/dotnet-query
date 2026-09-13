@@ -2,6 +2,7 @@
   <PropertyGroup>
     <Description>Dependency injection extensions for DotNetQuery</Description>
     <TrackPublicApi>true</TrackPublicApi>
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

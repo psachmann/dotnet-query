@@ -2,6 +2,7 @@
   <PropertyGroup>
     <Description>DevTools Blazor component for inspecting the DotNetQuery cache at runtime</Description>
     <TrackPublicApi>false</TrackPublicApi>
+    <IsAotCompatible>false</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

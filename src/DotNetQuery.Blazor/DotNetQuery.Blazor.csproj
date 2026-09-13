@@ -5,6 +5,7 @@
          types; the generated code is not ours to annotate. -->
     <NoWarn>$(NoWarn);RS0041</NoWarn>
     <TrackPublicApi>true</TrackPublicApi>
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

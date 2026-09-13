@@ -5,6 +5,7 @@
          dispatcher; they are unambiguous, distinguished by their first parameter. -->
     <NoWarn>$(NoWarn);RS0026</NoWarn>
     <TrackPublicApi>true</TrackPublicApi>
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

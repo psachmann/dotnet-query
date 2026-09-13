@@ -2,6 +2,7 @@
   <PropertyGroup>
     <Description>TanStack Query-inspired async data fetching and state management for .NET</Description>
     <TrackPublicApi>true</TrackPublicApi>
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

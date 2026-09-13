@@ -277,18 +277,20 @@ internal sealed class Query<TArgs, TData> : IQuery, ICacheEntry
 
         try
         {
-            var data = await _options.RetryHandler.ExecuteAsync(
-                ct =>
-                {
-                    if (Interlocked.Increment(ref attempts) > 1)
+            var data = await _options
+                .RetryHandler.ExecuteAsync(
+                    ct =>
                     {
-                        activity?.AddEvent(new ActivityEvent("retry"));
-                    }
+                        if (Interlocked.Increment(ref attempts) > 1)
+                        {
+                            activity?.AddEvent(new ActivityEvent("retry"));
+                        }
 
-                    return _options.Fetcher(_args, ct);
-                },
-                linkedToken
-            );
+                        return _options.Fetcher(_args, ct);
+                    },
+                    linkedToken
+                )
+                .ConfigureAwait(false);
 
             lock (_syncRoot)
             {

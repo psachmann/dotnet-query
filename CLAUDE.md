@@ -33,10 +33,16 @@ dotnet csharpier format .
 
 The formatter (`csharpier`) runs as a CI gate — always run it before committing. Indentation is 4 spaces for C#/Razor/JS files, 2 spaces for XML/config files (see `.editorconfig`).
 
-## Public API and binary compatibility
+## Build gates
 
-Two independent gates guard the shipping surface, both wired up in `src/Directory.Build.props` (which
+Four independent gates guard the shipping surface, all wired up in `src/Directory.Build.props` (which
 applies to `src/` only — tests and samples are untouched).
+
+Two of them are switched per project rather than defaulted: `TrackPublicApi` and `IsAotCompatible` have no
+default, and every `src/` project must set each explicitly in its own `.csproj`. The
+`RequireExplicitProjectProperties` target fails the build if either is missing, so an opt-out is always a
+visible decision in the project that makes it rather than a silent consequence of omission. When adding a
+gate that works this way, extend that one target rather than adding a parallel one.
 
 ### Package validation (breaking changes)
 
@@ -57,8 +63,9 @@ dotnet pack -c Release -p:GenerateCompatibilitySuppressionFile=true
 Every `src/` project except `DotNetQuery.Blazor.DevTools` carries a `PublicAPI.Shipped.txt` /
 `PublicAPI.Unshipped.txt` pair listing its entire public surface. Adding, removing, or changing a public
 member fails the Release build (`RS0016` / `RS0017`) until the line is added to or removed from
-`PublicAPI.Unshipped.txt`. DevTools opts out via `<TrackPublicApi>` — it ships a drop-in debugging component
-rather than an API consumers program against, so tracking it buys no compat guarantee worth the Razor churn.
+`PublicAPI.Unshipped.txt`. DevTools sets `<TrackPublicApi>false</TrackPublicApi>` — it ships a drop-in
+debugging component rather than an API consumers program against, so tracking it buys no compat guarantee
+worth the Razor churn.
 
 `PublicAPI.Shipped.txt` was seeded from the `v2.0.0-beta.2` surface, so a PR's diff to
 `PublicAPI.Unshipped.txt` is exactly the API it adds. When cutting a release, move the accumulated
@@ -77,6 +84,33 @@ dotnet format analyzers DotNetQuery.slnx --diagnostics RS0016 --severity warn
 Two rules are suppressed per-project, each with a comment in the `.csproj`: `RS0041` in `DotNetQuery.Blazor`
 (the Razor-generated `BuildRenderTree` overrides use oblivious reference types) and `RS0026` in
 `DotNetQuery.Mvvm` (`QueryViewModel` has two intentional constructor overloads with an optional dispatcher).
+
+### Banned symbols (the `IScheduler` invariant)
+
+`src/BannedSymbols.txt` — one shared list, pulled into every `src/` project as an `AdditionalFiles` entry via
+`$(MSBuildThisFileDirectory)` — bans ambient time (`DateTime.Now` / `.UtcNow` / `.Today`,
+`DateTimeOffset.Now` / `.UtcNow`) and blocking waits (`Thread.Sleep`, `Task.Delay`). All time must flow
+through the injected `IScheduler` so tests can drive virtual time with `TestScheduler`; a stray
+`DateTime.UtcNow` silently reintroduces wall-clock dependence that no test can control. Violations fail the
+Release build as `RS0030`, quoting the per-symbol message from the file. Tests are unaffected — the gate is
+scoped to `src/`, and test code is free to use real time.
+
+To ban another API, add a line in documentation-comment ID form (`P:` property, `M:` method with the full
+parameter list, `T:` type), followed by `;` and the message to show.
+
+### Trim and AOT analyzers
+
+`IsAotCompatible` turns on the trim, AOT, and single-file analyzers and stamps the assembly trimmable.
+Blazor WASM trims by default on release publish and MAUI/UNO consumers publish AOT, so a trim-unsafe
+construct here would otherwise surface as a runtime failure in a consumer's app rather than a build error in
+ours.
+
+`DotNetQuery.Blazor.DevTools` sets `<IsAotCompatible>false</IsAotCompatible>`. Its cache inspector
+reflection-serializes arbitrary consumer data (`QueryDevTools.SerializeData` takes `object?`), which trips
+`IL2026` / `IL3050` and which no source generation can make statically analyzable — the types belong to the
+consumer. Under trimming `JsonSerializer` emits silently-empty JSON rather than throwing into the existing
+`catch`, so claiming AOT compatibility there would be claiming something untrue. The other four projects are
+genuinely trim- and AOT-clean; keep them that way rather than suppressing a new `IL` diagnostic.
 
 ## Architecture
 

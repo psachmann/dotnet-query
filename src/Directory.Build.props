@@ -20,18 +20,40 @@
   </PropertyGroup>
 
   <!--
-    Track the public API surface in PublicAPI.Shipped.txt / PublicAPI.Unshipped.txt so that
-    adding or removing public members is a deliberate, reviewable edit rather than a silent
-    side effect. There is no default: every project under src/ must set <TrackPublicApi>
-    explicitly in its own .csproj (DevTools sets it to false — it ships a drop-in debugging
-    component rather than an API consumers program against, so tracking it buys no compat
-    guarantee worth the Razor churn). The target below fails the build if a project omits it,
-    so a forgotten property is a build error rather than a silently untracked surface.
+    All time access goes through the injected IScheduler so tests can drive virtual time; a stray
+    DateTime.UtcNow or Thread.Sleep silently reintroduces wall-clock dependence that TestScheduler
+    cannot control. BannedSymbols.txt makes that invariant mechanical instead of a review habit.
   -->
-  <Target Name="RequireExplicitTrackPublicApi" BeforeTargets="Build;Pack">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="All" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+  </ItemGroup>
+
+  <!--
+    Neither property below has a default: every project under src/ must set each one explicitly in
+    its own .csproj, so opting out is a visible decision in the project that makes it rather than a
+    silent consequence of omission. The guard target turns a forgotten property into a build error.
+
+    TrackPublicApi tracks the public surface in PublicAPI.Shipped.txt / PublicAPI.Unshipped.txt, so
+    adding or removing a public member is a deliberate, reviewable edit. DevTools sets it false: it
+    ships a drop-in debugging component rather than an API consumers program against, so tracking
+    it buys no compat guarantee worth the Razor churn.
+
+    IsAotCompatible turns on the trim, AOT, and single-file analyzers and stamps the assembly
+    trimmable. Blazor WASM trims by default on release publish and MAUI/UNO consumers publish AOT,
+    so a trim-unsafe construct otherwise surfaces as a runtime failure in a consumer's app instead
+    of a build error in ours. DevTools sets it false: the cache inspector reflection-serializes
+    arbitrary consumer data, which no source generation can make statically analyzable.
+  -->
+  <Target Name="RequireExplicitProjectProperties" BeforeTargets="Build;Pack">
     <Error
       Condition="'$(TrackPublicApi)' == ''"
-      Text="'$(MSBuildProjectName)' must set &lt;TrackPublicApi&gt; explicitly (true or false) in its own project file; there is no default." />
+      Text="'$(MSBuildProjectName)' must set &lt;TrackPublicApi&gt; explicitly (true or false) in its own project file; there is no default."
+    />
+    <Error
+      Condition="'$(IsAotCompatible)' == ''"
+      Text="'$(MSBuildProjectName)' must set &lt;IsAotCompatible&gt; explicitly (true or false) in its own project file; there is no default."
+    />
   </Target>
 
   <ItemGroup Condition="'$(TrackPublicApi)' == 'true'">
