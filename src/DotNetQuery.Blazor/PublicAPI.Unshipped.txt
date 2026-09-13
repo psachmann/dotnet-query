@@ -1,1 +1,27 @@
 #nullable enable
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Content.get -> Microsoft.AspNetCore.Components.RenderFragment<DotNetQuery.Core.InfiniteQueryState<TData!, TPageParam>!>!
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Content.set -> void
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Dispose() -> void
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Failure.get -> Microsoft.AspNetCore.Components.RenderFragment<System.Exception!>?
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Failure.set -> void
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.InfiniteSuspense() -> void
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Loading.get -> Microsoft.AspNetCore.Components.RenderFragment?
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Loading.set -> void
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Query.get -> DotNetQuery.Core.IInfiniteQuery<TArgs, TData!, TPageParam>!
+DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Query.set -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Content.get -> Microsoft.AspNetCore.Components.RenderFragment<DotNetQuery.Core.InfiniteQueryState<TData!, TPageParam>!>!
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Content.set -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Dispose() -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Failure.get -> Microsoft.AspNetCore.Components.RenderFragment<System.Exception!>?
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Failure.set -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.InfiniteTransition() -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Loading.get -> Microsoft.AspNetCore.Components.RenderFragment?
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Loading.set -> void
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Query.get -> DotNetQuery.Core.IInfiniteQuery<TArgs, TData!, TPageParam>!
+DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Query.set -> void
+override DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.OnParametersSet() -> void
+override DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.OnParametersSet() -> void
+~override DotNetQuery.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder __builder) -> void
+~override DotNetQuery.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder __builder) -> void
