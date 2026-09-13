@@ -379,35 +379,38 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
             var didFetch = command.Direction switch
             {
                 FetchDirection.RefetchAll => await ExecuteRefetchAllAsync(
-                    snapshotPages,
-                    snapshotParams,
-                    snapshotHasNext,
-                    snapshotHasPrev,
-                    refetchParams!,
-                    activity,
-                    counter,
-                    linkedToken
-                ),
+                        snapshotPages,
+                        snapshotParams,
+                        snapshotHasNext,
+                        snapshotHasPrev,
+                        refetchParams!,
+                        activity,
+                        counter,
+                        linkedToken
+                    )
+                    .ConfigureAwait(false),
                 FetchDirection.FetchNext => await ExecuteFetchNextAsync(
-                    snapshotPages,
-                    snapshotParams,
-                    snapshotHasNext,
-                    snapshotHasPrev,
-                    boundaryParam,
-                    activity,
-                    counter,
-                    linkedToken
-                ),
+                        snapshotPages,
+                        snapshotParams,
+                        snapshotHasNext,
+                        snapshotHasPrev,
+                        boundaryParam,
+                        activity,
+                        counter,
+                        linkedToken
+                    )
+                    .ConfigureAwait(false),
                 FetchDirection.FetchPrevious => await ExecuteFetchPreviousAsync(
-                    snapshotPages,
-                    snapshotParams,
-                    snapshotHasNext,
-                    snapshotHasPrev,
-                    boundaryParam,
-                    activity,
-                    counter,
-                    linkedToken
-                ),
+                        snapshotPages,
+                        snapshotParams,
+                        snapshotHasNext,
+                        snapshotHasPrev,
+                        boundaryParam,
+                        activity,
+                        counter,
+                        linkedToken
+                    )
+                    .ConfigureAwait(false),
                 _ => false,
             };
 
@@ -554,7 +557,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
         foreach (var param in paramsToFetch)
         {
             ct.ThrowIfCancellationRequested();
-            var page = await FetchPageAsync(param, activity, counter, ct);
+            var page = await FetchPageAsync(param, activity, counter, ct).ConfigureAwait(false);
 
             // Keep the previous instance when the re-fetched page is structurally identical, so
             // consumers relying on reference equality don't observe a change that isn't one.
@@ -614,7 +617,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
             )
         );
 
-        var page = await FetchPageAsync(nextParam, activity, counter, ct);
+        var page = await FetchPageAsync(nextParam, activity, counter, ct).ConfigureAwait(false);
 
         if (_disposed)
         {
@@ -670,7 +673,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
             )
         );
 
-        var page = await FetchPageAsync(prevParam, activity, counter, ct);
+        var page = await FetchPageAsync(prevParam, activity, counter, ct).ConfigureAwait(false);
 
         if (_disposed)
         {

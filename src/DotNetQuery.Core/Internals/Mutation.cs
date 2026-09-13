@@ -108,18 +108,20 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
 
         try
         {
-            data = await _options.RetryHandler.ExecuteAsync(
-                ct =>
-                {
-                    if (Interlocked.Increment(ref attempts) > 1)
+            data = await _options
+                .RetryHandler.ExecuteAsync(
+                    ct =>
                     {
-                        activity?.AddEvent(new ActivityEvent("retry"));
-                    }
+                        if (Interlocked.Increment(ref attempts) > 1)
+                        {
+                            activity?.AddEvent(new ActivityEvent("retry"));
+                        }
 
-                    return _options.Mutator(args, ct);
-                },
-                cancellationToken
-            );
+                        return _options.Mutator(args, ct);
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
             stopwatch.Stop();
 
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);

@@ -1,0 +1,36 @@
+#nullable enable
+DotNetQuery.Mvvm.BindableBase
+DotNetQuery.Mvvm.BindableBase.BindableBase() -> void
+DotNetQuery.Mvvm.BindableBase.PropertyChanged -> System.ComponentModel.PropertyChangedEventHandler?
+DotNetQuery.Mvvm.BindableBase.RaisePropertyChanged(string? propertyName = null) -> void
+DotNetQuery.Mvvm.BindableBase.SetProperty<T>(ref T field, T value, string? propertyName = null) -> bool
+DotNetQuery.Mvvm.IUiDispatcher
+DotNetQuery.Mvvm.IUiDispatcher.Post(System.Action! action) -> void
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.CancelCommand.get -> System.Windows.Input.ICommand!
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.CurrentState.get -> DotNetQuery.Core.QueryState<TData!>!
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.Data.get -> TData?
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.DisplayData.get -> TData?
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.Dispose() -> void
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.Error.get -> System.Exception?
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.HasData.get -> bool
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.HasError.get -> bool
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.IsFailure.get -> bool
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.IsFetching.get -> bool
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.IsIdle.get -> bool
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.IsLoading.get -> bool
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.IsSuccess.get -> bool
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.LastData.get -> TData?
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.Query.get -> DotNetQuery.Core.IQuery<TArgs, TData!>!
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.QueryViewModel(DotNetQuery.Core.IQuery<TArgs, TData!>! query, DotNetQuery.Mvvm.IUiDispatcher? dispatcher = null) -> void
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.QueryViewModel(DotNetQuery.Core.IQueryClient! client, DotNetQuery.Core.QueryOptions<TArgs, TData!>! options, DotNetQuery.Mvvm.IUiDispatcher? dispatcher = null) -> void
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.RefetchCommand.get -> System.Windows.Input.ICommand!
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.SetArgs(TArgs args) -> void
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.SetData(TData! data) -> void
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.SetEnabled(bool enabled) -> void
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.Status.get -> DotNetQuery.Core.QueryStatus
+DotNetQuery.Mvvm.SynchronizationContextUiDispatcher
+DotNetQuery.Mvvm.SynchronizationContextUiDispatcher.Post(System.Action! action) -> void
+DotNetQuery.Mvvm.SynchronizationContextUiDispatcher.SynchronizationContextUiDispatcher(System.Threading.SynchronizationContext? context) -> void
+static DotNetQuery.Mvvm.SynchronizationContextUiDispatcher.CaptureCurrent() -> DotNetQuery.Mvvm.SynchronizationContextUiDispatcher!
+virtual DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.Dispose(bool disposing) -> void

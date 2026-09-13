@@ -33,9 +33,104 @@ dotnet csharpier format .
 
 The formatter (`csharpier`) runs as a CI gate — always run it before committing. Indentation is 4 spaces for C#/Razor/JS files, 2 spaces for XML/config files (see `.editorconfig`).
 
+## Build gates
+
+Four independent gates guard the shipping surface, all wired up in `src/Directory.Build.props` (which
+applies to `src/` only — tests and samples are untouched).
+
+Two of them are switched per project rather than defaulted: `TrackPublicApi` and `IsAotCompatible` have no
+default, and every `src/` project must set each explicitly in its own `.csproj`. The
+`RequireExplicitProjectProperties` target fails the build if either is missing, so an opt-out is always a
+visible decision in the project that makes it rather than a silent consequence of omission. When adding a
+gate that works this way, extend that one target rather than adding a parallel one.
+
+### Package validation (breaking changes)
+
+`EnablePackageValidation` diffs each packed assembly against the last published release, set by
+`PackageValidationBaselineVersion` (currently `2.0.0-beta.2`, uniform across all five packages). It runs on
+`dotnet pack`, not `dotnet build`, and it compares the real assemblies against what consumers installed —
+so it catches breaks the API text files cannot, including ones that only manifest on one target framework.
+
+**Bump the baseline after every release.** For an intentional break, generate a suppression file rather than
+weakening the gate:
+
+```bash
+dotnet pack -c Release -p:GenerateCompatibilitySuppressionFile=true
+```
+
+### Public API files (surface tracking)
+
+Every `src/` project except `DotNetQuery.Blazor.DevTools` carries a `PublicAPI.Shipped.txt` /
+`PublicAPI.Unshipped.txt` pair listing its entire public surface. Adding, removing, or changing a public
+member fails the Release build (`RS0016` / `RS0017`) until the line is added to or removed from
+`PublicAPI.Unshipped.txt`. DevTools sets `<TrackPublicApi>false</TrackPublicApi>` — it ships a drop-in
+debugging component rather than an API consumers program against, so tracking it buys no compat guarantee
+worth the Razor churn.
+
+`PublicAPI.Shipped.txt` was seeded from the `v2.0.0-beta.2` surface, so a PR's diff to
+`PublicAPI.Unshipped.txt` is exactly the API it adds. When cutting a release, move the accumulated
+`Unshipped` lines into `Shipped` and leave `Unshipped` with just its `#nullable enable` header.
+
+To regenerate entries after an API change, either apply the IDE code fix ("Add to public API") or run:
+
+```bash
+# repeat until the line count stops growing; the fixer applies one batch per pass
+dotnet format analyzers DotNetQuery.slnx --diagnostics RS0016 --severity warn
+```
+
+`dotnet format` cannot fix `.razor` files, so `<Suspense>`-style component members must be added to
+`src/DotNetQuery.Blazor/PublicAPI.Unshipped.txt` by hand — the `RS0016` message text is the exact line to paste.
+
+Two rules are suppressed per-project, each with a comment in the `.csproj`: `RS0041` in `DotNetQuery.Blazor`
+(the Razor-generated `BuildRenderTree` overrides use oblivious reference types) and `RS0026` in
+`DotNetQuery.Mvvm` (`QueryViewModel` has two intentional constructor overloads with an optional dispatcher).
+
+### Banned symbols (the `IScheduler` invariant)
+
+`src/BannedSymbols.txt` — one shared list, pulled into every `src/` project as an `AdditionalFiles` entry via
+`$(MSBuildThisFileDirectory)` — bans ambient time (`DateTime.Now` / `.UtcNow` / `.Today`,
+`DateTimeOffset.Now` / `.UtcNow`) and blocking waits (`Thread.Sleep`, `Task.Delay`). All time must flow
+through the injected `IScheduler` so tests can drive virtual time with `TestScheduler`; a stray
+`DateTime.UtcNow` silently reintroduces wall-clock dependence that no test can control. Violations fail the
+Release build as `RS0030`, quoting the per-symbol message from the file. Tests are unaffected — the gate is
+scoped to `src/`, and test code is free to use real time.
+
+To ban another API, add a line in documentation-comment ID form (`P:` property, `M:` method with the full
+parameter list, `T:` type), followed by `;` and the message to show.
+
+### Trim and AOT analyzers
+
+`IsAotCompatible` turns on the trim, AOT, and single-file analyzers and stamps the assembly trimmable.
+Blazor WASM trims by default on release publish and MAUI/UNO consumers publish AOT, so a trim-unsafe
+construct here would otherwise surface as a runtime failure in a consumer's app rather than a build error in
+ours.
+
+`DotNetQuery.Blazor.DevTools` sets `<IsAotCompatible>false</IsAotCompatible>`. Its cache inspector
+reflection-serializes arbitrary consumer data (`QueryDevTools.SerializeData` takes `object?`), which trips
+`IL2026` / `IL3050` and which no source generation can make statically analyzable — the types belong to the
+consumer. Under trimming `JsonSerializer` emits silently-empty JSON rather than throwing into the existing
+`catch`, so claiming AOT compatibility there would be claiming something untrue. The other four projects are
+genuinely trim- and AOT-clean; keep them that way rather than suppressing a new `IL` diagnostic.
+
+### No NuGet lock files (deliberate)
+
+This repo does **not** use `packages.lock.json`, and CI restores without `--locked-mode`. Central Package
+Management already pins every direct dependency to an exact version in `Directory.Packages.props`, and NuGet
+resolves transitives lowest-applicable, so the graph is deterministic without a lock file. Lock files are not
+packed into the nupkg either — they would have protected only this repo's own build, not consumers.
+
+What they cost was concrete: `IsAotCompatible=true` makes the SDK inject an implicit
+`Microsoft.NET.ILLink.Tasks` `PackageReference` whose version is the SDK's *bundled runtime patch*. Nothing
+here names that version, so a machine on a different SDK patch failed `--locked-mode` restore with `NU1004`
+before a single line compiled — which in turn forced `global.json` to pin an exact SDK with
+`rollForward: disable`, and left Dependabot to regenerate nine lock files per bump.
+
+So if you are tempted to switch `RestorePackagesWithLockFile` back on, know that it also commits you to
+pinning the SDK exactly and keeping that pin in step with `dotnet-sdk_10` in `flake.nix`.
+
 ## Architecture
 
-The solution has four projects under `src/` and three test projects under `tests/`:
+The solution has five projects under `src/` and four test projects under `tests/`:
 
 | Project | Purpose |
 |---|---|
@@ -43,6 +138,7 @@ The solution has four projects under `src/` and three test projects under `tests
 | `DotNetQuery.Extensions.DependencyInjection` | `AddDotNetQuery()` extension; lifetime is Singleton (CSR) or Scoped (SSR) |
 | `DotNetQuery.Blazor` | `<Suspense>`, `<Transition>`, `<InfiniteSuspense>`, `<InfiniteTransition>`, `<QueryRefreshMonitor>` Blazor components |
 | `DotNetQuery.Blazor.DevTools` | `<QueryDevTools>` live cache inspector component |
+| `DotNetQuery.Mvvm` | `QueryViewModel<TArgs,TData>` INPC wrapper with `IUiDispatcher` UI-thread marshaling, for MAUI/WPF/WinUI/UNO/Avalonia |
 
 ### Core layer (`DotNetQuery.Core`)
 
@@ -75,6 +171,12 @@ The solution has four projects under `src/` and three test projects under `tests
 - `<InfiniteSuspense>` / `<InfiniteTransition>` — the `IInfiniteQuery` equivalents of the two components above. Unlike `<Suspense>` / `<Transition>`, their `Content` slot receives the whole `InfiniteQueryState<TData,TPageParam>` as context, so templates can render the accumulated `Pages` alongside the `IsFetchingNextPage` / `IsFetchingPreviousPage` flags.
 - `<QueryRefreshMonitor>` — JS interop component; registers `visibilitychange` and `online` event listeners via `QueryRefreshMonitor.js` and calls `QueryClient.Invalidate(_ => true)` on focus/reconnect.
 - `<QueryDevTools>` — live cache panel; subscribes to `IQueryClientInspector.CacheEntries`; uses `QueryDevTools.js` for drag-to-resize panel handles and theme persistence.
+
+### Mvvm layer (`DotNetQuery.Mvvm`)
+
+- `QueryViewModel<TArgs,TData>` — wraps `IQuery<TArgs,TData>` and exposes bindable properties (`Data`, `DisplayData` = stale-while-revalidate fallback, `IsLoading` = first-load-only vs `IsFetching` = any fetch, `RefetchCommand` / `CancelCommand`, ...). Holds a live `State` subscription for its lifetime (this is what retains the cache entry); `Dispose()` releases the subscription first, then disposes the query iff it was created via the `IQueryClient` + `QueryOptions` ctor (the `IQuery`-wrapping ctor leaves ownership with the caller).
+- State applies are marshaled through `IUiDispatcher.Post` (default: `SynchronizationContextUiDispatcher` capturing `SynchronizationContext.Current` at construction; null context invokes inline for tests/console). Emissions are coalesced latest-wins per UI hop; the whole `QueryState` snapshot is swapped before any `PropertyChanged` fires (no torn reads), and only actually-changed properties are raised.
+- `BindableBase` — public minimal INPC base (deliberately not named `ObservableObject` to avoid CommunityToolkit clashes). `RelayCommand` is `internal` for the same reason. Zero dependencies beyond `DotNetQuery.Core`.
 
 ### DI registration
 

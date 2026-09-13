@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>MVVM view models (INotifyPropertyChanged bindings) for DotNetQuery — MAUI, WPF, WinUI, UNO Platform, and Avalonia</Description>
+    <!-- RS0026: QueryViewModel has two intentional constructor overloads with an optional
+         dispatcher; they are unambiguous, distinguished by their first parameter. -->
+    <NoWarn>$(NoWarn);RS0026</NoWarn>
+    <TrackPublicApi>true</TrackPublicApi>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DotNetQuery.Core\DotNetQuery.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
