@@ -112,6 +112,22 @@ consumer. Under trimming `JsonSerializer` emits silently-empty JSON rather than 
 `catch`, so claiming AOT compatibility there would be claiming something untrue. The other four projects are
 genuinely trim- and AOT-clean; keep them that way rather than suppressing a new `IL` diagnostic.
 
+### No NuGet lock files (deliberate)
+
+This repo does **not** use `packages.lock.json`, and CI restores without `--locked-mode`. Central Package
+Management already pins every direct dependency to an exact version in `Directory.Packages.props`, and NuGet
+resolves transitives lowest-applicable, so the graph is deterministic without a lock file. Lock files are not
+packed into the nupkg either — they would have protected only this repo's own build, not consumers.
+
+What they cost was concrete: `IsAotCompatible=true` makes the SDK inject an implicit
+`Microsoft.NET.ILLink.Tasks` `PackageReference` whose version is the SDK's *bundled runtime patch*. Nothing
+here names that version, so a machine on a different SDK patch failed `--locked-mode` restore with `NU1004`
+before a single line compiled — which in turn forced `global.json` to pin an exact SDK with
+`rollForward: disable`, and left Dependabot to regenerate nine lock files per bump.
+
+So if you are tempted to switch `RestorePackagesWithLockFile` back on, know that it also commits you to
+pinning the SDK exactly and keeping that pin in step with `dotnet-sdk_10` in `flake.nix`.
+
 ## Architecture
 
 The solution has five projects under `src/` and four test projects under `tests/`:

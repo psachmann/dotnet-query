@@ -46,7 +46,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'dotnet-tools.json') }}
           restore-keys: |
             nuget-${{ runner.os }}
             nuget
@@ -55,7 +55,7 @@ jobs:
         run: dotnet tool restore
 
       - name: Restore packages
-        run: dotnet restore --locked-mode
+        run: dotnet restore
 
       - name: Format
         id: csharpier
