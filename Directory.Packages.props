@@ -20,8 +20,8 @@
     <PackageVersion Include="MinVer" Version="8.0.0" />
     <PackageVersion Include="Radzen.Blazor" Version="11.4.1" />
     <PackageVersion Include="System.Reactive" Version="7.0.0" />
-    <PackageVersion Include="TUnit" Version="1.67.0" />
-    <PackageVersion Include="TUnit.Mocks" Version="1.67.0" />
-    <PackageVersion Include="TUnit.Mocks.Logging" Version="1.67.0" />
+    <PackageVersion Include="TUnit" Version="1.68.17" />
+    <PackageVersion Include="TUnit.Mocks" Version="1.68.17" />
+    <PackageVersion Include="TUnit.Mocks.Logging" Version="1.68.17" />
   </ItemGroup>
 </Project>
