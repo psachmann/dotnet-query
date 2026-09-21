@@ -13,8 +13,11 @@
     "Blazor",
     "bunit",
     "dotnet",
+    "github",
     "Mvvm",
     "nullable",
-    "Radzen"
+    "Radzen",
+    "snupkg",
+    "softprops"
   ]
 }

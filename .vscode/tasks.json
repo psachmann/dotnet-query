@@ -1,0 +1,145 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "restore:tools",
+        "command": "dotnet",
+        "type": "process",
+        "args": [
+          "tool",
+          "restore"
+        ],
+        "problemMatcher": []
+    },
+    {
+      "label": "restore:packages",
+        "command": "dotnet",
+        "type": "process",
+        "args": [
+          "restore"
+        ],
+        "problemMatcher": []
+    },
+    {
+      "label": "build:debug",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/DotNetQuery.slnx",
+        "--configuration",
+        "Debug",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary;ForceNoAlign"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build:release",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/DotNetQuery.slnx",
+        "--configuration",
+        "Release",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary;ForceNoAlign"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "test:debug",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "test",
+        "${workspaceFolder}/DotNetQuery.slnx",
+        "--configuration",
+        "Debug",
+        "/property:GenerateFullPaths=true"
+      ],
+      "group": "test",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "test:release",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "test",
+        "${workspaceFolder}/DotNetQuery.slnx",
+        "--configuration",
+        "Release",
+        "/property:GenerateFullPaths=true"
+      ],
+      "group": "test",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "format:check",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "csharpier",
+        "check",
+        "."
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "restore:tools",
+      "problemMatcher": []
+    },
+    {
+      "label": "format:fix",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "csharpier",
+        "format",
+        "."
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "restore:tools",
+      "problemMatcher": []
+    },
+    {
+      "label": "clean",
+      "type": "shell",
+      "command": "dotnet clean ${workspaceFolder}/DotNetQuery.slnx --configuration Debug && dotnet clean ${workspaceFolder}/DotNetQuery.slnx --configuration Release",
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run:blazor",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/samples/DotNetQuery.Samples.Blazor/DotNetQuery.Samples.Blazor.csproj",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary;ForceNoAlign"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run:avalonia",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/samples/DotNetQuery.Samples.Avalonia/DotNetQuery.Samples.Avalonia.csproj",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary;ForceNoAlign"
+      ],
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}
