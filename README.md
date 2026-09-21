@@ -14,13 +14,15 @@ DotNet Query brings the battle-tested data-fetching patterns of TanStack Query t
 ## Features
 
 - **Queries** — fetch async data with automatic caching, background refetching, and stale-while-revalidate semantics
+- **Infinite queries** — paginated and "load more" data fetching with `<InfiniteSuspense>` / `<InfiniteTransition>`
 - **Mutations** — execute data-modifying operations with lifecycle callbacks and automatic cache invalidation on success
 - **Reactive state** — built on [Rx.NET](https://github.com/dotnet/reactive), every query and mutation exposes `IObservable` streams for composable async pipelines
 - **Smart caching** — configurable stale time and cache time control when data is re-fetched and when it is evicted
 - **Query deduplication** — identical keys share a single cached query instance; no redundant requests
-- **Retry logic** — exponential backoff out of the box; plug in your own strategy via `IRetryHandler`
+- **Retry logic** — one attempt by default, fail-fast; plug in exponential backoff or any other policy via `IRetryHandler`
 - **Observability** — OTel-compatible distributed tracing (`ActivitySource`), metrics (`Meter`), and structured logging (`ILogger`) using only BCL APIs; no OpenTelemetry package required in the library
 - **Blazor components** — `<Suspense>` and `<Transition>` components for declarative query rendering
+- **DevTools** — `<QueryDevTools>` live cache inspector component for development
 - **MVVM view models** — `QueryViewModel<TArgs, TData>` with bindable `INotifyPropertyChanged` properties and UI-thread marshaling for MAUI, WPF, WinUI, UNO Platform, and Avalonia
 - **CSR / SSR support** — `QueryExecutionMode` controls Singleton (WebAssembly) vs Scoped (Server-Side Rendering) DI lifetime
 - **DI integration** — first-class support for `Microsoft.Extensions.DependencyInjection`
@@ -37,6 +39,9 @@ dotnet add package DotNetQuery.Extensions.DependencyInjection
 # Blazor components
 dotnet add package DotNetQuery.Blazor
 
+# Blazor DevTools — live cache inspector for development
+dotnet add package DotNetQuery.Blazor.DevTools
+
 # MVVM view models (MAUI, WPF, WinUI, UNO, Avalonia)
 dotnet add package DotNetQuery.Mvvm
 ```
@@ -50,6 +55,7 @@ Full guides, examples, and API reference are available **[here](https://psachman
 - [Guides](https://psachmann.github.io/dotnet-query/doc/guides/queries.html) — queries, mutations, caching, Blazor, retries, and SSR
 - [Migrating from v1](https://psachmann.github.io/dotnet-query/doc/migrating-to-v2.html) — breaking changes and upgrade steps for 2.0
 - [API Reference](https://psachmann.github.io/dotnet-query/api/DotNetQuery.Core.html) — full generated API docs
+- [Blazor sample](samples/DotNetQuery.Samples.Blazor) and [Avalonia sample](samples/DotNetQuery.Samples.Avalonia) — complete, runnable apps built on the library
 
 > **AI agents / LLMs:** a single-file reference covering the full public API, all patterns, and architecture notes is available at [`/llms.txt`](https://psachmann.github.io/dotnet-query/llms.txt).
 
@@ -104,4 +110,4 @@ Contributions are welcome! Please see the [Contributing guide](https://psachmann
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2026 Patrick Sachmann
+[MIT](LICENSE.md) — Copyright (c) 2026 Patrick Sachmann

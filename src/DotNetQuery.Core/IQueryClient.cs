@@ -30,12 +30,18 @@ public interface IQueryClient : IDisposable
     IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options);
 
     /// <summary>
-    /// Marks all queries matching the given key as stale and triggers a re-fetch.
+    /// Marks all queries matching the given key as stale and, for entries with an active
+    /// subscriber, triggers a re-fetch. Entries still within their <c>StaleTime</c> window are
+    /// left untouched, and entries with no active subscriber are only marked stale — the re-fetch
+    /// is deferred until the next subscriber arrives.
     /// </summary>
     void Invalidate(QueryKey key);
 
     /// <summary>
-    /// Marks all queries whose key matches the predicate as stale and triggers a re-fetch.
+    /// Marks all queries whose key matches the predicate as stale and, for entries with an active
+    /// subscriber, triggers a re-fetch. Entries still within their <c>StaleTime</c> window are
+    /// left untouched, and entries with no active subscriber are only marked stale — the re-fetch
+    /// is deferred until the next subscriber arrives.
     /// </summary>
     void Invalidate(Func<QueryKey, bool> predicate);
 }

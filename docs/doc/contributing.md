@@ -28,7 +28,7 @@ You need:
 | Tool | Version |
 |------|---------|
 | .NET SDK | 10.0 (see [global.json](https://github.com/psachmann/dotnet-query/blob/main/global.json)) |
-| CSharpier | 1.2.6 (installed as a local dotnet tool) |
+| CSharpier | 1.3.0 (installed as a local dotnet tool) |
 
 After cloning, restore the local tools and packages:
 
@@ -36,6 +36,19 @@ After cloning, restore the local tools and packages:
 dotnet tool restore
 dotnet restore
 ```
+
+## Git Hooks
+
+The repo ships [husky](https://alirezanet.github.io/Husky.Net/) hook definitions in `.husky/`, but no
+project wires them up automatically — install them once per clone:
+
+```bash
+dotnet husky install
+```
+
+This adds a pre-commit hook that runs `dotnet csharpier format` on staged files, and a pre-push hook
+that runs the full test suite (`dotnet test -c Release`). Both mirror checks CI also runs, so the
+hooks just let you catch a formatting or test failure before pushing instead of after.
 
 ## Common Commands
 
@@ -47,23 +60,60 @@ dotnet build
 dotnet test
 
 # Run tests with coverage
-dotnet test --collect:"XPlat Code Coverage"
+dotnet test --configuration Release -- --coverage --coverage-output-format cobertura
 
 # Check formatting
 dotnet csharpier check .
 
 # Fix formatting
-dotnet csharpier .
+dotnet csharpier format .
 
 # Build the documentation site
-docfx docs/docfx.json
+dotnet docfx docs/docfx.json
 ```
 
 ## Code Style
 
-The project uses [CSharpier](https://csharpier.com/) for formatting. It runs automatically as a pre-commit check in CI. Run `dotnet csharpier .` locally before pushing to avoid the CI failing on formatting.
+The project uses [CSharpier](https://csharpier.com/) for formatting, enforced as a CI gate and as a husky pre-commit hook (see [Git Hooks](#git-hooks) below). Run `dotnet csharpier format .` locally before pushing to avoid the CI failing on formatting.
 
 There is no extensive style guide beyond what CSharpier enforces — just try to follow the patterns already present in the codebase.
+
+## Build Gates
+
+Four gates guard the shipping surface under `src/` (tests and samples are unaffected). Any of them can
+turn a change that builds locally into a Release-build failure, so it's worth knowing what each one is
+before your PR trips it:
+
+- **Public API tracking** — every `src/` project (except DevTools) lists its entire public surface in
+  `PublicAPI.Shipped.txt` / `PublicAPI.Unshipped.txt`. Adding, removing, or changing a public member
+  fails the Release build (`RS0016` / `RS0017`) until you add or remove the line. Apply the IDE's "Add
+  to public API" code fix, or run:
+
+  ```bash
+  dotnet format analyzers DotNetQuery.slnx --diagnostics RS0016 --severity warn
+  ```
+
+  This can't touch `.razor` files — `<Suspense>`-style component members go into
+  `src/DotNetQuery.Blazor/PublicAPI.Unshipped.txt` by hand, using the exact line the `RS0016` message
+  gives you.
+
+- **Package validation** — `dotnet pack` diffs each assembly against the last stable release and fails
+  on an unintentional breaking change. It only runs on `pack`, not `build`, so run
+  `dotnet pack -c Release` locally if your change touches a public member. An intentional break needs a
+  suppression file, not a weakened gate:
+
+  ```bash
+  dotnet pack -c Release -p:GenerateCompatibilitySuppressionFile=true
+  ```
+
+- **Banned symbols** (`src/BannedSymbols.txt`) — bans ambient time (`DateTime.Now`/`.UtcNow`, etc.) and
+  blocking waits (`Thread.Sleep`, `Task.Delay`) as `RS0030`. All time in `src/` must flow through the
+  injected `IScheduler` so tests can drive it with `TestScheduler` — this gate is what catches a stray
+  `DateTime.UtcNow` before it ships. Test code is exempt.
+
+- **Trim / AOT analyzers** — every `src/` project except DevTools claims trim and AOT compatibility.
+  A construct that can't be statically analyzed for trimming fails the Release build rather than
+  surfacing later as a runtime failure in a consumer's trimmed or AOT-published app.
 
 ## Making Changes
 
@@ -90,12 +140,12 @@ Documentation lives in the `docs/doc/` directory as Markdown files. Changes to d
 
 ## Running the Documentation Site Locally
 
-```bash
-# Install DocFX if you do not have it
-dotnet tool install -g docfx
+DocFX is already restored as a local tool by `dotnet tool restore` (see [Setting Up Your Dev
+Environment](#setting-up-your-dev-environment)).
 
+```bash
 # Build and serve locally
-docfx docs/docfx.json --serve
+dotnet docfx docs/docfx.json --serve
 ```
 
 Then open `http://localhost:8080` in your browser.
@@ -121,4 +171,4 @@ Found a bug? Have a question? Please [open an issue](https://github.com/psachman
 
 ## License
 
-By contributing to DotNet Query, you agree that your contributions will be licensed under the [MIT License](https://github.com/psachmann/dotnet-query/blob/main/LICENSE).
+By contributing to DotNet Query, you agree that your contributions will be licensed under the [MIT License](https://github.com/psachmann/dotnet-query/blob/main/LICENSE.md).

@@ -4,7 +4,7 @@ This guide walks you through installing DotNet Query and writing your first quer
 
 ## Prerequisites
 
-- .NET 10.0 or later
+- .NET 9.0 or .NET 10.0
 - A project that uses `Microsoft.Extensions.DependencyInjection` (ASP.NET Core, Blazor, or any generic host) — or just the factory if you are wiring things up manually.
 
 ## Installation
@@ -23,6 +23,9 @@ dotnet add package DotNetQuery.Blazor
 
 # Blazor DevTools — live cache inspector for development
 dotnet add package DotNetQuery.Blazor.DevTools
+
+# MVVM view models — if you use MAUI, WPF, WinUI, UNO Platform, or Avalonia
+dotnet add package DotNetQuery.Mvvm
 ```
 
 ## Setting Up the Client
@@ -72,8 +75,9 @@ public sealed class UserQueries(IQueryClient queryClient, HttpClient httpClient)
         new QueryOptions<int, UserDto>
         {
             KeyFactory = id => QueryKey.From("users", id),
-            Fetcher    = (id, ct) => httpClient.GetFromJsonAsync<UserDto>($"/api/users/{id}", ct)
-                                     ?? throw new InvalidOperationException("User not found."),
+            Fetcher    = async (id, ct) =>
+                await httpClient.GetFromJsonAsync<UserDto>($"/api/users/{id}", ct)
+                ?? throw new InvalidOperationException("User not found."),
         }
     );
 
@@ -127,7 +131,14 @@ public sealed class UserMutations(IQueryClient queryClient, HttpClient httpClien
     public readonly IMutation<CreateUserRequest, UserDto> CreateUser =
         queryClient.CreateMutation(new MutationOptions<CreateUserRequest, UserDto>
         {
-            Mutator = (request, ct) => httpClient.PostAsJsonAsync<UserDto>("/api/users", request, ct),
+            Mutator = async (request, ct) =>
+            {
+                var response = await httpClient.PostAsJsonAsync("/api/users", request, ct);
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadFromJsonAsync<UserDto>(ct)
+                    ?? throw new InvalidOperationException("The server returned no user.");
+            },
 
             // Automatically invalidate the "users" list query after a successful creation
             InvalidateKeys = [QueryKey.From("users")],
@@ -232,4 +243,4 @@ See the [Blazor Components guide](guides/blazor.md) for more details, including 
 - [Caching guide](guides/caching.md) — understand stale time, cache time, and deduplication.
 - [Blazor Components guide](guides/blazor.md) — `<Suspense>` and `<Transition>` in detail.
 - [Observability guide](guides/observability.md) — distributed tracing, metrics, and structured logging with OpenTelemetry.
-- [Examples](examples/queries.md) — complete real-world examples.
+- [Blazor sample](https://github.com/psachmann/dotnet-query/tree/main/samples/DotNetQuery.Samples.Blazor) and [Avalonia sample](https://github.com/psachmann/dotnet-query/tree/main/samples/DotNetQuery.Samples.Avalonia) — complete, runnable apps built on the library.

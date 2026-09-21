@@ -23,6 +23,7 @@ dotnet add package DotNetQuery.Core
 dotnet add package DotNetQuery.Extensions.DependencyInjection
 dotnet add package DotNetQuery.Blazor
 dotnet add package DotNetQuery.Blazor.DevTools
+dotnet add package DotNetQuery.Mvvm
 ```
 
 While 2.0 is in preview, add `--prerelease` to each command or pass an explicit `--version`.
