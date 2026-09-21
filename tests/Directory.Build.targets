@@ -1,0 +1,57 @@
+<Project>
+  <!--
+    Works around a .NET SDK restore bug (dotnet/sdk#46288, #42722): for a multi-targeted
+    Microsoft.Testing.Platform Exe project (TestingPlatformDotnetTestSupport/OutputType=Exe come
+    from TUnit's own imported .props, at Microsoft.NET.Sdk.targets(799,5)'s _CreateAppHost target),
+    some SDK feature bands (confirmed broken: 10.0.401; confirmed fine: 10.0.300) never issue the
+    implicit PackageDownload for the native apphost template on the *non-primary* TargetFramework —
+    net9.0 here, since net10.0 is the SDK's own version and needs no restore at all. Restore then
+    completes with no error, and the later build fails with:
+
+      MSB3030: Could not copy the file ".../obj/Release/net9.0/apphost" because it was not found.
+
+    Requesting the package explicitly sidesteps the broken implicit trigger. The version can't be a
+    fixed literal: each SDK feature band bundles its own exact AppHostPackVersion for net9.0 (9.0.16
+    under 10.0.300, 9.0.20 under 10.0.401 — confirmed by testing both), and PackageDownload requires
+    an exact match, so pinning one breaks every SDK that expects a different one. AppHostPackVersion
+    is *not* an MSBuild property despite the name and despite `-v:diag` printing it as if it were one
+    — it only exists as metadata on the SDK's per-TargetFramework <KnownAppHostPack> items declared in
+    Microsoft.NETCoreSdk.BundledVersions.props, so it has to be looked up by matching that item's own
+    TargetFramework metadata against $(TargetFramework). This lookup must run inside a Target
+    (BeforeTargets="CollectPackageDownloads"): a bare top-level ItemGroup evaluates during restore's
+    static-graph pass, before the properties/items above are populated in that context, and produces
+    a malformed PackageDownload item that fails restore with MSB4181 and no useful message.
+
+    Confirmed via a debug Message task that $(NETCoreSdkRuntimeIdentifier) — unlike
+    AppHostPackVersion — *is* a real, correctly-populated property at this point, so it's used
+    directly.
+
+    Re-verify this workaround is still needed (and drop it) once the upstream bug is fixed. If a
+    third TargetFramework is ever added to the shared net9.0;net10.0 set, this condition needs
+    revisiting — it only compensates for net9.0 today.
+  -->
+  <Target
+    Name="_WorkaroundMissingAppHostPackDownload"
+    BeforeTargets="CollectPackageDownloads"
+    Condition="'$(TargetFramework)' == 'net9.0'"
+  >
+    <ItemGroup>
+      <_AppHostPackForCurrentTfm
+        Include="@(KnownAppHostPack)"
+        Condition="'%(KnownAppHostPack.TargetFramework)' == '$(TargetFramework)'"
+      />
+    </ItemGroup>
+
+    <Error
+      Condition="'@(_AppHostPackForCurrentTfm)' == ''"
+      Text="No KnownAppHostPack entry found for TargetFramework '$(TargetFramework)' — the app-host restore workaround in tests/Directory.Build.targets needs updating."
+    />
+
+    <ItemGroup>
+      <PackageDownload
+        Include="Microsoft.NETCore.App.Host.$(NETCoreSdkRuntimeIdentifier)"
+        Version="[%(_AppHostPackForCurrentTfm.AppHostPackVersion)]"
+      />
+    </ItemGroup>
+  </Target>
+</Project>
