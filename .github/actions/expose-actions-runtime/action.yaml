@@ -1,0 +1,12 @@
+name: Expose GitHub Actions Runtime
+description: Export the runtime token and results URL so later `run:` steps (e.g. the test coverage tooling) can reach them
+
+runs:
+  using: composite
+  steps:
+    - name: Expose GitHub Actions Runtime
+      uses: actions/github-script@v9
+      with:
+        script: |
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
+          core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);

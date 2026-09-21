@@ -7,6 +7,7 @@ on:
       - 'docs/**'
       - 'src/**'
       - '.github/workflows/docs.yaml'
+      - '.github/actions/**'
 
 jobs:
   docs:
@@ -25,15 +26,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
-
-      - name: Restore tools
-        run: dotnet tool restore
-
-      - name: Restore packages
-        run: dotnet restore
+        uses: ./.github/actions/setup-dotnet
 
       - name: Build
         run: dotnet build --configuration Release --no-restore

@@ -1,0 +1,31 @@
+name: Setup .NET
+description: Install the pinned SDK plus test runtimes, restore the NuGet cache, tools and packages
+
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
+        # The SDK above builds; these add the runtimes the multi-targeted tests launch on.
+        dotnet-version: |
+          9.0.x
+          10.0.x
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v6
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'dotnet-tools.json') }}
+        restore-keys: |
+          nuget-${{ runner.os }}
+          nuget
+
+    - name: Restore tools
+      shell: bash
+      run: dotnet tool restore
+
+    - name: Restore packages
+      shell: bash
+      run: dotnet restore
