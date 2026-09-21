@@ -26,8 +26,6 @@ dotnet add package DotNetQuery.Blazor.DevTools
 dotnet add package DotNetQuery.Mvvm
 ```
 
-While 2.0 is in preview, add `--prerelease` to each command or pass an explicit `--version`.
-
 Then rebuild. Every source-breaking change below produces a compiler error, so the build output is your checklist for that part. Behaviour and telemetry changes compile silently — read those sections even if the build is clean.
 
 ---

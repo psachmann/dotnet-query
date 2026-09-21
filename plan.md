@@ -126,17 +126,18 @@ One PR. Nothing here touches shipping code except one XML doc comment.
 
 Second PR, after Phase 1 lands.
 
-- [ ] Remove `While 2.0 is in preview, add --prerelease to each command or pass an explicit --version.`
+- [x] Remove `While 2.0 is in preview, add --prerelease to each command or pass an explicit --version.`
       from `docs/doc/migrating-to-v2.md:28` — it is the only prerelease reference left in the docs
-- [ ] Move every `PublicAPI.Unshipped.txt` addition into that project's `PublicAPI.Shipped.txt`
+- [x] Move every `PublicAPI.Unshipped.txt` addition into that project's `PublicAPI.Shipped.txt`
       (Core 119 lines, Mvvm 98, Blazor 27, Extensions.DependencyInjection 1)
-- [ ] Delete the four `*REMOVED*` lines in `src/DotNetQuery.Core/PublicAPI.Unshipped.txt:116-119`
+- [x] Delete the four `*REMOVED*` lines in `src/DotNetQuery.Core/PublicAPI.Unshipped.txt:116-119`
       **together with their `Shipped` counterparts** at `PublicAPI.Shipped.txt:170-173` — these are
       the `QueryState<TData>.Create*` factories, removed and re-added only because of the new
       `TData : class` constraint
-- [ ] Leave each `Unshipped` file with just its `#nullable enable` header
-- [ ] **Leave `PackageValidationBaselineVersion` at `1.3.0`** for this release — comparing 2.0.0
+- [x] Leave each `Unshipped` file with just its `#nullable enable` header
+- [x] **Leave `PackageValidationBaselineVersion` at `1.3.0`** for this release — comparing 2.0.0
       against the last stable release is exactly the measurement you want. It gets bumped in Phase 5.
+      (Unchanged — re-verified with `dotnet pack` after the Shipped/Unshipped move; still passes.)
 
 ### Decision needed: `net9.0` ships untested
 
@@ -144,10 +145,16 @@ Second PR, after Phase 1 lands.
 ship `net9.0` **and** `net10.0`. The net9 assemblies compile but no test has ever executed against
 them. Before a major, pick one:
 
-- [ ] Multi-target the test projects to `net9.0;net10.0`, or
-- [ ] Drop `net9.0` from `Directory.Build.props` and ship net10-only (and then keep the TFM doc fixes
-      above consistent with that), or
-- [ ] Consciously accept the gap and note it in `tests/Directory.Build.props` with a comment
+- [x] **Chosen: multi-target the test projects to `net9.0;net10.0`.** Done in
+      `tests/Directory.Build.props`. This sandbox's Nix shell only had the net10.0 runtime
+      installed, so `flake.nix` was also updated — `dotnetCorePackages.combinePackages` now bundles
+      the net9.0 runtime and ASP.NET Core 9.0 runtime alongside the net10.0 SDK, otherwise
+      `dotnet test` can build the net9.0 binaries but not launch them. Verified by building the
+      flake's `devShells.default` and running `dotnet test` inside it: 1108 tests passed (554 ×
+      2 TFMs), including `DotNetQuery.Blazor.Tests` on net9.0 which needs the ASP.NET Core runtime
+      specifically.
+- [ ] ~~Drop `net9.0`...~~ (not chosen)
+- [ ] ~~Accept the gap...~~ (not chosen)
 
 ---
 
@@ -164,13 +171,15 @@ dotnet pack --configuration Release --output ./artifacts
 dotnet docfx ./docs/docfx.json                # expect 0 InvalidFileLink warnings
 ```
 
-- [ ] `csharpier check` clean
-- [ ] Release build, 0 warnings (`TreatWarningsAsErrors` is on in Release)
-- [ ] Full test suite green
-- [ ] **`pack` succeeds** — package validation runs here and nowhere else
-- [ ] docfx: the remaining `Duplicate source file` warnings for the `PublicAPI.*.txt` files are
-      cosmetic (docfx sees the `AdditionalFiles` entry once per TFM) and can be ignored; the
-      `InvalidFileLink` warning must be gone
+- [x] `csharpier check` clean — 157 files
+- [x] Release build, 0 warnings (`TreatWarningsAsErrors` is on in Release)
+- [x] Full test suite green — 1108 tests (554 × net9.0/net10.0), run through the flake's
+      devShell so both runtimes were actually present
+- [x] **`pack` succeeds** — package validation runs here and nowhere else. All 5 packages +
+      snupkgs produced, no validation errors, against the `1.3.0` baseline after the Phase 2
+      Shipped/Unshipped move
+- [x] docfx: 12 warnings, 0 errors — all 12 are the pre-known cosmetic `Duplicate source file`
+      warnings for `PublicAPI.*.txt`; the `InvalidFileLink` warning is gone
 
 > **Why `pack` matters here:** `.github/workflows/build.yaml` runs restore → format → build → test
 > and **never packs**. `EnablePackageValidation` only fires on `dotnet pack`, which happens solely in
