@@ -74,6 +74,9 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --no-restore --no-build --results-directory ./coverage -- --coverage --coverage-output-format cobertura
 
+      - name: Pack (package validation)
+        run: dotnet pack --configuration Release --no-restore --no-build --output ./artifacts
+
       - name: Find coverage files
         id: coverage
         run: |

@@ -47,16 +47,14 @@ gate that works this way, extend that one target rather than adding a parallel o
 ### Package validation (breaking changes)
 
 `EnablePackageValidation` diffs each packed assembly against the last **stable** release, set by
-`PackageValidationBaselineVersion` (currently `1.3.0`). It runs on `dotnet pack`, not `dotnet build`, and it
+`PackageValidationBaselineVersion` (currently `2.0.0`). It runs on `dotnet pack`, not `dotnet build`, and it
 compares the real assemblies against what consumers installed — so it catches breaks the API text files
 cannot, including ones that only manifest on one target framework.
 
 The baseline is deliberately the last stable release rather than the latest prerelease: it measures what
 breaks for someone upgrading from the version they run in production, and each project's
 `CompatibilitySuppressions.xml` doubles as the list of intentional breaks in the upcoming major. The
-trade-off is that churn *between* prereleases goes unflagged. `DotNetQuery.Mvvm` overrides the baseline to
-`2.0.0-beta.2` in its own `.csproj` because it has no `1.3.0` package (pack fails restore with `NU1102`);
-drop that override once the shared baseline reaches `2.0.0`.
+trade-off is that churn *between* prereleases goes unflagged.
 
 **Bump the baseline after every stable release.** For an intentional break, generate a suppression file
 rather than weakening the gate:
@@ -74,12 +72,12 @@ member fails the Release build (`RS0016` / `RS0017`) until the line is added to 
 debugging component rather than an API consumers program against, so tracking it buys no compat guarantee
 worth the Razor churn.
 
-`PublicAPI.Shipped.txt` holds the `v1.3.0` surface — the same last stable release package validation
+`PublicAPI.Shipped.txt` holds the `v2.0.0` surface — the same last stable release package validation
 compares against — so `PublicAPI.Unshipped.txt` is the full API delta of the upcoming release: additions,
-plus `*REMOVED*` lines for 1.3.0 members since dropped or changed. A PR's diff to `Unshipped` is exactly the
-API it changes. `DotNetQuery.Mvvm` did not exist at 1.3.0, so its `Shipped` file is just the header.
+plus `*REMOVED*` lines for 2.0.0 members since dropped or changed. A PR's diff to `Unshipped` is exactly the
+API it changes.
 
-One exception to "Shipped is the 1.3.0 text": members whose only change since 1.3.0 is nullability
+One exception to "Shipped is the 2.0.0 text": members whose only change since 2.0.0 is nullability
 annotation (`!`, `?`, or the oblivious `~` prefix — e.g. `TData` becoming `TData!` once `TData : class` was
 added) appear in `Shipped` in their *current* form. The analyzer matches symbols ignoring annotations, so it
 treats them as the same member and rejects a `*REMOVED*`/re-added pair (`RS0025`, `RS0050`) as well as the
