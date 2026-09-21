@@ -171,13 +171,15 @@ dotnet pack --configuration Release --output ./artifacts
 dotnet docfx ./docs/docfx.json                # expect 0 InvalidFileLink warnings
 ```
 
-- [ ] `csharpier check` clean
-- [ ] Release build, 0 warnings (`TreatWarningsAsErrors` is on in Release)
-- [ ] Full test suite green
-- [ ] **`pack` succeeds** — package validation runs here and nowhere else
-- [ ] docfx: the remaining `Duplicate source file` warnings for the `PublicAPI.*.txt` files are
-      cosmetic (docfx sees the `AdditionalFiles` entry once per TFM) and can be ignored; the
-      `InvalidFileLink` warning must be gone
+- [x] `csharpier check` clean — 157 files
+- [x] Release build, 0 warnings (`TreatWarningsAsErrors` is on in Release)
+- [x] Full test suite green — 1108 tests (554 × net9.0/net10.0), run through the flake's
+      devShell so both runtimes were actually present
+- [x] **`pack` succeeds** — package validation runs here and nowhere else. All 5 packages +
+      snupkgs produced, no validation errors, against the `1.3.0` baseline after the Phase 2
+      Shipped/Unshipped move
+- [x] docfx: 12 warnings, 0 errors — all 12 are the pre-known cosmetic `Duplicate source file`
+      warnings for `PublicAPI.*.txt`; the `InvalidFileLink` warning is gone
 
 > **Why `pack` matters here:** `.github/workflows/build.yaml` runs restore → format → build → test
 > and **never packs**. `EnablePackageValidation` only fires on `dotnet pack`, which happens solely in
