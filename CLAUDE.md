@@ -263,7 +263,7 @@ builder.Services.AddDotNetQuery(options =>
 
 ### Versioning and packaging
 
-Versions are derived by `MinVer` from git tags with prefix `v`. NuGet packages target `net10.0`. XML docs are generated for all non-test projects (`GenerateDocumentationFile`).
+Versions are derived by `MinVer` from git tags with prefix `v`. NuGet packages multi-target `net9.0` and `net10.0`. XML docs are generated for all non-test projects (`GenerateDocumentationFile`).
 
 ## Testing
 

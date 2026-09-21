@@ -15,12 +15,16 @@ If you have ever found yourself writing the same `isLoading / hasError / data` b
 ## Features
 
 - **Queries** — fetch async data with automatic caching, background refetching, and stale-while-revalidate semantics.
+- **Infinite queries** — paginated and "load more" data fetching with `<InfiniteSuspense>` / `<InfiniteTransition>`.
 - **Mutations** — execute data-modifying operations with lifecycle callbacks and automatic cache invalidation on success.
 - **Reactive state** — every query and mutation exposes `IObservable` streams for composable async pipelines.
 - **Smart caching** — configurable stale time and cache time control when data is refetched and when it is evicted.
 - **Query deduplication** — identical keys share a single cached query instance; no redundant requests.
-- **Retry logic** — exponential backoff out of the box; plug in your own strategy via `IRetryHandler`.
+- **Retry logic** — one attempt by default, fail-fast; plug in exponential backoff or any other policy via `IRetryHandler`.
+- **Observability** — OTel-compatible distributed tracing, metrics, and structured logging using only BCL APIs.
 - **Blazor components** — `<Suspense>` and `<Transition>` components for declarative query rendering.
+- **DevTools** — `<QueryDevTools>` live cache inspector component for development.
+- **MVVM view models** — bindable `INotifyPropertyChanged` view models for MAUI, WPF, WinUI, UNO Platform, and Avalonia.
 - **CSR / SSR support** — `QueryExecutionMode` controls Singleton (WebAssembly) vs Scoped (Server-Side Rendering) DI lifetime.
 - **DI integration** — first-class support for `Microsoft.Extensions.DependencyInjection`.
 
@@ -54,5 +58,6 @@ query.Failure.Subscribe(error => Console.WriteLine($"Oops: {error.Message}"));
 
 - [Introduction](doc/introduction.md) — understand the core concepts and motivation.
 - [Getting Started](doc/getting-started.md) — install and write your first query in minutes.
-- [Guides](doc/guides/queries.md) — deep dives into queries, mutations, caching, Blazor, and more.
+- [Guides](doc/guides/queries.md) — deep dives into queries, mutations, caching, Blazor, MVVM, and more.
+- [Migrating from v1](doc/migrating-to-v2.md) — breaking changes and upgrade steps for 2.0.
 - [API Reference](api/DotNetQuery.Core.yml) — full generated API documentation.

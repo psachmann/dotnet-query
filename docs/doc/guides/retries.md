@@ -1,6 +1,6 @@
 # Retry Handling
 
-DotNet Query retries failed fetches and mutations automatically. Out of the box it uses an exponential backoff strategy, and you can swap in your own retry logic by implementing `IRetryHandler`.
+DotNet Query does not retry failed fetches or mutations on its own. Out of the box it makes a single attempt and fails fast; you add retry logic — exponential backoff or any other policy — by implementing `IRetryHandler`.
 
 ## Default Behavior
 
