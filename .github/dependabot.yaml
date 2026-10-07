@@ -10,6 +10,9 @@ updates:
     assignees:
       - psachmann
     groups:
+      avalonia:
+        patterns:
+          - Avalonia*
       microsoft:
         patterns:
           - Microsoft*
