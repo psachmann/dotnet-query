@@ -9,15 +9,21 @@
     "**/obj": true
   },
   "cSpell.words": [
+    "avalonia",
     "Avalonia",
     "Blazor",
     "bunit",
+    "csharpier",
+    "docfx",
     "dotnet",
     "github",
     "Mvvm",
     "nullable",
+    "psachmann",
     "Radzen",
+    "slnx",
     "snupkg",
-    "softprops"
+    "softprops",
+    "tunit"
   ]
 }
