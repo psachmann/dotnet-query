@@ -1,5 +1,5 @@
 ---
-_layout: landing
+_disableToc: true
 ---
 
 # DotNet Query
