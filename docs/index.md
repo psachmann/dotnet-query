@@ -59,5 +59,5 @@ query.Failure.Subscribe(error => Console.WriteLine($"Oops: {error.Message}"));
 - [Introduction](doc/introduction.md) — understand the core concepts and motivation.
 - [Getting Started](doc/getting-started.md) — install and write your first query in minutes.
 - [Guides](doc/guides/queries.md) — deep dives into queries, mutations, caching, Blazor, MVVM, and more.
-- [Migrating from v1](doc/migrating-to-v2.md) — breaking changes and upgrade steps for 2.0.
+- [Migrating to v2](doc/migrating-to-v2.md) — breaking changes and upgrade steps for 2.0.
 - [API Reference](api/DotNetQuery.Core.yml) — full generated API documentation.

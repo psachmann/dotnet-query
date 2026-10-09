@@ -28,7 +28,9 @@
       href: guides/observability.md
     - name: Server-Side Rendering
       href: guides/ssr.md
-- name: Migrating from v1
+- name: Migrating to v3
+  href: migrating-to-v3.md
+- name: Migrating to v2
   href: migrating-to-v2.md
 - name: Contributing
   href: contributing.md
