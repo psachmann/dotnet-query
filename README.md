@@ -53,7 +53,7 @@ Full guides, examples, and API reference are available **[here](https://psachman
 - [Introduction](https://psachmann.github.io/dotnet-query/doc/introduction.html) — core concepts and motivation
 - [Getting Started](https://psachmann.github.io/dotnet-query/doc/getting-started.html) — install and write your first query
 - [Guides](https://psachmann.github.io/dotnet-query/doc/guides/queries.html) — queries, mutations, caching, Blazor, retries, and SSR
-- [Migrating from v1](https://psachmann.github.io/dotnet-query/doc/migrating-to-v2.html) — breaking changes and upgrade steps for 2.0
+- [Migrating to v2](https://psachmann.github.io/dotnet-query/doc/migrating-to-v2.html) — breaking changes and upgrade steps for 2.0
 - [API Reference](https://psachmann.github.io/dotnet-query/api/DotNetQuery.Core.html) — full generated API docs
 - [Blazor sample](samples/DotNetQuery.Samples.Blazor) and [Avalonia sample](samples/DotNetQuery.Samples.Avalonia) — complete, runnable apps built on the library
 

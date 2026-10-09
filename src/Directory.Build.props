@@ -18,7 +18,7 @@
     CompatibilitySuppressions.xml then lists every intentional break of the upcoming major.
     Bump it after every stable release. A project that did not exist at the baseline overrides
     it in its own project file. An intentional break needs a suppression file (pack with
-    -p:GenerateCompatibilitySuppressionFile=true to produce one).
+    -p:ApiCompatGenerateSuppressionFile=true to produce one).
   -->
   <PropertyGroup>
     <EnablePackageValidation>true</EnablePackageValidation>

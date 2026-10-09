@@ -35,15 +35,9 @@
               libXtst
               libXfixes
             ];
-            # Every src/ package multi-targets net9.0 and net10.0 (Directory.Build.props at the
-            # repo root), and the tests do too (tests/Directory.Build.props), so `dotnet test`
-            # needs the net9.0 runtime side-by-side with the net10.0 SDK — a bare dotnet-sdk_10
-            # can build the net9.0 test binaries but not launch them.
-            dotnet = pkgs.dotnetCorePackages.combinePackages [
-              pkgs.dotnetCorePackages.sdk_10_0
-              pkgs.dotnetCorePackages.runtime_9_0
-              pkgs.dotnetCorePackages.aspnetcore_9_0
-            ];
+            # Everything targets net10.0 only (Directory.Build.props at the repo root), so the
+            # SDK's bundled runtimes are all `dotnet test` needs — no side-by-side runtime.
+            dotnet = pkgs.dotnetCorePackages.sdk_10_0;
           in
           pkgs.mkShell {
             packages = with pkgs; [
