@@ -5,6 +5,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
     labels:
       - dependencies
     assignees:
@@ -24,6 +27,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
     labels:
       - dependencies
     assignees:
