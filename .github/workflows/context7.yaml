@@ -1,0 +1,29 @@
+name: Context7
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'samples/**'
+      - 'README.md'
+      - 'context7.json'
+      - '.github/workflows/context7.yaml'
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    name: Refresh Context7 Docs
+    runs-on: ubuntu-latest
+    permissions: {}
+
+    steps:
+      - name: Trigger Context7 refresh
+        env:
+          CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
+        run: |
+          curl --silent --show-error --fail-with-body \
+            --request POST https://context7.com/api/v1/refresh \
+            --header "Content-Type: application/json" \
+            --header "Authorization: Bearer $CONTEXT7_API_KEY" \
+            --data '{"libraryName": "/${{ github.repository }}"}'

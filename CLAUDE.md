@@ -296,6 +296,18 @@ with a "not released yet" note, and word any other doc that changes for the upco
 prerequisites in `getting-started.md`, the target framework in `llms.txt`) as "the upcoming N.0" while
 still naming what the current stable release supports. Release prep removes the note and that wording.
 
+### Context7 indexing
+
+The repo is indexed on [Context7](https://context7.com/psachmann/dotnet-query) as `/psachmann/dotnet-query`.
+`context7.json` at the repo root scopes parsing to `docs/` and `samples/` and excludes contributor-facing
+files (this one, `contributing.md`) so they are not served to consumers as usage docs; its `rules` are handed
+to coding agents with every result, so keep them to consumer-facing gotchas. `.github/workflows/context7.yaml`
+triggers a re-index on pushes to `main` that touch the indexed paths (needs the `CONTEXT7_API_KEY` secret).
+
+The unversioned ID tracks `main`, i.e. the upcoming major. `previousVersions` lists the stable tags consumers
+can query instead — **after every stable release, add the new tag there** (keep the previous one for people
+who have not upgraded) and update the versioned ID named in `README.md` and `docs/llms.txt`.
+
 ## Testing
 
 Tests use [TUnit](https://tunit.dev/) (not xUnit/NUnit). Blazor component tests use [bUnit](https://bunit.dev/). Use `TUnit.Mocks` for mocking and `TUnit.Mocks.Logging` for logger mocks. `Microsoft.Reactive.Testing` provides `TestScheduler` for Rx time control.

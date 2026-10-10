@@ -57,7 +57,7 @@ Full guides, examples, and API reference are available **[here](https://psachman
 - [API Reference](https://psachmann.github.io/dotnet-query/api/DotNetQuery.Core.html) — full generated API docs
 - [Blazor sample](samples/DotNetQuery.Samples.Blazor) and [Avalonia sample](samples/DotNetQuery.Samples.Avalonia) — complete, runnable apps built on the library
 
-> **AI agents / LLMs:** a single-file reference covering the full public API, all patterns, and architecture notes is available at [`/llms.txt`](https://psachmann.github.io/dotnet-query/llms.txt).
+> **AI agents / LLMs:** a single-file reference covering the full public API, all patterns, and architecture notes is available at [`/llms.txt`](https://psachmann.github.io/dotnet-query/llms.txt). The docs are also indexed on [Context7](https://context7.com/psachmann/dotnet-query) under the library ID `/psachmann/dotnet-query` (`/psachmann/dotnet-query/v2.0.0` for the current stable release).
 
 ## Quick Start
 
