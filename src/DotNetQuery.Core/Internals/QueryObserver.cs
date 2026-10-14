@@ -1,6 +1,6 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>, IQueryInspector
+internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
     where TData : class
 {
     private readonly QueryCache _cache;
@@ -64,19 +64,6 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>, IQuery
     public TimeSpan CacheTime => _options.CacheTime;
 
     public QueryState<TData> CurrentState => _activeQuery.Value?.CurrentState ?? QueryState<TData>.CreateIdle();
-
-    public QueryStatus Status => CurrentState.Status;
-
-    public object? CurrentData => CurrentState.CurrentData;
-
-    public DateTimeOffset? LastUpdatedAt => _activeQuery.Value?.LastUpdatedAt;
-
-    public int ObserverCount => _activeQuery.Value?.ObserverCount ?? 0;
-
-    public string MetricName => _activeQuery.Value?.MetricName ?? _options.Name ?? "unknown";
-
-    public IObservable<Unit> StateChanged =>
-        _activeQuery.Where(query => query is not null).Select(query => query!.StateChanged).Switch();
 
     public void SetArgs(TArgs args) => _args.OnNext(args);
 

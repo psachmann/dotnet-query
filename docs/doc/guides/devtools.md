@@ -81,7 +81,7 @@ Click any row to open the detail panel on the right. It shows:
 | **Observers** | Number of active subscribers. |
 | **Last Updated** | Timestamp of the last successful fetch (local time, `HH:mm:ss.fff`). |
 | **Cache Time** | How long data stays in cache after all subscribers leave. |
-| **Data** | The current cached data, pretty-printed as JSON. |
+| **Data** | The cached data, pretty-printed as JSON. While a refetch is in flight or after a failure, the previous data is shown instead of going blank. |
 
 ![DevTools panel showing the query list and detail view](../../images/dotnet-query-blazor-devtools-panel.png)
 
@@ -103,4 +103,5 @@ Drag the handle at the top edge of the panel to adjust its height.
 ## Notes
 
 - `<QueryDevTools>` requires an interactive render mode (Blazor WASM or interactive Blazor Server). It has no effect under static SSR because `OnAfterRenderAsync` never runs in that mode.
-- The panel subscribes to the cache via an internal `IQueryClientInspector` interface. If `IQueryClient` is registered with a custom implementation that does not implement this interface, the component silently renders nothing.
+- The panel reads the cache through `IQueryClient.TryGetInspector`. If `IQueryClient` is registered with a custom implementation that does not implement `IQueryCacheInspector`, the component silently renders nothing. (In 2.0.0 this interface was internal; it is public from the upcoming 3.0.)
+- Not on Blazor? The same inspection API is public in `DotNetQuery.Core` from the upcoming 3.0. See [Building a Cache Inspector](cache-inspector.md).

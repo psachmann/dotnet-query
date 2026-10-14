@@ -22,6 +22,8 @@
       href: guides/mvvm.md
     - name: DevTools
       href: guides/devtools.md
+    - name: Cache Inspector
+      href: guides/cache-inspector.md
     - name: Retry Handling
       href: guides/retries.md
     - name: Observability

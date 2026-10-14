@@ -1,6 +1,6 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class Query<TArgs, TData> : IQuery, ICacheEntry
+internal sealed class Query<TArgs, TData> : ICacheEntry
     where TData : class
 {
     private readonly QueryKey _key;
@@ -8,7 +8,7 @@ internal sealed class Query<TArgs, TData> : IQuery, ICacheEntry
     private readonly EffectiveQueryOptions<TArgs, TData> _options;
     private readonly IScheduler _scheduler;
     private readonly QueryInstrumentation _instrumentation;
-    private readonly string _metricName;
+    private readonly string _name;
     private CancellationTokenSource _cancellationTokenSource = new();
     private readonly BehaviorSubject<QueryState<TData>> _state;
     private readonly Subject<FetchTrigger> _invalidate = new();
@@ -34,7 +34,7 @@ internal sealed class Query<TArgs, TData> : IQuery, ICacheEntry
         _options = options;
         _scheduler = scheduler;
         _instrumentation = instrumentation;
-        _metricName = options.Name ?? (key.Parts.Count > 0 ? key.Parts[0].ToString() ?? "unknown" : "unknown");
+        _name = options.Name ?? (key.Parts.Count > 0 ? key.Parts[0].ToString() ?? "unknown" : "unknown");
 
         _state = options.InitialData is { } initial
             ? new BehaviorSubject<QueryState<TData>>(QueryState<TData>.CreateSuccess(initial))
@@ -57,13 +57,17 @@ internal sealed class Query<TArgs, TData> : IQuery, ICacheEntry
     public TimeSpan CacheTime => _options.CacheTime;
 
     /// <summary>The low-cardinality name used to tag metrics for this query. See <see cref="QueryOptions{TArgs,TData}.Name"/>.</summary>
-    public string MetricName => _metricName;
+    public string Name => _name;
 
     public QueryState<TData> CurrentState => _state.Value;
 
     public QueryStatus Status => _state.Value.Status;
 
     public object? CurrentData => _state.Value.CurrentData;
+
+    public object? LastData => _state.Value.LastData;
+
+    public Exception? Error => _state.Value.Error;
 
     public DateTimeOffset? LastUpdatedAt
     {
@@ -77,6 +81,17 @@ internal sealed class Query<TArgs, TData> : IQuery, ICacheEntry
     }
 
     public int ObserverCount => _subscriberCount;
+
+    public bool IsStale
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _isStale || _lastSuccessAt is not { } last || _scheduler.Now - last >= _options.StaleTime;
+            }
+        }
+    }
 
     public IObservable<Unit> StateChanged => _state.Select(_ => Unit.Default);
 
@@ -266,14 +281,14 @@ internal sealed class Query<TArgs, TData> : IQuery, ICacheEntry
 
         using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityQueryFetch);
         activity?.SetTag(QueryTelemetryTags.TagQueryKey, _key.ToString());
-        activity?.SetTag(QueryTelemetryTags.TagQueryName, _metricName);
+        activity?.SetTag(QueryTelemetryTags.TagQueryName, _name);
         activity?.SetTag(QueryTelemetryTags.TagTrigger, trigger.ToTagValue());
 
         var stopwatch = Stopwatch.StartNew();
         var attempts = 0;
 
         _state.OnNext(QueryState<TData>.CreateFetching(lastData));
-        _instrumentation.RecordFetchStart(_key, _metricName);
+        _instrumentation.RecordFetchStart(_key, _name);
 
         try
         {
@@ -301,7 +316,7 @@ internal sealed class Query<TArgs, TData> : IQuery, ICacheEntry
 
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetStatus(ActivityStatusCode.Ok);
-            _instrumentation.RecordFetchSuccess(_key, _metricName, stopwatch.Elapsed, attempts, trigger);
+            _instrumentation.RecordFetchSuccess(_key, _name, stopwatch.Elapsed, attempts, trigger);
 
             if (!_disposed)
             {
@@ -315,7 +330,7 @@ internal sealed class Query<TArgs, TData> : IQuery, ICacheEntry
 
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
-            _instrumentation.RecordFetchCancelled(_key, _metricName, stopwatch.Elapsed, trigger);
+            _instrumentation.RecordFetchCancelled(_key, _name, stopwatch.Elapsed, trigger);
 
             // Only the explicit Cancel() path (currentSource) should surface as Idle. When the outer
             // cancellationToken fired instead, this fetch was superseded by Switch() for a newer one,
@@ -332,7 +347,7 @@ internal sealed class Query<TArgs, TData> : IQuery, ICacheEntry
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetTag(QueryTelemetryTags.TagErrorType, error.GetType().Name);
             activity?.SetStatus(ActivityStatusCode.Error, error.Message);
-            _instrumentation.RecordFetchFailure(_key, _metricName, stopwatch.Elapsed, error, attempts, trigger);
+            _instrumentation.RecordFetchFailure(_key, _name, stopwatch.Elapsed, error, attempts, trigger);
 
             if (!_disposed)
             {

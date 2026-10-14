@@ -661,6 +661,29 @@ Live cache inspector panel (separate package `DotNetQuery.Blazor.DevTools`). Sho
 }
 ```
 
+### Cache Inspection (custom inspectors, upcoming 3.0)
+
+For non-Blazor UIs, `DotNetQuery.Core` exposes the cache that `<QueryDevTools>` reads (public from the upcoming 3.0; internal in 2.0.0):
+
+```csharp
+using DotNetQuery.Core.Inspection;
+
+if (client.TryGetInspector(out var inspector))   // false for custom IQueryClient implementations / mocks
+{
+    inspector.Entries                             // IObservable<IReadOnlyList<IQueryCacheEntry>>
+        .ObserveOnUi()                            // DotNetQuery.Mvvm; emissions arrive on arbitrary threads
+        .Subscribe(entries => { /* entry.Key, Name, Status, CurrentData, LastData, Error,
+                                   LastUpdatedAt, ObserverCount, IsStale, CacheTime */ });
+}
+```
+
+- `Entries` replays the current list on subscribe, then emits on add, eviction, cancelled eviction, and every entry state change. It completes when the client is disposed. Not coalesced.
+- Entries are live views (properties read current state), and the list is a membership snapshot.
+- Entries offer `Refetch()`, `Invalidate()`, and `Cancel()` but no `Dispose()`, because the cache owns them.
+- `CurrentData` is `null` while a regular query refetches; show `LastData` then. For infinite queries `CurrentData` is a `TData[]` of pages and `LastData` is always `null`.
+- `IsStale` is evaluated on read; going stale by elapsed time alone does not emit.
+- Subscribing to `Entries` does not count as an observer and does not delay eviction.
+
 ---
 
 ## MVVM View Models (DotNetQuery.Mvvm)
@@ -1071,10 +1094,10 @@ Log category: `"DotNetQuery"`. Control verbosity:
 ## Architecture Notes
 
 - `IQueryClient` is `QueryClient` internally, which owns a `QueryCache`.
-- `QueryCache` is a `ConcurrentDictionary<QueryKey, IQuery>` with timer-based eviction via `Observable.Timer`.
+- `QueryCache` is a `ConcurrentDictionary<QueryKey, ICacheEntry>` with timer-based eviction via `Observable.Timer`.
 - `CreateQuery` returns a `QueryObserver<TArgs, TData>` — a key-switching proxy. Each `SetArgs` call creates or retrieves a `Query<TArgs, TData>` from the cache and switches `_activeQuery` to it.
 - `Query<TArgs, TData>` is the actual cache entry. It uses a `BehaviorSubject<QueryState<TData>>` for state and `Observable.FromAsync(...).Switch()` so that a new invalidation cancels the previous in-flight fetch.
 - `Mutation<TArgs, TData>` uses the same `.Switch()` pattern — a new `Execute()` cancels the previous execution.
 - When `Invalidate()` is called with no active subscribers, `_isStale = true` is set. The fetch is deferred and triggered by the first subscriber that joins.
 - `IScheduler` is injected everywhere time is used (stale-time, cache eviction, refetch intervals). Production uses `DefaultScheduler.Instance` (real clock). Tests inject `TestScheduler` from `Microsoft.Reactive.Testing` for deterministic time control.
-- `IQueryClientInspector` is an internal interface on `QueryClient` that exposes `IObservable<IReadOnlyList<IQueryInspector>> CacheEntries`. `IQueryInspector` extends `IQuery` and adds `Status`, `CurrentData`, `LastUpdatedAt`, `ObserverCount`, and `StateChanged`. `QueryDevTools` casts `IQueryClient` to this interface at runtime and works directly with the typed list.
+- `QueryClient` implements the public `IQueryCacheInspector` (namespace `DotNetQuery.Core.Inspection`, from the upcoming 3.0; internal in 2.0.0), reached via `client.TryGetInspector(out var inspector)`. See "Cache Inspection" above.

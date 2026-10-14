@@ -1,6 +1,6 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEntry
+internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : ICacheEntry
     where TData : class
 {
     private enum FetchDirection
@@ -29,7 +29,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
     private readonly EffectiveInfiniteQueryOptions<TArgs, TData, TPageParam> _options;
     private readonly IScheduler _scheduler;
     private readonly QueryInstrumentation _instrumentation;
-    private readonly string _metricName;
+    private readonly string _name;
     private CancellationTokenSource _cancellationTokenSource = new();
     private readonly BehaviorSubject<InfiniteQueryState<TData, TPageParam>> _state;
     private readonly Subject<FetchCommand> _command = new();
@@ -57,7 +57,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
         _options = options;
         _scheduler = scheduler;
         _instrumentation = instrumentation;
-        _metricName = options.Name ?? (key.Parts.Count > 0 ? key.Parts[0].ToString() ?? "unknown" : "unknown");
+        _name = options.Name ?? (key.Parts.Count > 0 ? key.Parts[0].ToString() ?? "unknown" : "unknown");
 
         if (options.InitialData is { } initialData)
         {
@@ -92,7 +92,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
     public TimeSpan CacheTime => _options.CacheTime;
 
     /// <summary>The low-cardinality name used to tag metrics for this query. See <see cref="InfiniteQueryOptions{TArgs,TData,TPageParam}.Name"/>.</summary>
-    public string MetricName => _metricName;
+    public string Name => _name;
 
     public InfiniteQueryState<TData, TPageParam> CurrentState => _state.Value;
 
@@ -110,6 +110,10 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
         }
     }
 
+    public object? LastData => null;
+
+    public Exception? Error => _state.Value.Error;
+
     public DateTimeOffset? LastUpdatedAt
     {
         get
@@ -122,6 +126,17 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
     }
 
     public int ObserverCount => _subscriberCount;
+
+    public bool IsStale
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _isStale || _lastSuccessAt is not { } last || _scheduler.Now - last >= _options.StaleTime;
+            }
+        }
+    }
 
     public IObservable<Unit> StateChanged => _state.Select(_ => Unit.Default);
 
@@ -365,14 +380,14 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
 
         using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityQueryFetch);
         activity?.SetTag(QueryTelemetryTags.TagQueryKey, _key.ToString());
-        activity?.SetTag(QueryTelemetryTags.TagQueryName, _metricName);
+        activity?.SetTag(QueryTelemetryTags.TagQueryName, _name);
         activity?.SetTag(QueryTelemetryTags.TagTrigger, command.Trigger.ToTagValue());
         activity?.SetTag(QueryTelemetryTags.TagDirection, ToTagValue(command.Direction));
 
         var stopwatch = Stopwatch.StartNew();
         var counter = new AttemptCounter();
 
-        _instrumentation.RecordFetchStart(_key, _metricName);
+        _instrumentation.RecordFetchStart(_key, _name);
 
         try
         {
@@ -422,7 +437,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
                 // freshness or reporting a successful fetch that never took effect.
                 activity?.SetTag(QueryTelemetryTags.TagAttempts, counter.Attempts == 0 ? 0 : counter.Retries + 1);
                 activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
-                _instrumentation.RecordFetchCancelled(_key, _metricName, stopwatch.Elapsed, command.Trigger);
+                _instrumentation.RecordFetchCancelled(_key, _name, stopwatch.Elapsed, command.Trigger);
                 return;
             }
 
@@ -435,7 +450,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetTag(QueryTelemetryTags.TagPages, refetchParams?.Count ?? 1);
             activity?.SetStatus(ActivityStatusCode.Ok);
-            _instrumentation.RecordFetchSuccess(_key, _metricName, stopwatch.Elapsed, attempts, command.Trigger);
+            _instrumentation.RecordFetchSuccess(_key, _name, stopwatch.Elapsed, attempts, command.Trigger);
         }
         catch (OperationCanceledException) when (linkedToken.IsCancellationRequested)
         {
@@ -443,7 +458,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
 
             activity?.SetTag(QueryTelemetryTags.TagAttempts, counter.Attempts == 0 ? 0 : counter.Retries + 1);
             activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
-            _instrumentation.RecordFetchCancelled(_key, _metricName, stopwatch.Elapsed, command.Trigger);
+            _instrumentation.RecordFetchCancelled(_key, _name, stopwatch.Elapsed, command.Trigger);
 
             // Only the explicit Cancel() path (currentSource) should roll state back. When the outer
             // cancellationToken fired instead, this run was superseded by Switch() for a newer command,
@@ -470,7 +485,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : IQuery, ICacheEn
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
             activity?.SetTag(QueryTelemetryTags.TagErrorType, error.GetType().Name);
             activity?.SetStatus(ActivityStatusCode.Error, error.Message);
-            _instrumentation.RecordFetchFailure(_key, _metricName, stopwatch.Elapsed, error, attempts, command.Trigger);
+            _instrumentation.RecordFetchFailure(_key, _name, stopwatch.Elapsed, error, attempts, command.Trigger);
 
             if (!_disposed)
             {
