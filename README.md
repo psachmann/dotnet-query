@@ -11,6 +11,17 @@
 
 DotNet Query brings the battle-tested data-fetching patterns of TanStack Query to the .NET ecosystem. It gives you predictable loading, error, and success states out of the box — powered by [Rx.NET](https://github.com/dotnet/reactive) observables, so everything is composable, lazy, and reactive by default.
 
+## Table of Contents
+
+- [DotNet Query](#dotnet-query)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Installation](#installation)
+  - [Documentation](#documentation)
+  - [Quick Start](#quick-start)
+  - [Contributing](#contributing)
+  - [License](#license)
+
 ## Features
 
 - **Queries** — fetch async data with automatic caching, background refetching, and stale-while-revalidate semantics
@@ -55,7 +66,7 @@ Full guides, examples, and API reference are available **[here](https://psachman
 - [Guides](https://psachmann.github.io/dotnet-query/doc/guides/queries.html) — queries, mutations, caching, Blazor, retries, and SSR
 - [Migrating to v2](https://psachmann.github.io/dotnet-query/doc/migrating-to-v2.html) — breaking changes and upgrade steps for 2.0
 - [API Reference](https://psachmann.github.io/dotnet-query/api/DotNetQuery.Core.html) — full generated API docs
-- [Blazor sample](samples/DotNetQuery.Samples.Blazor) and [Avalonia sample](samples/DotNetQuery.Samples.Avalonia) — complete, runnable apps built on the library
+- [Blazor sample](https://github.com/psachmann/dotnet-query/tree/main/samples/DotNetQuery.Samples.Blazor) and [Avalonia sample](https://github.com/psachmann/dotnet-query/tree/main/samples/DotNetQuery.Samples.Avalonia) — complete, runnable apps built on the library
 
 > **AI agents / LLMs:** a single-file reference covering the full public API, all patterns, and architecture notes is available at [`/llms.txt`](https://psachmann.github.io/dotnet-query/llms.txt). The docs are also indexed on [Context7](https://context7.com/psachmann/dotnet-query) under the library ID `/psachmann/dotnet-query` (`/psachmann/dotnet-query/v2.0.0` for the current stable release).
 
@@ -110,4 +121,4 @@ Contributions are welcome! Please see the [Contributing guide](https://psachmann
 
 ## License
 
-[MIT](LICENSE.md) — Copyright (c) 2026 Patrick Sachmann
+[MIT](https://github.com/psachmann/dotnet-query/blob/main/LICENSE.md) — Copyright (c) 2026 Patrick Sachmann
