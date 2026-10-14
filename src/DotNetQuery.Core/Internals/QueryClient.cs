@@ -1,6 +1,6 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class QueryClient : IQueryClient, IQueryClientInspector
+internal sealed class QueryClient : IQueryClient, IQueryCacheInspector
 {
     private readonly QueryCache _cache;
     private readonly QueryClientOptions _globalOptions;
@@ -15,7 +15,7 @@ internal sealed class QueryClient : IQueryClient, IQueryClientInspector
         _cache = new(_scheduler, _instrumentation);
     }
 
-    public IObservable<IReadOnlyList<IQueryInspector>> CacheEntries => _cache.Entries;
+    public IObservable<IReadOnlyList<IQueryCacheEntry>> Entries => _cache.Entries;
 
     public IQuery<TArgs, TData> CreateQuery<TArgs, TData>(QueryOptions<TArgs, TData> options)
         where TData : class =>

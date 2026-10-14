@@ -812,13 +812,13 @@ public class QueryTests
     public async Task Inspector_Status_IsIdleInitially()
     {
         using var sut = CreateQuery();
-        var inspector = (IQueryInspector)sut;
+        var inspector = (IQueryCacheEntry)sut;
 
         await Assert.That(inspector.Status).IsEqualTo(QueryStatus.Idle);
     }
 
     [Test]
-    public async Task Inspector_MetricName_UsesExplicitNameWhenSet()
+    public async Task Inspector_Name_UsesExplicitNameWhenSet()
     {
         var options = new EffectiveQueryOptions<int, string>
         {
@@ -833,22 +833,22 @@ public class QueryTests
             Name = "custom-name",
         };
         using var sut = new Query<int, string>(QueryKey.From("test"), 0, options, _scheduler, _instrumentation);
-        var inspector = (IQueryInspector)sut;
+        var inspector = (IQueryCacheEntry)sut;
 
-        await Assert.That(inspector.MetricName).IsEqualTo("custom-name");
+        await Assert.That(inspector.Name).IsEqualTo("custom-name");
     }
 
     [Test]
-    public async Task Inspector_MetricName_FallsBackToFirstKeyPartWhenNameNotSet()
+    public async Task Inspector_Name_FallsBackToFirstKeyPartWhenNameNotSet()
     {
         using var sut = CreateQuery();
-        var inspector = (IQueryInspector)sut;
+        var inspector = (IQueryCacheEntry)sut;
 
-        await Assert.That(inspector.MetricName).IsEqualTo("test");
+        await Assert.That(inspector.Name).IsEqualTo("test");
     }
 
     [Test]
-    public async Task Inspector_MetricName_FallsBackToUnknownWhenKeyHasNoParts()
+    public async Task Inspector_Name_FallsBackToUnknownWhenKeyHasNoParts()
     {
         var options = new EffectiveQueryOptions<int, string>
         {
@@ -863,16 +863,16 @@ public class QueryTests
             Name = null,
         };
         using var sut = new Query<int, string>(QueryKey.From(), 0, options, _scheduler, _instrumentation);
-        var inspector = (IQueryInspector)sut;
+        var inspector = (IQueryCacheEntry)sut;
 
-        await Assert.That(inspector.MetricName).IsEqualTo("unknown");
+        await Assert.That(inspector.Name).IsEqualTo("unknown");
     }
 
     [Test]
     public async Task Inspector_CurrentData_IsNullInitially()
     {
         using var sut = CreateQuery();
-        var inspector = (IQueryInspector)sut;
+        var inspector = (IQueryCacheEntry)sut;
 
         await Assert.That(inspector.CurrentData).IsNull();
     }
@@ -881,7 +881,7 @@ public class QueryTests
     public async Task Inspector_CurrentData_ReturnsDataAfterSuccess()
     {
         using var sut = CreateQuery();
-        var inspector = (IQueryInspector)sut;
+        var inspector = (IQueryCacheEntry)sut;
 
         var tcs = new TaskCompletionSource<QueryState<string>>();
         using var _ = sut.State.Where(s => s.IsSuccess).Subscribe(s => tcs.TrySetResult(s));
@@ -895,7 +895,7 @@ public class QueryTests
     public async Task Inspector_LastUpdatedAt_IsNullInitially()
     {
         using var sut = CreateQuery();
-        var inspector = (IQueryInspector)sut;
+        var inspector = (IQueryCacheEntry)sut;
 
         await Assert.That(inspector.LastUpdatedAt).IsNull();
     }
@@ -904,7 +904,7 @@ public class QueryTests
     public async Task Inspector_LastUpdatedAt_IsSetAfterSuccess()
     {
         using var sut = CreateQuery();
-        var inspector = (IQueryInspector)sut;
+        var inspector = (IQueryCacheEntry)sut;
 
         var tcs = new TaskCompletionSource<QueryState<string>>();
         using var _ = sut.State.Where(s => s.IsSuccess).Subscribe(s => tcs.TrySetResult(s));
@@ -918,7 +918,7 @@ public class QueryTests
     public async Task Inspector_ObserverCount_IsZeroInitially()
     {
         using var sut = CreateQuery();
-        var inspector = (IQueryInspector)sut;
+        var inspector = (IQueryCacheEntry)sut;
 
         await Assert.That(inspector.ObserverCount).IsEqualTo(0);
     }
@@ -927,7 +927,7 @@ public class QueryTests
     public async Task Inspector_ObserverCount_IncrementsOnSubscribe()
     {
         using var sut = CreateQuery();
-        var inspector = (IQueryInspector)sut;
+        var inspector = (IQueryCacheEntry)sut;
 
         using var sub = sut.State.Subscribe();
 
@@ -938,7 +938,7 @@ public class QueryTests
     public async Task Inspector_ObserverCount_DecrementsOnUnsubscribe()
     {
         using var sut = CreateQuery();
-        var inspector = (IQueryInspector)sut;
+        var inspector = (IQueryCacheEntry)sut;
 
         var sub = sut.State.Subscribe();
         sub.Dispose();

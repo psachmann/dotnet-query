@@ -1,8 +1,6 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam>
-    : IInfiniteQuery<TArgs, TData, TPageParam>,
-        IQueryInspector
+internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam> : IInfiniteQuery<TArgs, TData, TPageParam>
     where TData : class
 {
     private readonly QueryCache _cache;
@@ -71,19 +69,6 @@ internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam>
 
     public InfiniteQueryState<TData, TPageParam> CurrentState =>
         _activeQuery.Value?.CurrentState ?? InfiniteQueryState<TData, TPageParam>.CreateIdle();
-
-    public QueryStatus Status => CurrentState.Status;
-
-    public object? CurrentData => _activeQuery.Value?.CurrentData;
-
-    public DateTimeOffset? LastUpdatedAt => _activeQuery.Value?.LastUpdatedAt;
-
-    public int ObserverCount => _activeQuery.Value?.ObserverCount ?? 0;
-
-    public string MetricName => _activeQuery.Value?.MetricName ?? _options.Name ?? "unknown";
-
-    public IObservable<Unit> StateChanged =>
-        _activeQuery.Where(query => query is not null).Select(query => query!.StateChanged).Switch();
 
     public void SetArgs(TArgs args) => _args.OnNext(args);
 

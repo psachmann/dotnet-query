@@ -306,8 +306,8 @@ public class QueryDevToolsTests
     [Test]
     public void QueryClient_WithoutInspector_RendersEmptyCache()
     {
-        // Mock<IQueryClient> does not implement IQueryClientInspector,
-        // so OnInitialized hits the early return at line 39.
+        // Mock<IQueryClient> does not implement IQueryCacheInspector,
+        // so TryGetInspector fails and OnInitialized returns early.
         using var ctx = new BunitContext();
         var jsm = ctx.JSInterop.SetupModule("./_content/DotNetQuery.Blazor.DevTools/QueryDevTools.js");
         jsm.SetupVoid("init", _ => true);
@@ -394,6 +394,35 @@ public class QueryDevToolsTests
         cut.Find(".dnq-query-row").Click();
 
         await Assert.That(cut.Find(".dnq-detail-data").TextContent.Trim()).IsEqualTo("null");
+    }
+
+    [Test]
+    public void DetailPanel_WhileRefetching_KeepsShowingPreviousData()
+    {
+        var calls = 0;
+        var secondFetch = new TaskCompletionSource<string>();
+        var query = _client.CreateQuery(
+            new QueryOptions<int, string>
+            {
+                KeyFactory = _ => QueryKey.From("refetching"),
+                Fetcher = (_, _) => ++calls == 1 ? Task.FromResult("first-value") : secondFetch.Task,
+            }
+        );
+        _subscriptions.Add(query.State.Subscribe());
+        query.SetArgs(0);
+
+        var cut = OpenPanel();
+
+        cut.WaitForAssertion(() => cut.Find(".dnq-query-row"));
+        cut.Find(".dnq-query-row").Click();
+        cut.WaitForState(() => cut.Find(".dnq-detail-data").TextContent.Contains("first-value"));
+
+        query.Refetch();
+
+        cut.WaitForAssertion(() => cut.Find(".dnq-status-fetching"));
+        cut.WaitForState(() => cut.Find(".dnq-detail-data").TextContent.Contains("first-value"));
+
+        secondFetch.SetResult("second-value");
     }
 
     private sealed class CircularNode

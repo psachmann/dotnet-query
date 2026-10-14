@@ -29,7 +29,7 @@ public sealed partial class QueryDevTools : IAsyncDisposable
     private string _filter = "";
     private int _panelHeight = 350;
     private int _detailWidth = 340;
-    private IReadOnlyList<IQueryInspector> _cacheEntries = [];
+    private IReadOnlyList<IQueryCacheEntry> _cacheEntries = [];
     private QueryKey? _selectedKey;
     private IDisposable? _cacheSubscription;
     private IJSObjectReference? _module;
@@ -40,12 +40,12 @@ public sealed partial class QueryDevTools : IAsyncDisposable
     /// <inheritdoc/>
     protected override void OnInitialized()
     {
-        if (QueryClient is not IQueryClientInspector inspector)
+        if (!QueryClient.TryGetInspector(out var inspector))
         {
             return;
         }
 
-        _cacheSubscription = inspector.CacheEntries.Subscribe(entries =>
+        _cacheSubscription = inspector.Entries.Subscribe(entries =>
         {
             if (_selectedKey is not null && !entries.Any(q => q.Key == _selectedKey))
             {
@@ -120,7 +120,7 @@ public sealed partial class QueryDevTools : IAsyncDisposable
         _detailWidth = Math.Max(200, width);
     }
 
-    private IReadOnlyList<IQueryInspector> FilteredEntries
+    private IReadOnlyList<IQueryCacheEntry> FilteredEntries
     {
         get
         {
@@ -135,7 +135,7 @@ public sealed partial class QueryDevTools : IAsyncDisposable
         }
     }
 
-    private IQueryInspector? SelectedQuery =>
+    private IQueryCacheEntry? SelectedQuery =>
         _selectedKey is not null ? _cacheEntries.FirstOrDefault(q => q.Key == _selectedKey) : null;
 
     private int FetchingCount => CountByStatus(QueryStatus.Fetching);

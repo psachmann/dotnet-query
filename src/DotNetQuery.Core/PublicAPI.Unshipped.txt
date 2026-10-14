@@ -1,1 +1,19 @@
 #nullable enable
+DotNetQuery.Core.Inspection.IQueryCacheEntry
+DotNetQuery.Core.Inspection.IQueryCacheEntry.CacheTime.get -> System.TimeSpan
+DotNetQuery.Core.Inspection.IQueryCacheEntry.Cancel() -> void
+DotNetQuery.Core.Inspection.IQueryCacheEntry.CurrentData.get -> object?
+DotNetQuery.Core.Inspection.IQueryCacheEntry.Error.get -> System.Exception?
+DotNetQuery.Core.Inspection.IQueryCacheEntry.Invalidate() -> void
+DotNetQuery.Core.Inspection.IQueryCacheEntry.IsStale.get -> bool
+DotNetQuery.Core.Inspection.IQueryCacheEntry.Key.get -> DotNetQuery.Core.QueryKey!
+DotNetQuery.Core.Inspection.IQueryCacheEntry.LastData.get -> object?
+DotNetQuery.Core.Inspection.IQueryCacheEntry.LastUpdatedAt.get -> System.DateTimeOffset?
+DotNetQuery.Core.Inspection.IQueryCacheEntry.Name.get -> string!
+DotNetQuery.Core.Inspection.IQueryCacheEntry.ObserverCount.get -> int
+DotNetQuery.Core.Inspection.IQueryCacheEntry.Refetch() -> void
+DotNetQuery.Core.Inspection.IQueryCacheEntry.Status.get -> DotNetQuery.Core.QueryStatus
+DotNetQuery.Core.Inspection.IQueryCacheInspector
+DotNetQuery.Core.Inspection.IQueryCacheInspector.Entries.get -> System.IObservable<System.Collections.Generic.IReadOnlyList<DotNetQuery.Core.Inspection.IQueryCacheEntry!>!>!
+DotNetQuery.Core.QueryClientInspectionExtensions
+static DotNetQuery.Core.QueryClientInspectionExtensions.TryGetInspector(this DotNetQuery.Core.IQueryClient! client, out DotNetQuery.Core.Inspection.IQueryCacheInspector? inspector) -> bool

@@ -1,6 +1,7 @@
 global using System.Diagnostics;
 global using System.Reactive;
 global using System.Reactive.Linq;
+global using DotNetQuery.Core.Inspection;
 global using DotNetQuery.Core.Internals;
 global using DotNetQuery.Core.Observability;
 global using Microsoft.Extensions.Logging;

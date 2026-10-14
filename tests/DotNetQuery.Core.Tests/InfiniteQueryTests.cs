@@ -682,14 +682,14 @@ public class InfiniteQueryTests
     }
 
     [Test]
-    public async Task MetricName_FallsBackToFirstKeyPart()
+    public async Task Name_FallsBackToFirstKeyPart()
     {
         using var named = CreateQuery(name: "pages");
         using var unnamed = CreateQuery();
 
         using var _ = Assert.Multiple();
-        await Assert.That(named.MetricName).IsEqualTo("pages");
-        await Assert.That(unnamed.MetricName).IsEqualTo("test");
+        await Assert.That(named.Name).IsEqualTo("pages");
+        await Assert.That(unnamed.Name).IsEqualTo("test");
     }
 
     [Test]
