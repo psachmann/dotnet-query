@@ -417,4 +417,95 @@ public class QueryCacheInspectorTests
             .That(Latest().Select(e => e.Key))
             .IsEquivalentTo([QueryKey.From("todos", 1), QueryKey.From("feed")]);
     }
+
+    private IInfiniteQuery<int, string, int> CreateInfiniteQuery(QueryKey? key = null, TimeSpan? staleTime = null) =>
+        _client.CreateInfiniteQuery(
+            new InfiniteQueryOptions<int, string, int>
+            {
+                KeyFactory = _ => key ?? QueryKey.From("feed"),
+                Fetcher = (_, page, _) => Task.FromResult($"page-{page}"),
+                InitialPageParam = 0,
+                GetNextPageParam = info => info.PageParam + 1,
+                StaleTime = staleTime,
+            }
+        );
+
+    /// <summary>A key part whose <see cref="ToString"/> yields <c>null</c>, which <c>Name</c> must not surface.</summary>
+    private sealed class NullStringPart
+    {
+        public override string? ToString() => null;
+    }
+
+    [Test]
+    public async Task Entry_Name_IsUnknownWhenFirstKeyPartStringifiesToNull()
+    {
+        using var query = _client.CreateQuery(
+            new QueryOptions<int, string>
+            {
+                KeyFactory = _ => QueryKey.From(new NullStringPart()),
+                Fetcher = (_, _) => Task.FromResult("data"),
+            }
+        );
+        query.SetArgs(1);
+
+        await Assert.That(Latest().Single().Name).IsEqualTo("unknown");
+    }
+
+    [Test]
+    public async Task InfiniteEntry_Name_IsUnknownWhenFirstKeyPartStringifiesToNull()
+    {
+        using var query = CreateInfiniteQuery(key: QueryKey.From(new NullStringPart()));
+        query.SetArgs(0);
+
+        await Assert.That(Latest().Single().Name).IsEqualTo("unknown");
+    }
+
+    [Test]
+    public async Task InfiniteEntry_Name_IsUnknownWhenKeyHasNoParts()
+    {
+        using var query = CreateInfiniteQuery(key: QueryKey.From());
+        query.SetArgs(0);
+
+        await Assert.That(Latest().Single().Name).IsEqualTo("unknown");
+    }
+
+    [Test]
+    public async Task InfiniteEntry_IsStale_BeforeFirstFetch()
+    {
+        using var query = CreateInfiniteQuery();
+        query.SetArgs(0);
+
+        await Assert.That(Latest().Single().IsStale).IsTrue();
+    }
+
+    [Test]
+    public async Task InfiniteEntry_IsStale_FollowsStaleTime()
+    {
+        using var query = CreateInfiniteQuery(staleTime: TimeSpan.FromMinutes(1));
+        using var sub = query.State.Subscribe();
+        query.SetArgs(0);
+        await query.State.Where(s => s.IsSuccess).FirstAsync();
+        var entry = Latest().Single();
+
+        await Assert.That(entry.IsStale).IsFalse();
+
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(1).Ticks);
+
+        await Assert.That(entry.IsStale).IsTrue();
+    }
+
+    [Test]
+    public async Task InfiniteEntry_IsStale_WhenInvalidatedWithoutSubscribers()
+    {
+        using var query = CreateInfiniteQuery();
+        var sub = query.State.Subscribe();
+        query.SetArgs(0);
+        await query.State.Where(s => s.IsSuccess).FirstAsync();
+        sub.Dispose();
+        var entry = Latest().Single();
+
+        entry.Invalidate();
+
+        await Assert.That(entry.IsStale).IsTrue();
+    }
 }
