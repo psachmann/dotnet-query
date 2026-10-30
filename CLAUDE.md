@@ -269,6 +269,10 @@ There is no `CHANGELOG.md` or `release-notes.md`, deliberately. Release notes ar
 PR titles when the release workflow runs (`generate_release_notes: true`), and each package's
 `PackageReleaseNotes` links to that release — a hand-kept file would only duplicate it and drift.
 
+Grouping is controlled by `.github/release.yml`: PR labels `breaking-change` / `enhancement` / `bug` pick the
+section, everything else is "Other Changes", and `dependencies`-labelled / `dependabot[bot]` PRs are excluded.
+Labels are evaluated when the release is published, so labelling merged PRs retroactively works.
+
 What GitHub cannot generate is upgrade advice, so breaking changes are documented in a per-major migration
 guide: `docs/doc/migrating-to-v<N>.md`, where `<N>` is the upcoming major (currently
 `migrating-to-v3.md`). **Write the entry in the same PR that makes the break**, not at release prep — the
