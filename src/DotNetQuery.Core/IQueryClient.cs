@@ -30,6 +30,17 @@ public interface IQueryClient : IDisposable
     IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options);
 
     /// <summary>
+    /// Creates a mutation whose mutator reports progress through an <see cref="IProgress{T}"/>; the latest
+    /// value travels on <see cref="IMutation{TArgs,TData,TProgress}.State"/> as
+    /// <see cref="MutationState{TData,TProgress}.Progress"/>. If
+    /// <see cref="MutationOptions{TArgs,TData,TProgress}.InvalidateKeys"/> is set, the specified keys are
+    /// invalidated automatically on success.
+    /// </summary>
+    IMutation<TArgs, TData, TProgress> CreateMutation<TArgs, TData, TProgress>(
+        MutationOptions<TArgs, TData, TProgress> options
+    );
+
+    /// <summary>
     /// Marks all queries matching the given key as stale and, for entries with an active
     /// subscriber, triggers a re-fetch. Entries still within their <c>StaleTime</c> window are
     /// left untouched, and entries with no active subscriber are only marked stale — the re-fetch

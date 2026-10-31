@@ -1,48 +1,58 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
+internal sealed class Mutation<TArgs, TData>(
+    MutationOptions<TArgs, TData> options,
+    QueryClientOptions globalOptions,
+    QueryInstrumentation instrumentation
+)
+    : MutationCore<TArgs, TData, Unit, MutationState<TData>>(MergeOptions(options, globalOptions), instrumentation),
+        IMutation<TArgs, TData>
 {
-    private readonly EffectiveMutationOptions<TArgs, TData> _options;
-    private readonly QueryInstrumentation _instrumentation;
-    private readonly BehaviorSubject<MutationState<TData>> _state = new(MutationState<TData>.CreateIdle());
-    private readonly BehaviorSubject<bool> _isEnabled;
-    private readonly Subject<TArgs> _execute = new();
-    private readonly Subject<Unit> _cancel = new();
-    private readonly CompositeDisposable _subscriptions = [];
-    private bool _disposed;
-
-    public Mutation(
+    public static EffectiveMutationOptions<TArgs, TData, Unit> MergeOptions(
         MutationOptions<TArgs, TData> options,
-        QueryClientOptions globalOptions,
-        QueryInstrumentation instrumentation
+        QueryClientOptions globalOptions
     )
     {
-        _options = MergeOptions(options, globalOptions);
-        _instrumentation = instrumentation;
-        _isEnabled = new(_options.IsEnabled);
+        var mutator = options.Mutator;
 
-        _subscriptions.Add(
-            _execute
-                .Select(args => Observable.FromAsync(ct => ExecuteAsync(args, ct)).TakeUntil(_cancel))
-                .Switch()
-                .Subscribe()
-        );
+        return new()
+        {
+            Mutator = (args, _, ct) => mutator(args, ct),
+            Name = options.Name ?? typeof(TArgs).Name,
+            RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
+            IsEnabled = options.IsEnabled,
+            InvalidateKeys = options.InvalidateKeys ?? [],
+            OnMutate = options.OnMutate ?? delegate { },
+            OnSuccess = options.OnSuccess ?? delegate { },
+            OnFailure = options.OnFailure ?? delegate { },
+            OnSettled = options.OnSettled ?? delegate { },
+        };
     }
 
-    public MutationState<TData> CurrentState => _state.Value;
+    protected override MutationState<TData> CreateIdle() => MutationState<TData>.CreateIdle();
 
-    public void SetEnabled(bool enabled) => _isEnabled.OnNext(enabled);
+    protected override MutationState<TData> CreateRunning(Unit progress) => MutationState<TData>.CreateRunning();
 
-    public IObservable<MutationState<TData>> State => _state.AsObservable();
+    protected override MutationState<TData> CreateSuccess(TData data, Unit progress) =>
+        MutationState<TData>.CreateSuccess(data);
 
-    public IObservable<TData> Success => _state.Where(state => state.IsSuccess).Select(state => state.CurrentData!);
+    protected override MutationState<TData> CreateFailure(Exception error, Unit progress) =>
+        MutationState<TData>.CreateFailure(error);
+}
 
-    public IObservable<Exception> Failure => _state.Where(state => state.IsFailure).Select(state => state.Error!);
-
-    public IObservable<MutationState<TData>> Settled => _state.Where(state => state.IsSuccess || state.IsFailure);
-
-    public static EffectiveMutationOptions<TArgs, TData> MergeOptions(
-        MutationOptions<TArgs, TData> options,
+internal sealed class Mutation<TArgs, TData, TProgress>(
+    MutationOptions<TArgs, TData, TProgress> options,
+    QueryClientOptions globalOptions,
+    QueryInstrumentation instrumentation
+)
+    : MutationCore<TArgs, TData, TProgress, MutationState<TData, TProgress>>(
+        MergeOptions(options, globalOptions),
+        instrumentation
+    ),
+        IMutation<TArgs, TData, TProgress>
+{
+    public static EffectiveMutationOptions<TArgs, TData, TProgress> MergeOptions(
+        MutationOptions<TArgs, TData, TProgress> options,
         QueryClientOptions globalOptions
     )
     {
@@ -60,128 +70,14 @@ internal sealed class Mutation<TArgs, TData> : IMutation<TArgs, TData>
         };
     }
 
-    public void Execute(TArgs args)
-    {
-        if (!_isEnabled.Value)
-        {
-            return;
-        }
+    protected override MutationState<TData, TProgress> CreateIdle() => MutationState<TData, TProgress>.CreateIdle();
 
-        _execute.OnNext(args);
-    }
+    protected override MutationState<TData, TProgress> CreateRunning(TProgress? progress) =>
+        MutationState<TData, TProgress>.CreateRunning(progress);
 
-    public void Cancel() => _cancel.OnNext(Unit.Default);
+    protected override MutationState<TData, TProgress> CreateSuccess(TData data, TProgress? progress) =>
+        MutationState<TData, TProgress>.CreateSuccess(data, progress);
 
-    internal void AddDisposable(IDisposable disposable) => _subscriptions.Add(disposable);
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        _subscriptions.Dispose();
-        _execute.OnCompleted();
-        _cancel.OnCompleted();
-        _isEnabled.OnCompleted();
-        _state.OnCompleted();
-        _execute.Dispose();
-        _cancel.Dispose();
-        _isEnabled.Dispose();
-        _state.Dispose();
-    }
-
-    private async Task ExecuteAsync(TArgs args, CancellationToken cancellationToken)
-    {
-        using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityMutationExecute);
-        activity?.SetTag(QueryTelemetryTags.TagMutationName, _options.Name);
-        var stopwatch = Stopwatch.StartNew();
-        var attempts = 0;
-
-        _options.OnMutate.Invoke(args);
-        _state.OnNext(MutationState<TData>.CreateRunning());
-        _instrumentation.RecordMutationStart(_options.Name);
-
-        TData data = default!;
-        Exception? error = null;
-        var cancelled = false;
-
-        try
-        {
-            data = await _options
-                .RetryHandler.ExecuteAsync(
-                    ct =>
-                    {
-                        if (Interlocked.Increment(ref attempts) > 1)
-                        {
-                            activity?.AddEvent(new ActivityEvent("retry"));
-                        }
-
-                        return _options.Mutator(args, ct);
-                    },
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
-            stopwatch.Stop();
-
-            activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
-            activity?.SetStatus(ActivityStatusCode.Ok);
-            _instrumentation.RecordMutationSuccess(_options.Name, stopwatch.Elapsed, attempts);
-
-            if (!_disposed)
-            {
-                _state.OnNext(MutationState<TData>.CreateSuccess(data));
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            stopwatch.Stop();
-            cancelled = true;
-
-            activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
-            activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
-            _instrumentation.RecordMutationCancelled(_options.Name, stopwatch.Elapsed);
-
-            if (!_disposed)
-            {
-                _state.OnNext(MutationState<TData>.CreateIdle());
-            }
-        }
-        catch (Exception ex)
-        {
-            stopwatch.Stop();
-            error = ex;
-
-            activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
-            activity?.SetTag(QueryTelemetryTags.TagErrorType, ex.GetType().Name);
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            _instrumentation.RecordMutationFailure(_options.Name, stopwatch.Elapsed, ex, attempts);
-
-            if (!_disposed)
-            {
-                _state.OnNext(MutationState<TData>.CreateFailure(ex));
-            }
-        }
-
-        if (_disposed)
-        {
-            return;
-        }
-
-        if (!cancelled)
-        {
-            if (error is null)
-            {
-                _options.OnSuccess.Invoke(args, data);
-            }
-            else
-            {
-                _options.OnFailure.Invoke(error);
-            }
-        }
-
-        _options.OnSettled.Invoke();
-    }
+    protected override MutationState<TData, TProgress> CreateFailure(Exception error, TProgress? progress) =>
+        MutationState<TData, TProgress>.CreateFailure(error, progress);
 }

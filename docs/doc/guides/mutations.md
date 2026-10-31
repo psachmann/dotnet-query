@@ -76,27 +76,26 @@ If the mutation is disabled (`IsEnabled = false` or `SetEnabled(false)` was call
 The mutation moves through four states:
 
 ```
-        Execute(args)
-             │
-          Idle ──────► Running
-                         │
-                    ┌────┴────┐
-                    ▼         ▼
-                 Success   Failure
-                    │         │
-                    └────┬────┘
-                         ▼
-                        Idle
+             Execute(args)
+   Idle ──────────────────► Running ◄───────────────┐
+    ▲                          │                    │
+    └────────── Cancel() ──────┤                    │
+                          ┌────┴────┐               │
+                          ▼         ▼               │
+                       Success   Failure            │
+                          │         │               │
+                          └────┬────┘               │
+                               └── Execute(args) ───┘
 ```
 
-- **Idle** — initial state, or after a completed execution.
-- **Running** — the mutator is executing.
+- **Idle** — the initial state, and the state after `Cancel()`.
+- **Running** — the mutator is executing, including any retries.
 - **Success** — the last execution succeeded. `CurrentData` holds the result.
 - **Failure** — all retry attempts failed. `Error` holds the exception.
 
-After reaching `Success` or `Failure`, the state returns to `Idle` on the next `Execute` call.
+`Success` and `Failure` are terminal: the mutation stays there until the next `Execute` call, which goes straight to `Running`. It returns to `Idle` only when a run is cancelled.
 
-> **Note:** Unlike queries, mutations do not replay their last state to new subscribers — they emit only new transitions going forward.
+> **Note:** Like queries, mutations replay their current state to new subscribers — a subscriber joining mid-run sees `Running` immediately. The shortcut streams below are derived from `State`, so `Success` and `Failure` also replay a result that is still current.
 
 ## Subscribing to Mutation State
 
@@ -129,6 +128,67 @@ mutation.Success.Subscribe(data => NavigateTo($"/users/{data.Id}"));
 mutation.Failure.Subscribe(error => ShowError(error.Message));
 mutation.Settled.Subscribe(_ => HideSpinner());
 ```
+
+## Reporting Progress
+
+For long-running writes — uploads, exports, imports, background jobs — pass a third type argument for the progress value. The mutator then receives an `IProgress<TProgress>`, and every state carries the latest reported value as `Progress`:
+
+```csharp
+IMutation<UploadRequest, DocumentDto, long> upload = queryClient.CreateMutation(
+    new MutationOptions<UploadRequest, DocumentDto, long>
+    {
+        Mutator = async (request, progress, ct) =>
+        {
+            long sent = 0;
+
+            await foreach (var chunk in request.File.ReadChunksAsync(ct))
+            {
+                await uploadClient.SendAsync(chunk, ct);
+                sent += chunk.Length;
+                progress.Report(sent);
+            }
+
+            return await uploadClient.CompleteAsync(ct);
+        },
+        InvalidateKeys = [QueryKey.From("inbox")],
+    });
+
+upload.State.Subscribe(state =>
+{
+    if (state.IsRunning)
+    {
+        ShowProgress(state.Progress, request.File.Length);
+    }
+});
+```
+
+Everything else — `InvalidateKeys`, the lifecycle callbacks, `Cancel()`, retries, `SetEnabled` — works exactly as for a mutation without progress.
+
+How `Progress` behaves:
+
+| Moment | `Status` | `Progress` |
+|--------|----------|------------|
+| Before the first report | `Running` | `default` (e.g. `0`) |
+| After `progress.Report(value)` | `Running` | `value` |
+| At the start of a retry | `Running` | back to `default` — a retried mutator starts over |
+| After success / failure | `Success` / `Failure` | the last value reported, so a UI can show "failed at 60 %" |
+| After `Cancel()` | `Idle` | cleared |
+
+Progress travels on `State` rather than a separate stream. Mutation state replays to new subscribers, so a component that subscribes in the middle of an upload renders the current progress straight away, and status and progress can never disagree.
+
+`Report` may be called from any thread. Each call publishes synchronously on that thread, in order with the other transitions. Reports made after the attempt is over are ignored — after the mutator returned or threw, after `Cancel()`, or once a retry or a newer `Execute` has superseded it. This is also why the library hands you its own `IProgress<T>`: `System.Progress<T>` posts to the captured `SynchronizationContext`, so its reports could arrive after the mutation had already settled.
+
+> **Reports are not throttled.** A mutator that reports on every 4 KB chunk of a large file emits that many states. Either report at a coarser granularity, or sample the stream where you render it:
+>
+> ```csharp
+> _subscription = upload.State
+>     .Sample(TimeSpan.FromMilliseconds(100))
+>     .Subscribe(state => InvokeAsync(() => { _state = state; StateHasChanged(); }));
+> ```
+>
+> `MutationViewModel<TArgs, TData, TProgress>` in the [MVVM package](mvvm.md) already coalesces to one UI update per dispatcher hop, so it needs no throttling.
+
+> **Retries and one-shot inputs:** A retry calls the mutator again from the start. A mutator that consumes something it cannot re-read — a non-seekable `Stream`, a network body, an enumerator — will fail or send a truncated payload on the second attempt. Either re-open the input inside the mutator, or opt this mutation out of retries with `RetryHandler = new NoRetryHandler()` (see [Retries](retries.md)).
 
 ## Automatic Cache Invalidation
 
@@ -225,6 +285,8 @@ mutation.Cancel();
 ```
 
 The mutation returns to `Idle`. `OnSettled` is called but `OnSuccess` / `OnFailure` are not.
+
+Calling `Execute` while a run is in flight also cancels that run, in favour of the new one. The cancelled run's `OnSettled` still fires, but it never touches `State`: the mutation stays `Running` for the new execution.
 
 ### SetEnabled
 

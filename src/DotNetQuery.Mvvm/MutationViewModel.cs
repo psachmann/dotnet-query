@@ -23,9 +23,7 @@ namespace DotNetQuery.Mvvm;
 public class MutationViewModel<TArgs, TData> : BindableBase, IDisposable
 {
     private readonly bool _ownsMutation;
-    private readonly MutationExecuteCommand<TArgs> _executeCommand;
-    private readonly RelayCommand _cancelCommand;
-    private readonly List<Action> _runningDependentRefreshers;
+    private readonly MutationCommands<TArgs> _commands;
     private readonly UiStateBinding<MutationState<TData>> _stateBinding;
 
     private bool _isDisposed;
@@ -72,13 +70,11 @@ public class MutationViewModel<TArgs, TData> : BindableBase, IDisposable
         // Created before _stateBinding, and read Mutation.CurrentState directly rather than
         // _stateBinding.Current, so there is no forward reference to work around here (contrast
         // QueryViewModel / InfiniteQueryViewModel) — see the double-submit note on the type itself.
-        _executeCommand = new MutationExecuteCommand<TArgs>(
-            RunMutation,
-            () => !Mutation.CurrentState.IsRunning,
-            nameof(ExecuteCommand)
+        _commands = new MutationCommands<TArgs>(
+            () => Mutation.CurrentState.IsRunning,
+            mutation.Execute,
+            mutation.Cancel
         );
-        _cancelCommand = new RelayCommand(mutation.Cancel, () => Mutation.CurrentState.IsRunning);
-        _runningDependentRefreshers = [_executeCommand.RaiseCanExecuteChanged, _cancelCommand.RaiseCanExecuteChanged];
 
         // Apply the current state synchronously so bindings evaluated right after construction
         // read correct values without waiting for a dispatcher hop. See UiStateBinding for how the
@@ -134,12 +130,12 @@ public class MutationViewModel<TArgs, TData> : BindableBase, IDisposable
     /// Disabled while a run is already in flight. See the type-level remarks for the double-submit
     /// protection this and <see cref="Execute"/> share.
     /// </summary>
-    public ICommand ExecuteCommand => _executeCommand;
+    public ICommand ExecuteCommand => _commands.ExecuteCommand;
 
     /// <summary>
     /// Triggers <see cref="IMutation{TArgs, TData}.Cancel"/>. Enabled only while a run is in flight.
     /// </summary>
-    public ICommand CancelCommand => _cancelCommand;
+    public ICommand CancelCommand => _commands.CancelCommand;
 
     /// <summary>
     /// Raised on the UI thread after every <see cref="INotifyPropertyChanged.PropertyChanged"/>
@@ -152,7 +148,7 @@ public class MutationViewModel<TArgs, TData> : BindableBase, IDisposable
     /// already reports <see cref="MutationStatus.Running"/> — see the type-level remarks.
     /// </summary>
     /// <param name="args">The arguments to pass to the mutator.</param>
-    public void Execute(TArgs args) => RunMutation(args);
+    public void Execute(TArgs args) => _commands.Run(args);
 
     /// <summary>
     /// Wraps this mutation as a command whose parameter is <typeparamref name="TParam"/>, mapped to
@@ -166,20 +162,8 @@ public class MutationViewModel<TArgs, TData> : BindableBase, IDisposable
     /// running gate applies. Call <see cref="IMutationCommand.RaiseCanExecuteChanged"/> on the
     /// returned command when an input this predicate reads changes outside the mutation's own state.
     /// </param>
-    public IMutationCommand ToCommand<TParam>(Func<TParam, TArgs> map, Func<TParam, bool>? canExecute = null)
-    {
-        ArgumentNullException.ThrowIfNull(map);
-
-        var command = new MutationMappedCommand<TArgs, TParam>(
-            map,
-            canExecute,
-            () => Mutation.CurrentState.IsRunning,
-            RunMutation
-        );
-        _runningDependentRefreshers.Add(command.RaiseCanExecuteChanged);
-
-        return command;
-    }
+    public IMutationCommand ToCommand<TParam>(Func<TParam, TArgs> map, Func<TParam, bool>? canExecute = null) =>
+        _commands.ToCommand(map, canExecute);
 
     /// <summary>
     /// Wraps this mutation as a parameterless command. The mutator's arguments come from
@@ -194,20 +178,8 @@ public class MutationViewModel<TArgs, TData> : BindableBase, IDisposable
     /// <see cref="IMutationCommand.RaiseCanExecuteChanged"/> on the returned command when an input
     /// this predicate reads changes outside the mutation's own state.
     /// </param>
-    public IMutationCommand ToCommand(Func<TArgs> args, Func<bool>? canExecute = null)
-    {
-        ArgumentNullException.ThrowIfNull(args);
-
-        var command = new MutationFactoryCommand<TArgs>(
-            args,
-            canExecute,
-            () => Mutation.CurrentState.IsRunning,
-            RunMutation
-        );
-        _runningDependentRefreshers.Add(command.RaiseCanExecuteChanged);
-
-        return command;
-    }
+    public IMutationCommand ToCommand(Func<TArgs> args, Func<bool>? canExecute = null) =>
+        _commands.ToCommand(args, canExecute);
 
     /// <summary>
     /// Releases the view model's state subscription and disposes the wrapped mutation if this view
@@ -250,28 +222,6 @@ public class MutationViewModel<TArgs, TData> : BindableBase, IDisposable
         ArgumentNullException.ThrowIfNull(options);
 
         return client.CreateMutation(options);
-    }
-
-    // Shared by ExecuteCommand, Execute(TArgs), and every ToCommand-produced command. Guards against
-    // double-submit itself — rather than trusting callers to have checked CanExecute first — because
-    // a raw ICommand.Execute call (as a fast double-click can produce) does not check CanExecute.
-    private void RunMutation(TArgs args)
-    {
-        if (Mutation.CurrentState.IsRunning)
-        {
-            return;
-        }
-
-        Mutation.Execute(args);
-        RefreshRunningDependentCommands();
-    }
-
-    private void RefreshRunningDependentCommands()
-    {
-        foreach (var refresh in _runningDependentRefreshers)
-        {
-            refresh();
-        }
     }
 
     // Invoked by _stateBinding on the UI thread, once per applied state change; next has already
@@ -323,7 +273,287 @@ public class MutationViewModel<TArgs, TData> : BindableBase, IDisposable
         if (previous.IsRunning != next.IsRunning)
         {
             RaisePropertyChanged(nameof(IsRunning));
-            RefreshRunningDependentCommands();
+            _commands.RefreshRunningDependentCommands();
+        }
+
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+}
+
+/// <summary>
+/// An <see cref="INotifyPropertyChanged"/> view model wrapping a progress-reporting
+/// <see cref="IMutation{TArgs, TData, TProgress}"/>. Identical to <see cref="MutationViewModel{TArgs, TData}"/>
+/// plus a bindable <see cref="Progress"/> — bind a progress bar to it.
+/// <para>
+/// Progress reports share the latest-wins coalescing every state goes through: a mutator reporting
+/// thousands of times per second produces at most one <see cref="INotifyPropertyChanged.PropertyChanged"/>
+/// per dispatcher hop, carrying the newest value, so there is no need to throttle reports for the UI's sake.
+/// </para>
+/// <para>
+/// The view model holds a live subscription to <see cref="IMutation{TArgs, TData, TProgress}.State"/> for
+/// its entire lifetime. Dispose the view model when its page is torn down.
+/// </para>
+/// <para>
+/// <b>Double-submit protection:</b> <see cref="ExecuteCommand"/>, <see cref="Execute"/>, and every
+/// command returned by <see cref="ToCommand{TParam}"/> read <see cref="IMutation{TArgs, TData, TProgress}.CurrentState"/>
+/// directly — not the dispatcher-applied <see cref="CurrentState"/> below — before starting a run, exactly
+/// as <see cref="MutationViewModel{TArgs, TData}"/> does.
+/// </para>
+/// </summary>
+/// <typeparam name="TArgs">The type of the arguments passed to the mutator.</typeparam>
+/// <typeparam name="TData">The type of the data returned on success.</typeparam>
+/// <typeparam name="TProgress">The type of the progress values the mutator reports.</typeparam>
+public class MutationViewModel<TArgs, TData, TProgress> : BindableBase, IDisposable
+{
+    private readonly bool _ownsMutation;
+    private readonly MutationCommands<TArgs> _commands;
+    private readonly UiStateBinding<MutationState<TData, TProgress>> _stateBinding;
+
+    private bool _isDisposed;
+
+    /// <summary>
+    /// Wraps an existing mutation. The view model does <b>not</b> take ownership:
+    /// <see cref="Dispose()"/> releases only the view model's own state subscription,
+    /// and the caller remains responsible for disposing <paramref name="mutation"/>.
+    /// </summary>
+    /// <param name="mutation">The mutation to wrap.</param>
+    /// <param name="dispatcher">
+    /// The UI-thread dispatcher. When <c>null</c>, <see cref="SynchronizationContext.Current"/> is
+    /// captured; construct the view model on the UI thread or pass a dispatcher explicitly.
+    /// </param>
+    public MutationViewModel(IMutation<TArgs, TData, TProgress> mutation, IUiDispatcher? dispatcher = null)
+        : this(mutation, ownsMutation: false, dispatcher) { }
+
+    /// <summary>
+    /// Creates a new mutation via <see cref="IQueryClient.CreateMutation{TArgs, TData, TProgress}"/> and
+    /// wraps it. The view model owns the created mutation and disposes it in <see cref="Dispose()"/>.
+    /// </summary>
+    /// <param name="client">The query client used to create the mutation.</param>
+    /// <param name="options">The mutation options.</param>
+    /// <param name="dispatcher">
+    /// The UI-thread dispatcher. When <c>null</c>, <see cref="SynchronizationContext.Current"/> is
+    /// captured; construct the view model on the UI thread or pass a dispatcher explicitly.
+    /// </param>
+    public MutationViewModel(
+        IQueryClient client,
+        MutationOptions<TArgs, TData, TProgress> options,
+        IUiDispatcher? dispatcher = null
+    )
+        : this(CreateMutation(client, options), ownsMutation: true, dispatcher) { }
+
+    private MutationViewModel(IMutation<TArgs, TData, TProgress> mutation, bool ownsMutation, IUiDispatcher? dispatcher)
+    {
+        ArgumentNullException.ThrowIfNull(mutation);
+
+        Mutation = mutation;
+        _ownsMutation = ownsMutation;
+        _commands = new MutationCommands<TArgs>(
+            () => Mutation.CurrentState.IsRunning,
+            mutation.Execute,
+            mutation.Cancel
+        );
+
+        // Apply the current state synchronously so bindings evaluated right after construction
+        // read correct values without waiting for a dispatcher hop.
+        _stateBinding = new UiStateBinding<MutationState<TData, TProgress>>(
+            mutation.State,
+            mutation.CurrentState,
+            dispatcher ?? SynchronizationContextUiDispatcher.CaptureCurrent(),
+            ApplyState
+        );
+    }
+
+    /// <summary>
+    /// The wrapped mutation — the escape hatch for members without a bindable counterpart
+    /// (<see cref="IMutation{TArgs, TData, TProgress}.SetEnabled"/>, or direct Rx composition via
+    /// <see cref="IMutation{TArgs, TData, TProgress}.Success"/>, <see cref="IMutation{TArgs, TData, TProgress}.Failure"/>,
+    /// <see cref="IMutation{TArgs, TData, TProgress}.Settled"/>).
+    /// </summary>
+    public IMutation<TArgs, TData, TProgress> Mutation { get; }
+
+    /// <summary>The raw state snapshot, for bindings and converters that need the whole state.</summary>
+    public MutationState<TData, TProgress> CurrentState => _stateBinding.Current;
+
+    /// <summary>The current lifecycle status of the mutation.</summary>
+    public MutationStatus Status => _stateBinding.Current.Status;
+
+    /// <summary>
+    /// The latest progress the mutator reported. <c>default</c> before the first report and at the start
+    /// of every retry; kept after success or failure; cleared when the mutation returns to idle.
+    /// </summary>
+    public TProgress? Progress => _stateBinding.Current.Progress;
+
+    /// <summary>The data returned by the most recent successful execution. <c>null</c> until then.</summary>
+    public TData? Data => _stateBinding.Current.CurrentData;
+
+    /// <summary>The exception from the most recent failed execution. <c>null</c> when not in a failure state.</summary>
+    public Exception? Error => _stateBinding.Current.Error;
+
+    /// <summary><c>true</c> when the mutation has not yet executed, or has been reset.</summary>
+    public bool IsIdle => _stateBinding.Current.IsIdle;
+
+    /// <summary><c>true</c> while an execution is in flight.</summary>
+    public bool IsRunning => _stateBinding.Current.IsRunning;
+
+    /// <summary><c>true</c> when the most recent execution succeeded.</summary>
+    public bool IsSuccess => _stateBinding.Current.IsSuccess;
+
+    /// <summary><c>true</c> when the most recent execution failed.</summary>
+    public bool IsFailure => _stateBinding.Current.IsFailure;
+
+    /// <summary><c>true</c> when <see cref="Data"/> is available.</summary>
+    public bool HasData => _stateBinding.Current.HasData;
+
+    /// <summary><c>true</c> when <see cref="Error"/> is not <c>null</c>.</summary>
+    public bool HasError => _stateBinding.Current.HasError;
+
+    /// <summary>
+    /// Triggers a run with a <c>object?</c> parameter cast strictly to <typeparamref name="TArgs"/>.
+    /// Disabled while a run is already in flight.
+    /// </summary>
+    public ICommand ExecuteCommand => _commands.ExecuteCommand;
+
+    /// <summary>
+    /// Triggers <see cref="IMutation{TArgs, TData, TProgress}.Cancel"/>. Enabled only while a run is in flight.
+    /// </summary>
+    public ICommand CancelCommand => _commands.CancelCommand;
+
+    /// <summary>
+    /// Raised on the UI thread after every <see cref="INotifyPropertyChanged.PropertyChanged"/>
+    /// notification for an applied state.
+    /// </summary>
+    public event EventHandler? StateChanged;
+
+    /// <summary>
+    /// Triggers a run with <paramref name="args"/>, unless <see cref="IMutation{TArgs, TData, TProgress}.CurrentState"/>
+    /// already reports <see cref="MutationStatus.Running"/>.
+    /// </summary>
+    /// <param name="args">The arguments to pass to the mutator.</param>
+    public void Execute(TArgs args) => _commands.Run(args);
+
+    /// <summary>
+    /// Wraps this mutation as a command whose parameter is <typeparamref name="TParam"/>, mapped to
+    /// <typeparamref name="TArgs"/> via <paramref name="map"/>. Behaves exactly like
+    /// <see cref="MutationViewModel{TArgs, TData}.ToCommand{TParam}"/>.
+    /// </summary>
+    /// <param name="map">Maps the command parameter to the mutator's arguments.</param>
+    /// <param name="canExecute">
+    /// An additional predicate evaluated with the command parameter. When <c>null</c>, only the
+    /// running gate applies.
+    /// </param>
+    public IMutationCommand ToCommand<TParam>(Func<TParam, TArgs> map, Func<TParam, bool>? canExecute = null) =>
+        _commands.ToCommand(map, canExecute);
+
+    /// <summary>
+    /// Wraps this mutation as a parameterless command whose arguments come from <paramref name="args"/>.
+    /// Behaves exactly like <see cref="MutationViewModel{TArgs, TData}.ToCommand(Func{TArgs}, Func{bool})"/>.
+    /// </summary>
+    /// <param name="args">Produces the mutator's arguments at the moment the command executes.</param>
+    /// <param name="canExecute">An additional predicate. When <c>null</c>, only the running gate applies.</param>
+    public IMutationCommand ToCommand(Func<TArgs> args, Func<bool>? canExecute = null) =>
+        _commands.ToCommand(args, canExecute);
+
+    /// <summary>
+    /// Releases the view model's state subscription and disposes the wrapped mutation if this view
+    /// model created it.
+    /// </summary>
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases resources. Override in derived view models to dispose additional state;
+    /// always call the base implementation.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> when called from <see cref="Dispose()"/>.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        _isDisposed = true;
+
+        if (disposing)
+        {
+            _stateBinding.Dispose();
+
+            if (_ownsMutation)
+            {
+                Mutation.Dispose();
+            }
+        }
+    }
+
+    private static IMutation<TArgs, TData, TProgress> CreateMutation(
+        IQueryClient client,
+        MutationOptions<TArgs, TData, TProgress> options
+    )
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(options);
+
+        return client.CreateMutation(options);
+    }
+
+    // Invoked by _stateBinding on the UI thread, once per applied state change; next has already
+    // been swapped in as _stateBinding.Current by the time this runs.
+    private void ApplyState(MutationState<TData, TProgress> previous, MutationState<TData, TProgress> next)
+    {
+        RaisePropertyChanged(nameof(CurrentState));
+
+        if (previous.Status != next.Status)
+        {
+            RaisePropertyChanged(nameof(Status));
+        }
+
+        if (!EqualityComparer<TProgress?>.Default.Equals(previous.Progress, next.Progress))
+        {
+            RaisePropertyChanged(nameof(Progress));
+        }
+
+        if (previous.IsIdle != next.IsIdle)
+        {
+            RaisePropertyChanged(nameof(IsIdle));
+        }
+
+        if (previous.IsSuccess != next.IsSuccess)
+        {
+            RaisePropertyChanged(nameof(IsSuccess));
+        }
+
+        if (previous.IsFailure != next.IsFailure)
+        {
+            RaisePropertyChanged(nameof(IsFailure));
+        }
+
+        if (!EqualityComparer<TData?>.Default.Equals(previous.CurrentData, next.CurrentData))
+        {
+            RaisePropertyChanged(nameof(Data));
+        }
+
+        if (previous.HasData != next.HasData)
+        {
+            RaisePropertyChanged(nameof(HasData));
+        }
+
+        if (previous.Error != next.Error)
+        {
+            RaisePropertyChanged(nameof(Error));
+        }
+
+        if (previous.HasError != next.HasError)
+        {
+            RaisePropertyChanged(nameof(HasError));
+        }
+
+        if (previous.IsRunning != next.IsRunning)
+        {
+            RaisePropertyChanged(nameof(IsRunning));
+            _commands.RefreshRunningDependentCommands();
         }
 
         StateChanged?.Invoke(this, EventArgs.Empty);
