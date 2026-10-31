@@ -98,6 +98,7 @@ cardinality limits that apply to metrics, so the complete `QueryKey` is always i
 | `trigger` | What caused the fetch: `manual`, `invalidate`, `interval`, `stale`, or `prefetch` |
 | `direction` | Infinite queries only: `refetch_all`, `next`, or `previous` |
 | `query.pages` | Infinite queries only: number of pages fetched (`1` for `next`/`previous`, page count for `refetch_all`) |
+| `query.chunks` | Streamed queries only: number of chunks received by the final attempt |
 | `attempts` | Number of attempts made by the configured `IRetryHandler` (`1` when no retry occurred) |
 | `otel.status_code` | `Ok` on success, `Error` on failure or cancellation |
 | `error.type` | Exception type name (only on failure) |

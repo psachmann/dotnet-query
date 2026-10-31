@@ -33,6 +33,18 @@ internal sealed class QueryClient : IQueryClient, IQueryCacheInspector
             _instrumentation
         );
 
+    public IQuery<TArgs, TData> CreateStreamedQuery<TArgs, TData, TChunk>(
+        StreamedQueryOptions<TArgs, TData, TChunk> options
+    )
+        where TData : class =>
+        new QueryObserver<TArgs, TData>(
+            QueryObserver<TArgs, TData>.MergeOptions(options, _globalOptions),
+            options.KeyFactory,
+            _cache,
+            _scheduler,
+            _instrumentation
+        );
+
     public IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options)
     {
         var mutation = new Mutation<TArgs, TData>(options, _globalOptions, _instrumentation);

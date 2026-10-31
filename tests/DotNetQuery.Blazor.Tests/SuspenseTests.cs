@@ -163,4 +163,22 @@ public class SuspenseTests
 
         await Assert.That(subscribeCount).IsEqualTo(countAfterFirstRender);
     }
+
+    [Test]
+    public void WhenStreaming_RendersContentWithPartialData_AndUpdatesPerChunk()
+    {
+        var query = CreateQuery(QueryState<string>.CreateFetching());
+
+        var cut = _context.Render<Suspense<int, string>>(p =>
+            p.Add(c => c.Query, query)
+                .Add(c => c.Content, data => $"<span>{data}</span>")
+                .Add(c => c.Loading, "<div>loading</div>")
+        );
+
+        _stateMock.OnNext(QueryState<string>.CreateStreaming("Hel"));
+        cut.WaitForAssertion(() => cut.MarkupMatches("<span>Hel</span>"));
+
+        _stateMock.OnNext(QueryState<string>.CreateStreaming("Hello"));
+        cut.WaitForAssertion(() => cut.MarkupMatches("<span>Hello</span>"));
+    }
 }

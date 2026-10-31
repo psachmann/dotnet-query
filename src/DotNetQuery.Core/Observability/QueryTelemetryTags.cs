@@ -16,6 +16,7 @@ internal static class QueryTelemetryTags
     internal const string TagTrigger = "trigger";
     internal const string TagDirection = "direction";
     internal const string TagPages = "query.pages";
+    internal const string TagChunks = "query.chunks";
 
     // ── Tag values ────────────────────────────────────────────────────────────
     internal const string StatusSuccess = "success";

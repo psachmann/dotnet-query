@@ -15,5 +15,44 @@ DotNetQuery.Core.Inspection.IQueryCacheEntry.Refetch() -> void
 DotNetQuery.Core.Inspection.IQueryCacheEntry.Status.get -> DotNetQuery.Core.QueryStatus
 DotNetQuery.Core.Inspection.IQueryCacheInspector
 DotNetQuery.Core.Inspection.IQueryCacheInspector.Entries.get -> System.IObservable<System.Collections.Generic.IReadOnlyList<DotNetQuery.Core.Inspection.IQueryCacheEntry!>!>!
+DotNetQuery.Core.IQueryClient.CreateStreamedQuery<TArgs, TData, TChunk>(DotNetQuery.Core.StreamedQueryOptions<TArgs, TData!, TChunk>! options) -> DotNetQuery.Core.IQuery<TArgs, TData!>!
 DotNetQuery.Core.QueryClientInspectionExtensions
+DotNetQuery.Core.QueryState<TData>.IsStreaming.get -> bool
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.CacheTime.get -> System.TimeSpan?
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.CacheTime.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.DataComparer.get -> System.Collections.Generic.IEqualityComparer<TData!>?
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.DataComparer.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Fetcher.get -> System.Func<TArgs, System.Threading.CancellationToken, System.Collections.Generic.IAsyncEnumerable<TChunk>!>!
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Fetcher.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.InitialValue.get -> TData!
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.InitialValue.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.IsEnabled.get -> bool
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.IsEnabled.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.KeyFactory.get -> System.Func<TArgs, DotNetQuery.Core.QueryKey!>!
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.KeyFactory.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Name.get -> string?
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Name.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Reducer.get -> System.Func<TData!, TChunk, TData!>!
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Reducer.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RefetchInterval.get -> System.TimeSpan?
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RefetchInterval.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RefetchMode.get -> DotNetQuery.Core.StreamRefetchMode
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RefetchMode.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RetryHandler.get -> DotNetQuery.Core.IRetryHandler?
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RetryHandler.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.StaleTime.get -> System.TimeSpan?
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.StaleTime.init -> void
+DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.StreamedQueryOptions() -> void
+DotNetQuery.Core.StreamRefetchMode
+DotNetQuery.Core.StreamRefetchMode.Replace = 1 -> DotNetQuery.Core.StreamRefetchMode
+DotNetQuery.Core.StreamRefetchMode.Reset = 0 -> DotNetQuery.Core.StreamRefetchMode
+override DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Equals(object? obj) -> bool
+override DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.GetHashCode() -> int
+override DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.ToString() -> string!
 static DotNetQuery.Core.QueryClientInspectionExtensions.TryGetInspector(this DotNetQuery.Core.IQueryClient! client, out DotNetQuery.Core.Inspection.IQueryCacheInspector? inspector) -> bool
+static DotNetQuery.Core.QueryState<TData>.CreateStreaming(TData! currentData, TData? lastData = null) -> DotNetQuery.Core.QueryState<TData!>!
+~DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.<Clone>$() -> DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>!
+~DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Equals(DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>? other) -> bool
+~static DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.operator !=(DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>? left, DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>? right) -> bool
+~static DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>.operator ==(DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>? left, DotNetQuery.Core.StreamedQueryOptions<TArgs, TData, TChunk>? right) -> bool
