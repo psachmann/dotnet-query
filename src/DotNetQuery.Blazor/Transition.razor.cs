@@ -17,7 +17,7 @@ public partial class Transition<TArgs, TData> : IDisposable
 {
     private QueryState<TData> _state = QueryState<TData>.CreateIdle();
     private TData? _displayData => _state.CurrentData ?? _state.LastData;
-    private IDisposable? _subscription;
+    private IDisposable _subscription = Disposable.Empty;
     private IQuery<TArgs, TData>? _subscribedQuery;
 
     /// <summary>
@@ -56,19 +56,23 @@ public partial class Transition<TArgs, TData> : IDisposable
             return;
         }
 
-        _subscribedQuery = Query;
-        _subscription?.Dispose();
+        _subscription.Dispose();
+        _subscription = Disposable.Empty;
+        _subscribedQuery = null;
+
         _subscription = Query.State.Subscribe(state =>
         {
             _state = state;
             _ = InvokeAsync(StateHasChanged);
         });
+
+        _subscribedQuery = Query;
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
-        _subscription?.Dispose();
+        _subscription.Dispose();
         GC.SuppressFinalize(this);
     }
 }

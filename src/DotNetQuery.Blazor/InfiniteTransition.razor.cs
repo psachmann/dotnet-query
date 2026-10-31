@@ -19,7 +19,7 @@ namespace DotNetQuery.Blazor;
 public partial class InfiniteTransition<TArgs, TData, TPageParam> : IDisposable
 {
     private InfiniteQueryState<TData, TPageParam> _state = InfiniteQueryState<TData, TPageParam>.CreateIdle();
-    private IDisposable? _subscription;
+    private IDisposable _subscription = Disposable.Empty;
     private IInfiniteQuery<TArgs, TData, TPageParam>? _subscribedQuery;
 
     /// <summary>
@@ -58,19 +58,23 @@ public partial class InfiniteTransition<TArgs, TData, TPageParam> : IDisposable
             return;
         }
 
-        _subscribedQuery = Query;
-        _subscription?.Dispose();
+        _subscription.Dispose();
+        _subscription = Disposable.Empty;
+        _subscribedQuery = null;
+
         _subscription = Query.State.Subscribe(state =>
         {
             _state = state;
             _ = InvokeAsync(StateHasChanged);
         });
+
+        _subscribedQuery = Query;
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
-        _subscription?.Dispose();
+        _subscription.Dispose();
         GC.SuppressFinalize(this);
     }
 }
