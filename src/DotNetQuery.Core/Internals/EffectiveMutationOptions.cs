@@ -1,8 +1,8 @@
 namespace DotNetQuery.Core.Internals;
 
-internal sealed record EffectiveMutationOptions<TArgs, TData>
+internal sealed record EffectiveMutationOptions<TArgs, TData, TProgress>
 {
-    public required Func<TArgs, CancellationToken, Task<TData>> Mutator { get; init; }
+    public required Func<TArgs, IProgress<TProgress>, CancellationToken, Task<TData>> Mutator { get; init; }
 
     public required string Name { get; init; }
 

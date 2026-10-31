@@ -84,7 +84,7 @@ record MutationState<TData>
 }
 ```
 
-Unlike `QueryState`, mutation state does not replay to new subscribers — it only emits new transitions going forward.
+Like `QueryState`, mutation state replays its current value to new subscribers, so a subscriber joining mid-run sees `Running` immediately. `Success` and `Failure` are terminal until the next `Execute`; only `Cancel()` returns a mutation to `Idle`.
 
 ---
 

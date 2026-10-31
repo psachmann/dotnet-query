@@ -96,6 +96,35 @@ public static class QueryViewModelExtensions
     }
 
     /// <summary>
+    /// Wraps <paramref name="mutation"/> in a <see cref="MutationViewModel{TArgs, TData, TProgress}"/>. The
+    /// returned view model does <b>not</b> take ownership: disposing it releases only its own state
+    /// subscription, and the caller remains responsible for disposing <paramref name="mutation"/>.
+    /// </summary>
+    /// <param name="mutation">The progress-reporting mutation to wrap.</param>
+    /// <param name="disposeWith">
+    /// When not <c>null</c>, the returned view model is added to this container, so disposing the container
+    /// disposes the view model — releasing its subscription, never <paramref name="mutation"/>. If the
+    /// container is already disposed, the view model is disposed immediately.
+    /// </param>
+    /// <param name="dispatcher">
+    /// The UI-thread dispatcher. When <c>null</c>, <see cref="SynchronizationContext.Current"/> is
+    /// captured; call this on the UI thread or pass a dispatcher explicitly.
+    /// </param>
+    public static MutationViewModel<TArgs, TData, TProgress> ToViewModel<TArgs, TData, TProgress>(
+        this IMutation<TArgs, TData, TProgress> mutation,
+        CompositeDisposable? disposeWith = null,
+        IUiDispatcher? dispatcher = null
+    )
+    {
+        ArgumentNullException.ThrowIfNull(mutation);
+
+        var viewModel = new MutationViewModel<TArgs, TData, TProgress>(mutation, dispatcher);
+        disposeWith?.Add(viewModel);
+
+        return viewModel;
+    }
+
+    /// <summary>
     /// Marshals every emission of <paramref name="source"/> onto the UI thread via
     /// <paramref name="dispatcher"/> — one dispatcher post per emission. Unlike the coalescing state
     /// binding the view models use internally, nothing here is dropped or collapsed: use this for

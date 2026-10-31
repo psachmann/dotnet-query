@@ -140,4 +140,57 @@ public class MutationStateTests
         await Assert.That(failure.IsRunning).IsFalse();
         await Assert.That(failure.IsSuccess).IsFalse();
     }
+
+    [Test]
+    public async Task WithProgress_CreateIdle_HasDefaultProgress()
+    {
+        var state = MutationState<Unit, long>.CreateIdle();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(state.IsIdle).IsTrue();
+        await Assert.That(state.Progress).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async Task WithProgress_CreateRunning_CarriesProgress()
+    {
+        var state = MutationState<Unit, long>.CreateRunning(42);
+
+        using var _ = Assert.Multiple();
+        await Assert.That(state.IsRunning).IsTrue();
+        await Assert.That(state.Progress).IsEqualTo(42L);
+        await Assert.That(state.HasData).IsFalse();
+    }
+
+    [Test]
+    public async Task WithProgress_CreateSuccess_CarriesDataAndProgress()
+    {
+        var state = MutationState<string, long>.CreateSuccess("ok", 100);
+
+        using var _ = Assert.Multiple();
+        await Assert.That(state.IsSuccess).IsTrue();
+        await Assert.That(state.CurrentData).IsEqualTo("ok");
+        await Assert.That(state.Progress).IsEqualTo(100L);
+    }
+
+    [Test]
+    public async Task WithProgress_CreateFailure_CarriesErrorAndProgress()
+    {
+        var error = new InvalidOperationException("boom");
+        var state = MutationState<string, double>.CreateFailure(error, 0.6);
+
+        using var _ = Assert.Multiple();
+        await Assert.That(state.IsFailure).IsTrue();
+        await Assert.That(state.Error).IsSameReferenceAs(error);
+        await Assert.That(state.Progress).IsEqualTo(0.6);
+    }
+
+    [Test]
+    public async Task WithProgress_StatesWithDifferentProgress_AreNotEqual()
+    {
+        var first = MutationState<Unit, long>.CreateRunning(1);
+        var second = MutationState<Unit, long>.CreateRunning(2);
+
+        await Assert.That(first).IsNotEqualTo(second);
+    }
 }

@@ -1,1 +1,25 @@
 #nullable enable
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.CancelCommand.get -> System.Windows.Input.ICommand!
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.CurrentState.get -> DotNetQuery.Core.MutationState<TData, TProgress>!
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Data.get -> TData?
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Dispose() -> void
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Error.get -> System.Exception?
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Execute(TArgs args) -> void
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.ExecuteCommand.get -> System.Windows.Input.ICommand!
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.HasData.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.HasError.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.IsFailure.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.IsIdle.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.IsRunning.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.IsSuccess.get -> bool
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Mutation.get -> DotNetQuery.Core.IMutation<TArgs, TData, TProgress>!
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.MutationViewModel(DotNetQuery.Core.IMutation<TArgs, TData, TProgress>! mutation, DotNetQuery.Mvvm.IUiDispatcher? dispatcher = null) -> void
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.MutationViewModel(DotNetQuery.Core.IQueryClient! client, DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>! options, DotNetQuery.Mvvm.IUiDispatcher? dispatcher = null) -> void
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Progress.get -> TProgress?
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.StateChanged -> System.EventHandler?
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Status.get -> DotNetQuery.Core.MutationStatus
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.ToCommand(System.Func<TArgs>! args, System.Func<bool>? canExecute = null) -> DotNetQuery.Mvvm.IMutationCommand!
+DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.ToCommand<TParam>(System.Func<TParam, TArgs>! map, System.Func<TParam, bool>? canExecute = null) -> DotNetQuery.Mvvm.IMutationCommand!
+static DotNetQuery.Mvvm.QueryViewModelExtensions.ToViewModel<TArgs, TData, TProgress>(this DotNetQuery.Core.IMutation<TArgs, TData, TProgress>! mutation, System.Reactive.Disposables.CompositeDisposable? disposeWith = null, DotNetQuery.Mvvm.IUiDispatcher? dispatcher = null) -> DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>!
+virtual DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Dispose(bool disposing) -> void
