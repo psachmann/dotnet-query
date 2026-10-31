@@ -1,1 +1,2 @@
 #nullable enable
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.IsStreaming.get -> bool
