@@ -46,6 +46,8 @@
               omnisharp-roslyn
               netcoredbg
               gh
+              just
+              just-lsp
             ] ++ avaloniaNativeLibs;
             DOTNET_ROOT = "${dotnet}/share/dotnet";
             LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath avaloniaNativeLibs;

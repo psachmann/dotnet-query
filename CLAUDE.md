@@ -21,8 +21,8 @@ dotnet test --configuration Release
 # Run a single test project
 dotnet test tests/DotNetQuery.Core.Tests --configuration Release
 
-# Run a specific test by name (TUnit)
-dotnet test tests/DotNetQuery.Core.Tests --configuration Release -- --filter "FullyQualifiedName~QueryCacheTests"
+# Run a specific test class (TUnit tree-node filter: /assembly/namespace/class/test, wildcards allowed)
+dotnet test tests/DotNetQuery.Core.Tests --configuration Release -- --treenode-filter "/*/*/QueryCacheTests/*"
 
 # Check formatting
 dotnet csharpier check .
