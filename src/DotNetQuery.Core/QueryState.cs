@@ -25,6 +25,13 @@ public sealed record QueryState<TData>
     /// <summary>The exception from the most recent failed fetch. <c>null</c> when not in a failure state.</summary>
     public Exception? Error { get; private set; }
 
+    /// <summary>
+    /// <c>true</c> while a streamed query (see <see cref="IQueryClient.CreateStreamedQuery{TArgs,TData,TChunk}"/>)
+    /// is still receiving chunks. <see cref="Status"/> is <see cref="QueryStatus.Success"/> and <see cref="CurrentData"/>
+    /// holds the data folded so far, so it can be rendered while it grows. Always <c>false</c> for other queries.
+    /// </summary>
+    public bool IsStreaming { get; private set; }
+
     /// <summary><c>true</c> when <see cref="Status"/> is <see cref="QueryStatus.Idle"/>.</summary>
     public bool IsIdle => Status == QueryStatus.Idle;
 
@@ -62,6 +69,21 @@ public sealed record QueryState<TData>
             Status = QueryStatus.Success,
             CurrentData = currentData,
             LastData = lastData,
+        };
+
+    /// <summary>
+    /// Creates a <see cref="QueryStatus.Success"/> state with <see cref="IsStreaming"/> set, carrying the data a
+    /// streamed query has folded so far.
+    /// </summary>
+    /// <param name="currentData">The data folded from the chunks received so far.</param>
+    /// <param name="lastData">Data from the previous successful fetch to carry forward.</param>
+    public static QueryState<TData> CreateStreaming(TData currentData, TData? lastData = default) =>
+        new()
+        {
+            Status = QueryStatus.Success,
+            CurrentData = currentData,
+            LastData = lastData,
+            IsStreaming = true,
         };
 
     /// <summary>Creates a <see cref="QueryStatus.Failure"/> state with the given error.</summary>

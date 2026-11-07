@@ -24,6 +24,15 @@ public interface IQueryClient : IDisposable
         where TData : class;
 
     /// <summary>
+    /// Gets or creates a streamed query: its fetcher yields chunks, which are folded into the data as they
+    /// arrive, so the data can be rendered while it grows. Queries with the same key share one cache entry
+    /// and one running stream. The result is a regular <see cref="IQuery{TArgs,TData}"/>; see
+    /// <see cref="StreamedQueryOptions{TArgs,TData,TChunk}"/> for how streaming shows up in its state.
+    /// </summary>
+    IQuery<TArgs, TData> CreateStreamedQuery<TArgs, TData, TChunk>(StreamedQueryOptions<TArgs, TData, TChunk> options)
+        where TData : class;
+
+    /// <summary>
     /// Creates a mutation. If <see cref="MutationOptions{TArgs, TData}.InvalidateKeys"/> is set,
     /// the specified keys are invalidated automatically on success.
     /// </summary>

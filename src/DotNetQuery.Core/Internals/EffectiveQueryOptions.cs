@@ -20,4 +20,7 @@ internal sealed record EffectiveQueryOptions<TArgs, TData>
     public required TData? InitialData { get; init; }
 
     public required string? Name { get; init; }
+
+    /// <summary>Set for streamed queries only; <c>null</c> means <see cref="Fetcher"/> is used.</summary>
+    public StreamedFetch<TArgs, TData>? Stream { get; init; }
 }

@@ -68,8 +68,8 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
         // dispatcher has no captured SynchronizationContext, as in tests and console apps, so Post
         // runs inline, and the replay Subscribe delivers turns out to differ by reference from
         // "initial" — ApplyState's own use of these fields does not see them unassigned either.
-        _refetchCommand = new RelayCommand(query.Refetch, () => !_stateBinding!.Current.IsFetching);
-        _cancelCommand = new RelayCommand(query.Cancel, () => _stateBinding!.Current.IsFetching);
+        _refetchCommand = new RelayCommand(query.Refetch, () => !IsInFlight(_stateBinding!.Current));
+        _cancelCommand = new RelayCommand(query.Cancel, () => IsInFlight(_stateBinding!.Current));
 
         // Apply the current state synchronously so bindings evaluated right after construction
         // read correct values without waiting for a dispatcher hop. See UiStateBinding for how the
@@ -122,6 +122,13 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
     /// </summary>
     public bool IsFetching => _stateBinding.Current.IsFetching;
 
+    /// <summary>
+    /// <c>true</c> while a streamed query is still receiving chunks. <see cref="Data"/> holds the data received
+    /// so far and grows with every chunk; <see cref="IsSuccess"/> is already <c>true</c>. Always <c>false</c> for
+    /// other queries.
+    /// </summary>
+    public bool IsStreaming => _stateBinding.Current.IsStreaming;
+
     /// <summary><c>true</c> when the most recent fetch succeeded.</summary>
     public bool IsSuccess => _stateBinding.Current.IsSuccess;
 
@@ -142,12 +149,14 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
     public bool IsLoading => ComputeIsLoading(_stateBinding.Current);
 
     /// <summary>
-    /// Triggers <see cref="IQuery.Refetch"/>. Disabled while a fetch is in flight.
+    /// Triggers <see cref="IQuery.Refetch"/>. Disabled while a fetch is in flight, including while a stream is still
+    /// receiving chunks.
     /// </summary>
     public ICommand RefetchCommand => _refetchCommand;
 
     /// <summary>
-    /// Triggers <see cref="IQuery.Cancel"/>. Enabled only while a fetch is in flight.
+    /// Triggers <see cref="IQuery.Cancel"/>. Enabled only while a fetch is in flight, including while a stream is
+    /// still receiving chunks.
     /// </summary>
     public ICommand CancelCommand => _cancelCommand;
 
@@ -214,6 +223,9 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
     private static bool ComputeIsLoading(QueryState<TData> state) =>
         state.IsFetching && !state.HasData && state.LastData is null;
 
+    // Fetching, or a stream that has started showing data but is still receiving chunks.
+    private static bool IsInFlight(QueryState<TData> state) => state.IsFetching || state.IsStreaming;
+
     // Invoked by _stateBinding on the UI thread, once per applied state change; next has already
     // been swapped in as _stateBinding.Current by the time this runs.
     private void ApplyState(QueryState<TData> previous, QueryState<TData> next)
@@ -278,6 +290,15 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable
         if (previous.IsFetching != next.IsFetching)
         {
             RaisePropertyChanged(nameof(IsFetching));
+        }
+
+        if (previous.IsStreaming != next.IsStreaming)
+        {
+            RaisePropertyChanged(nameof(IsStreaming));
+        }
+
+        if (IsInFlight(previous) != IsInFlight(next))
+        {
             _refetchCommand.RaiseCanExecuteChanged();
             _cancelCommand.RaiseCanExecuteChanged();
         }

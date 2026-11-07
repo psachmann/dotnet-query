@@ -18,6 +18,7 @@ internal sealed class Query<TArgs, TData> : ICacheEntry
     private readonly Lock _syncRoot = new();
     private DateTimeOffset? _lastSuccessAt;
     private int _subscriberCount;
+    private int _streamsInFlight;
     private bool _isStale;
     private bool _disposed;
 
@@ -194,7 +195,10 @@ internal sealed class Query<TArgs, TData> : ICacheEntry
                 return;
             }
 
-            if (_subscriberCount > 0)
+            // A running stream is not restarted by an invalidation (focus, reconnect, interval tick):
+            // re-opening it throws away everything received so far, and may be expensive. It is only
+            // marked stale; Refetch() still restarts it.
+            if (_subscriberCount > 0 && _streamsInFlight == 0)
             {
                 _invalidate.OnNext(trigger);
             }
@@ -277,7 +281,19 @@ internal sealed class Query<TArgs, TData> : ICacheEntry
             return;
         }
 
-        var lastData = _state.Value.CurrentData;
+        var stream = _options.Stream;
+        var current = _state.Value;
+
+        // A refetch that interrupts a stream must carry forward the last *completed* data, not the partial
+        // value the interrupted stream had folded so far.
+        var lastData =
+            stream is not null && (current.IsStreaming || current.IsFetching) ? current.LastData : current.CurrentData;
+
+        // The first fetch of a stream, and every refetch in Reset mode, shows chunks as they arrive and drops
+        // the previous data; Replace keeps showing the previous data until the new stream completes.
+        var showChunks = stream is not null && (stream.RefetchMode == StreamRefetchMode.Reset || lastData is null);
+        TData? shownChunk = null;
+        var chunks = 0;
 
         using var activity = QueryTelemetry.ActivitySource.StartActivity(QueryTelemetryTags.ActivityQueryFetch);
         activity?.SetTag(QueryTelemetryTags.TagQueryKey, _key.ToString());
@@ -287,8 +303,53 @@ internal sealed class Query<TArgs, TData> : ICacheEntry
         var stopwatch = Stopwatch.StartNew();
         var attempts = 0;
 
-        _state.OnNext(QueryState<TData>.CreateFetching(lastData));
+        _state.OnNext(QueryState<TData>.CreateFetching(showChunks ? null : lastData));
         _instrumentation.RecordFetchStart(_key, _name);
+
+        if (stream is not null)
+        {
+            lock (_syncRoot)
+            {
+                _streamsInFlight++;
+            }
+        }
+
+        // One attempt of a streamed fetch: folds the whole stream, publishing each folded value if it is shown.
+        async Task<TData> StreamAttemptAsync(StreamedFetch<TArgs, TData> streamedFetch, CancellationToken ct)
+        {
+            chunks = 0;
+
+            // A retry starts the stream over, so drop what the failed attempt showed.
+            if (shownChunk is not null)
+            {
+                shownChunk = null;
+
+                if (!_disposed)
+                {
+                    _state.OnNext(QueryState<TData>.CreateFetching());
+                }
+            }
+
+            return await streamedFetch
+                .FetchAsync(
+                    _args,
+                    folded =>
+                    {
+                        // Stops a superseded or cancelled stream from publishing even if its producer
+                        // ignores the token.
+                        linkedToken.ThrowIfCancellationRequested();
+                        chunks++;
+
+                        if (showChunks && !_disposed)
+                        {
+                            shownChunk = folded;
+                            _state.OnNext(QueryState<TData>.CreateStreaming(folded));
+                        }
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+        }
 
         try
         {
@@ -301,11 +362,13 @@ internal sealed class Query<TArgs, TData> : ICacheEntry
                             activity?.AddEvent(new ActivityEvent("retry"));
                         }
 
-                        return _options.Fetcher(_args, ct);
+                        return stream is null ? _options.Fetcher(_args, ct) : StreamAttemptAsync(stream, ct);
                     },
                     linkedToken
                 )
                 .ConfigureAwait(false);
+
+            EndStream();
 
             lock (_syncRoot)
             {
@@ -326,6 +389,7 @@ internal sealed class Query<TArgs, TData> : ICacheEntry
         }
         catch (OperationCanceledException) when (linkedToken.IsCancellationRequested)
         {
+            EndStream();
             stopwatch.Stop();
 
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
@@ -337,11 +401,12 @@ internal sealed class Query<TArgs, TData> : ICacheEntry
             // which is already driving _state — emitting here would stomp its Fetching/Success state.
             if (!_disposed && !cancellationToken.IsCancellationRequested)
             {
-                _state.OnNext(QueryState<TData>.CreateIdle(lastData));
+                _state.OnNext(QueryState<TData>.CreateIdle(shownChunk ?? lastData));
             }
         }
         catch (Exception error)
         {
+            EndStream();
             stopwatch.Stop();
 
             activity?.SetTag(QueryTelemetryTags.TagAttempts, attempts);
@@ -351,7 +416,24 @@ internal sealed class Query<TArgs, TData> : ICacheEntry
 
             if (!_disposed)
             {
-                _state.OnNext(QueryState<TData>.CreateFailure(error, lastData));
+                _state.OnNext(QueryState<TData>.CreateFailure(error, shownChunk ?? lastData));
+            }
+        }
+
+        // Runs before the terminal state is published, so a subscriber that invalidates in response to it
+        // is not treated as invalidating a stream still in flight. Also tags the span with the chunk count.
+        void EndStream()
+        {
+            if (stream is null)
+            {
+                return;
+            }
+
+            activity?.SetTag(QueryTelemetryTags.TagChunks, chunks);
+
+            lock (_syncRoot)
+            {
+                _streamsInFlight--;
             }
         }
     }

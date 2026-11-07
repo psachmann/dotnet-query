@@ -8,6 +8,8 @@
       href: guides/queries.md
     - name: Infinite Queries
       href: guides/infinite-queries.md
+    - name: Streamed Queries
+      href: guides/streamed-queries.md
     - name: Mutations
       href: guides/mutations.md
     - name: Prefetching

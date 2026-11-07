@@ -211,4 +211,35 @@ public class QueryStateTests
         await Assert.That(failure.IsFetching).IsFalse();
         await Assert.That(failure.IsSuccess).IsFalse();
     }
+
+    [Test]
+    public async Task CreateStreaming_IsSuccessWithStreamingFlagAndPartialData()
+    {
+        var state = QueryState<string>.CreateStreaming("partial", "previous");
+
+        using var _ = Assert.Multiple();
+        await Assert.That(state.Status).IsEqualTo(QueryStatus.Success);
+        await Assert.That(state.IsStreaming).IsTrue();
+        await Assert.That(state.CurrentData).IsEqualTo("partial");
+        await Assert.That(state.LastData).IsEqualTo("previous");
+        await Assert.That(state.HasData).IsTrue();
+    }
+
+    [Test]
+    public async Task OtherFactories_AreNotStreaming()
+    {
+        using var _ = Assert.Multiple();
+        await Assert.That(QueryState<string>.CreateIdle().IsStreaming).IsFalse();
+        await Assert.That(QueryState<string>.CreateFetching().IsStreaming).IsFalse();
+        await Assert.That(QueryState<string>.CreateSuccess("done").IsStreaming).IsFalse();
+        await Assert.That(QueryState<string>.CreateFailure(new Exception()).IsStreaming).IsFalse();
+    }
+
+    [Test]
+    public async Task StreamingAndSettledSuccess_WithSameData_AreNotEqual()
+    {
+        await Assert
+            .That(QueryState<string>.CreateStreaming("text"))
+            .IsNotEqualTo(QueryState<string>.CreateSuccess("text"));
+    }
 }

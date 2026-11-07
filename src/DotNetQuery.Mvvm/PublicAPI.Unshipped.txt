@@ -21,5 +21,6 @@ DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.StateChanged -> Syst
 DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Status.get -> DotNetQuery.Core.MutationStatus
 DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.ToCommand(System.Func<TArgs>! args, System.Func<bool>? canExecute = null) -> DotNetQuery.Mvvm.IMutationCommand!
 DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.ToCommand<TParam>(System.Func<TParam, TArgs>! map, System.Func<TParam, bool>? canExecute = null) -> DotNetQuery.Mvvm.IMutationCommand!
+DotNetQuery.Mvvm.QueryViewModel<TArgs, TData>.IsStreaming.get -> bool
 static DotNetQuery.Mvvm.QueryViewModelExtensions.ToViewModel<TArgs, TData, TProgress>(this DotNetQuery.Core.IMutation<TArgs, TData, TProgress>! mutation, System.Reactive.Disposables.CompositeDisposable? disposeWith = null, DotNetQuery.Mvvm.IUiDispatcher? dispatcher = null) -> DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>!
 virtual DotNetQuery.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Dispose(bool disposing) -> void

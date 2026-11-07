@@ -98,11 +98,12 @@ All properties are read-only snapshots of the wrapped query's state; they update
 | `Status` | `QueryStatus` | The raw lifecycle status (`Idle`, `Fetching`, `Success`, `Failure`). |
 | `IsLoading` | `bool` | `true` only during the **first** load — fetching with no data to show. Bind a full-page spinner to this. |
 | `IsFetching` | `bool` | `true` while **any** fetch is in flight, including background refetches. Bind a subtle refresh indicator to this. |
+| `IsStreaming` | `bool` | `true` while a [streamed query](streamed-queries.md) is still receiving chunks; `Data` grows meanwhile. Always `false` for other queries. |
 | `IsIdle` / `IsSuccess` / `IsFailure` | `bool` | Status flags. |
 | `HasData` / `HasError` | `bool` | Null checks on `Data` / `Error`. |
 | `CurrentState` | `QueryState<TData>` | The whole state record, for converters that need everything. |
-| `RefetchCommand` | `ICommand` | Calls `Refetch()`. Disabled while a fetch is in flight. |
-| `CancelCommand` | `ICommand` | Calls `Cancel()`. Enabled only while a fetch is in flight. |
+| `RefetchCommand` | `ICommand` | Calls `Refetch()`. Disabled while a fetch is in flight, or a stream is still receiving chunks. |
+| `CancelCommand` | `ICommand` | Calls `Cancel()`. Enabled only while a fetch is in flight, or a stream is still receiving chunks. |
 | `Query` | `IQuery<TArgs, TData>` | The wrapped query — escape hatch for `Invalidate()`, `PrefetchAsync()`, `Select()`, or direct Rx composition. |
 
 `SetArgs`, `SetEnabled`, and `SetData` are available directly on the view model and delegate to the wrapped query.

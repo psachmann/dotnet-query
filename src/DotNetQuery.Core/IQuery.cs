@@ -87,6 +87,8 @@ public interface IQuery<TArgs, TData> : IQuery
     /// Emits the unwrapped <typeparamref name="TData"/> on each successful fetch.
     /// Derived from <see cref="State"/>, so if the current state is already a success, a new
     /// subscriber receives that value immediately rather than waiting for the next fetch.
+    /// For a streamed query, emits once per completed stream — not for the intermediate values published while
+    /// <see cref="QueryState{TData}.IsStreaming"/> is set.
     /// </summary>
     public IObservable<TData> Success { get; }
 
@@ -100,6 +102,7 @@ public interface IQuery<TArgs, TData> : IQuery
     /// <summary>
     /// Emits the final <see cref="QueryState{TData}"/> after each fetch completes,
     /// regardless of whether it succeeded or failed. Useful for hiding loading indicators.
+    /// For a streamed query, a state counts as settled only once the stream has completed or failed.
     /// </summary>
     public IObservable<QueryState<TData>> Settled { get; }
 

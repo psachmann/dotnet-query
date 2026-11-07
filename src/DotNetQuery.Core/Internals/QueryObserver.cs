@@ -23,9 +23,18 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
         IScheduler scheduler,
         QueryInstrumentation instrumentation
     )
+        : this(MergeOptions(options, globalOptions), options.KeyFactory, cache, scheduler, instrumentation) { }
+
+    public QueryObserver(
+        EffectiveQueryOptions<TArgs, TData> options,
+        Func<TArgs, QueryKey> keyFactory,
+        QueryCache cache,
+        IScheduler scheduler,
+        QueryInstrumentation instrumentation
+    )
     {
-        _options = MergeOptions(options, globalOptions);
-        _keyFactory = options.KeyFactory;
+        _options = options;
+        _keyFactory = keyFactory;
         _cache = cache;
         _scheduler = scheduler;
         _instrumentation = instrumentation;
@@ -34,7 +43,7 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
         _subscriptions.Add(
             _args.Subscribe(args =>
             {
-                var key = options.KeyFactory(args);
+                var key = keyFactory(args);
                 var candidate = new Query<TArgs, TData>(key, args, _options, _scheduler, _instrumentation);
                 var query = _cache.GetOrCreate(key, candidate);
 
@@ -76,13 +85,14 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
 
     public IObservable<TData> Success =>
         State
-            .Where(state => state.IsSuccess)
+            .Where(state => state.IsSuccess && !state.IsStreaming)
             .Select(state => state.CurrentData!)
             .DistinctUntilChanged(_options.DataComparer);
 
     public IObservable<Exception> Failure => State.Where(state => state.IsFailure).Select(state => state.Error!);
 
-    public IObservable<QueryState<TData>> Settled => State.Where(state => state.IsSuccess || state.IsFailure);
+    public IObservable<QueryState<TData>> Settled =>
+        State.Where(state => (state.IsSuccess && !state.IsStreaming) || state.IsFailure);
 
     public IObservable<TResult> Select<TResult>(
         Func<TData, TResult> selector,
@@ -143,6 +153,31 @@ internal sealed class QueryObserver<TArgs, TData> : IQuery<TArgs, TData>
             RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
             DataComparer = options.DataComparer ?? EqualityComparer<TData>.Default,
             InitialData = options.InitialData,
+            Name = options.Name,
+        };
+    }
+
+    public static EffectiveQueryOptions<TArgs, TData> MergeOptions<TChunk>(
+        StreamedQueryOptions<TArgs, TData, TChunk> options,
+        QueryClientOptions globalOptions
+    )
+    {
+        var stream = StreamedFetch<TArgs, TData>.Create(options);
+
+        return new()
+        {
+            // Query uses Stream whenever it is set; this folds the whole stream without publishing chunks,
+            // so the options stay a valid regular-query configuration too.
+            Fetcher = (args, ct) => stream.FetchAsync(args, static _ => { }, ct),
+            Stream = stream,
+            StaleTime = options.StaleTime ?? globalOptions.StaleTime,
+            CacheTime = options.CacheTime ?? globalOptions.CacheTime,
+            // Deliberately no fallback to the global interval — see StreamedQueryOptions.RefetchInterval.
+            RefetchInterval = options.RefetchInterval,
+            IsEnabled = options.IsEnabled,
+            RetryHandler = options.RetryHandler ?? globalOptions.RetryHandler,
+            DataComparer = options.DataComparer ?? EqualityComparer<TData>.Default,
+            InitialData = null,
             Name = options.Name,
         };
     }
