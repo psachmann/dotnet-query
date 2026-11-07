@@ -1,3 +1,5 @@
+using TUnit.Assertions.Enums;
+
 namespace DotNetQuery.Core.Tests;
 
 public class MutationTests
@@ -669,5 +671,61 @@ public class MutationTests
         await mutation.Failure.FirstAsync();
 
         await Assert.That(attempts).IsEqualTo(1); // explicit NoRetryHandler wins
+    }
+
+    [Test]
+    public async Task SupersededExecution_DoesNotStompStateOfNewerExecution()
+    {
+        // Executing again while running cancels the first run via Switch(). The first run's
+        // cancellation must not publish Idle over the second run's Running state.
+        var firstSettled = new TaskCompletionSource();
+        var release = new TaskCompletionSource<string>();
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string>
+            {
+                Mutator = async (args, ct) =>
+                {
+                    if (args == 1)
+                    {
+                        await Task.Delay(Timeout.Infinite, ct);
+                    }
+
+                    return await release.Task;
+                },
+                OnSettled = () => firstSettled.TrySetResult(),
+            }
+        );
+
+        mutation.Execute(1);
+        mutation.Execute(2);
+        await firstSettled.Task;
+
+        await Assert.That(mutation.CurrentState.IsRunning).IsTrue();
+        release.SetResult("second");
+        await Assert.That((await mutation.Success.FirstAsync())).IsEqualTo("second");
+    }
+
+    [Test]
+    public async Task Retry_EmitsNoExtraRunningStates()
+    {
+        var mutation = _client.CreateMutation(
+            new MutationOptions<int, string>
+            {
+                Mutator = (_, _) => Task.FromResult("ok"),
+                RetryHandler = new InvokeNTimesRetryHandler(3),
+            }
+        );
+        var statuses = new List<MutationStatus>();
+        using var subscription = mutation.State.Subscribe(s => statuses.Add(s.Status));
+
+        mutation.Execute(0);
+        await mutation.Success.FirstAsync();
+
+        await Assert
+            .That(statuses)
+            .IsEquivalentTo(
+                [MutationStatus.Idle, MutationStatus.Running, MutationStatus.Success],
+                CollectionOrdering.Matching
+            );
     }
 }

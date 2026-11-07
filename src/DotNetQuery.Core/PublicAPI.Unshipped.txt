@@ -1,4 +1,13 @@
 #nullable enable
+DotNetQuery.Core.IMutation<TArgs, TData, TProgress>
+DotNetQuery.Core.IMutation<TArgs, TData, TProgress>.Cancel() -> void
+DotNetQuery.Core.IMutation<TArgs, TData, TProgress>.CurrentState.get -> DotNetQuery.Core.MutationState<TData, TProgress>!
+DotNetQuery.Core.IMutation<TArgs, TData, TProgress>.Execute(TArgs args) -> void
+DotNetQuery.Core.IMutation<TArgs, TData, TProgress>.Failure.get -> System.IObservable<System.Exception!>!
+DotNetQuery.Core.IMutation<TArgs, TData, TProgress>.SetEnabled(bool enabled) -> void
+DotNetQuery.Core.IMutation<TArgs, TData, TProgress>.Settled.get -> System.IObservable<DotNetQuery.Core.MutationState<TData, TProgress>!>!
+DotNetQuery.Core.IMutation<TArgs, TData, TProgress>.State.get -> System.IObservable<DotNetQuery.Core.MutationState<TData, TProgress>!>!
+DotNetQuery.Core.IMutation<TArgs, TData, TProgress>.Success.get -> System.IObservable<TData>!
 DotNetQuery.Core.Inspection.IQueryCacheEntry
 DotNetQuery.Core.Inspection.IQueryCacheEntry.CacheTime.get -> System.TimeSpan
 DotNetQuery.Core.Inspection.IQueryCacheEntry.Cancel() -> void
@@ -15,5 +24,56 @@ DotNetQuery.Core.Inspection.IQueryCacheEntry.Refetch() -> void
 DotNetQuery.Core.Inspection.IQueryCacheEntry.Status.get -> DotNetQuery.Core.QueryStatus
 DotNetQuery.Core.Inspection.IQueryCacheInspector
 DotNetQuery.Core.Inspection.IQueryCacheInspector.Entries.get -> System.IObservable<System.Collections.Generic.IReadOnlyList<DotNetQuery.Core.Inspection.IQueryCacheEntry!>!>!
+DotNetQuery.Core.IQueryClient.CreateMutation<TArgs, TData, TProgress>(DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>! options) -> DotNetQuery.Core.IMutation<TArgs, TData, TProgress>!
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.<Clone>$() -> DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>!
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.Equals(DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>? other) -> bool
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.InvalidateKeys.get -> System.Collections.Generic.IReadOnlyList<DotNetQuery.Core.QueryKey!>?
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.InvalidateKeys.init -> void
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.IsEnabled.get -> bool
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.IsEnabled.init -> void
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.MutationOptions() -> void
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.Mutator.get -> System.Func<TArgs, System.IProgress<TProgress>!, System.Threading.CancellationToken, System.Threading.Tasks.Task<TData>!>!
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.Mutator.init -> void
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.Name.get -> string?
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.Name.init -> void
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.OnFailure.get -> System.Action<System.Exception!>?
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.OnFailure.init -> void
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.OnMutate.get -> System.Action<TArgs>?
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.OnMutate.init -> void
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.OnSettled.get -> System.Action?
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.OnSettled.init -> void
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.OnSuccess.get -> System.Action<TArgs, TData>?
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.OnSuccess.init -> void
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.RetryHandler.get -> DotNetQuery.Core.IRetryHandler?
+DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.RetryHandler.init -> void
+DotNetQuery.Core.MutationState<TData, TProgress>
+DotNetQuery.Core.MutationState<TData, TProgress>.<Clone>$() -> DotNetQuery.Core.MutationState<TData, TProgress>!
+DotNetQuery.Core.MutationState<TData, TProgress>.CurrentData.get -> TData?
+DotNetQuery.Core.MutationState<TData, TProgress>.Equals(DotNetQuery.Core.MutationState<TData, TProgress>? other) -> bool
+DotNetQuery.Core.MutationState<TData, TProgress>.Error.get -> System.Exception?
+DotNetQuery.Core.MutationState<TData, TProgress>.HasData.get -> bool
+DotNetQuery.Core.MutationState<TData, TProgress>.HasError.get -> bool
+DotNetQuery.Core.MutationState<TData, TProgress>.IsFailure.get -> bool
+DotNetQuery.Core.MutationState<TData, TProgress>.IsIdle.get -> bool
+DotNetQuery.Core.MutationState<TData, TProgress>.IsRunning.get -> bool
+DotNetQuery.Core.MutationState<TData, TProgress>.IsSuccess.get -> bool
+DotNetQuery.Core.MutationState<TData, TProgress>.MutationState() -> void
+DotNetQuery.Core.MutationState<TData, TProgress>.Progress.get -> TProgress?
+DotNetQuery.Core.MutationState<TData, TProgress>.Status.get -> DotNetQuery.Core.MutationStatus
 DotNetQuery.Core.QueryClientInspectionExtensions
+override DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.Equals(object? obj) -> bool
+override DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.GetHashCode() -> int
+override DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.ToString() -> string!
+override DotNetQuery.Core.MutationState<TData, TProgress>.Equals(object? obj) -> bool
+override DotNetQuery.Core.MutationState<TData, TProgress>.GetHashCode() -> int
+override DotNetQuery.Core.MutationState<TData, TProgress>.ToString() -> string!
+static DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.operator !=(DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>? left, DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>? right) -> bool
+static DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>.operator ==(DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>? left, DotNetQuery.Core.MutationOptions<TArgs, TData, TProgress>? right) -> bool
+static DotNetQuery.Core.MutationState<TData, TProgress>.CreateFailure(System.Exception! error, TProgress? progress) -> DotNetQuery.Core.MutationState<TData, TProgress>!
+static DotNetQuery.Core.MutationState<TData, TProgress>.CreateIdle() -> DotNetQuery.Core.MutationState<TData, TProgress>!
+static DotNetQuery.Core.MutationState<TData, TProgress>.CreateRunning(TProgress? progress) -> DotNetQuery.Core.MutationState<TData, TProgress>!
+static DotNetQuery.Core.MutationState<TData, TProgress>.CreateSuccess(TData data, TProgress? progress) -> DotNetQuery.Core.MutationState<TData, TProgress>!
+static DotNetQuery.Core.MutationState<TData, TProgress>.operator !=(DotNetQuery.Core.MutationState<TData, TProgress>? left, DotNetQuery.Core.MutationState<TData, TProgress>? right) -> bool
+static DotNetQuery.Core.MutationState<TData, TProgress>.operator ==(DotNetQuery.Core.MutationState<TData, TProgress>? left, DotNetQuery.Core.MutationState<TData, TProgress>? right) -> bool
 static DotNetQuery.Core.QueryClientInspectionExtensions.TryGetInspector(this DotNetQuery.Core.IQueryClient! client, out DotNetQuery.Core.Inspection.IQueryCacheInspector? inspector) -> bool

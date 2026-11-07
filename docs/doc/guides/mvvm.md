@@ -224,6 +224,28 @@ partial void OnNewItemTextChanged(string value) => AddItemCommand.RaiseCanExecut
 
 **Call `ToCommand` once per command**, typically in the constructor — not per row in a list. Each call appends to the view model's internal "refresh these on every state change" bookkeeping, with no way to remove an entry later; calling it in a loop leaks. For a command that needs a different argument per row, build the command **once** on the page view model with the mapped overload above, and hand the same `ICommand` instance to every row — see the [Avalonia sample](https://github.com/psachmann/dotnet-query/tree/main/samples/DotNetQuery.Samples.Avalonia)'s `TodoDetailsViewModel`/`TodoItemViewModel` for the full pattern, including how the row exposes it in a `CommandParameter` binding.
 
+### Progress
+
+For a mutation that reports progress (see [Reporting Progress](mutations.md#reporting-progress)), use `MutationViewModel<TArgs, TData, TProgress>`. It has every member of the two-argument view model, plus a bindable `Progress`:
+
+```csharp
+Upload = new MutationViewModel<UploadRequest, DocumentDto, long>(
+    queryClient,
+    new MutationOptions<UploadRequest, DocumentDto, long>
+    {
+        Mutator = (request, progress, ct) => api.UploadAsync(request, progress, ct),
+        InvalidateKeys = [QueryKey.From("inbox")],
+    });
+```
+
+```xml
+<ProgressBar IsVisible="{Binding Upload.IsRunning}"
+             Maximum="{Binding FileSize}"
+             Value="{Binding Upload.Progress}" />
+```
+
+Progress reports go through the same latest-wins coalescing as every other state: however fast the mutator reports, the view model applies at most one state per dispatcher hop, carrying the newest value. There is no need to throttle reports for the UI's sake. `ToViewModel()` has a matching overload for `IMutation<TArgs, TData, TProgress>`.
+
 ## StateChanged
 
 All three view models raise a plain `event EventHandler? StateChanged`, on the UI thread, after every `PropertyChanged` notification for an applied state. Use it instead of a second raw subscription to the wrapped query/mutation's `State` for page-specific work that needs to run once per applied state change — most commonly, syncing an `ObservableCollection` with [`SyncFrom`](#syncfrom):

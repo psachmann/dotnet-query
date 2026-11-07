@@ -36,19 +36,17 @@ internal sealed class QueryClient : IQueryClient, IQueryCacheInspector
     public IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options)
     {
         var mutation = new Mutation<TArgs, TData>(options, _globalOptions, _instrumentation);
+        InvalidateOnSuccess(mutation, options.InvalidateKeys);
 
-        if (options.InvalidateKeys is { Count: > 0 } keys)
-        {
-            var subscription = mutation.Success.Subscribe(_ =>
-            {
-                foreach (var key in keys)
-                {
-                    Invalidate(key);
-                }
-            });
+        return mutation;
+    }
 
-            mutation.AddDisposable(subscription);
-        }
+    public IMutation<TArgs, TData, TProgress> CreateMutation<TArgs, TData, TProgress>(
+        MutationOptions<TArgs, TData, TProgress> options
+    )
+    {
+        var mutation = new Mutation<TArgs, TData, TProgress>(options, _globalOptions, _instrumentation);
+        InvalidateOnSuccess(mutation, options.InvalidateKeys);
 
         return mutation;
     }
@@ -58,4 +56,26 @@ internal sealed class QueryClient : IQueryClient, IQueryCacheInspector
     public void Invalidate(Func<QueryKey, bool> predicate) => _cache.Invalidate(predicate);
 
     public void Dispose() => _cache.Dispose();
+
+    private void InvalidateOnSuccess<TArgs, TData, TProgress, TState>(
+        MutationCore<TArgs, TData, TProgress, TState> mutation,
+        IReadOnlyList<QueryKey>? keys
+    )
+        where TState : class, IMutationState<TData>
+    {
+        if (keys is not { Count: > 0 })
+        {
+            return;
+        }
+
+        var subscription = mutation.Success.Subscribe(_ =>
+        {
+            foreach (var key in keys)
+            {
+                Invalidate(key);
+            }
+        });
+
+        mutation.AddDisposable(subscription);
+    }
 }
