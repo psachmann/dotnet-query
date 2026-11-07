@@ -32,25 +32,39 @@ If you have to stay on .NET 9, stay on 2.0.0. It is the last release that suppor
 `IQueryClient` gained members. This only affects code that implements it itself — decorators, wrappers, or hand-written test fakes. Mocking libraries pick the new members up automatically. An implementation written against 2.0.0 no longer builds:
 
 ```
+error CS0535: 'LoggingQueryClient' does not implement interface member 'IQueryClient.CreateMutation<TArgs, TData, TProgress>(MutationOptions<TArgs, TData, TProgress>)'
 error CS0535: 'LoggingQueryClient' does not implement interface member 'IQueryClient.CreateStreamedQuery<TArgs, TData, TChunk>(StreamedQueryOptions<TArgs, TData, TChunk>)'
 ```
 
 | Interface | New member |
 |---|---|
+| `IQueryClient` | `IMutation<TArgs, TData, TProgress> CreateMutation<TArgs, TData, TProgress>(MutationOptions<TArgs, TData, TProgress> options)` |
 | `IQueryClient` | `IQuery<TArgs, TData> CreateStreamedQuery<TArgs, TData, TChunk>(StreamedQueryOptions<TArgs, TData, TChunk> options) where TData : class` |
 
-**Why:** the client can now create [streamed queries](guides/streamed-queries.md), whose fetcher yields chunks that are folded into the data as they arrive. They have their own options type, so the client needs a factory method for them.
+**Why:** mutations can now report progress (see [Reporting Progress](guides/mutations.md#reporting-progress)). A progress-reporting mutation has its own options, state, and interface types, so the client needs a factory method for it, beside the existing one. The client can also now create [streamed queries](guides/streamed-queries.md), whose fetcher yields chunks that are folded into the data as they arrive. They have their own options type, so the client needs a factory method for them too.
 
-**How to migrate:** a decorator forwards the new method like the existing ones:
+**How to migrate:** a decorator forwards the new methods like the existing ones:
 
 ```csharp
 public sealed class LoggingQueryClient(IQueryClient inner) : IQueryClient
 {
+    public IMutation<TArgs, TData, TProgress> CreateMutation<TArgs, TData, TProgress>(
+        MutationOptions<TArgs, TData, TProgress> options
+    ) => inner.CreateMutation(options);
+
     public IQuery<TArgs, TData> CreateStreamedQuery<TArgs, TData, TChunk>(
         StreamedQueryOptions<TArgs, TData, TChunk> options
     )
         where TData : class => inner.CreateStreamedQuery(options);
 
-    // CreateQuery, CreateInfiniteQuery, CreateMutation, Invalidate, and Dispose are unchanged.
+    // CreateQuery, CreateInfiniteQuery, the existing CreateMutation, Invalidate, and Dispose are unchanged.
 }
 ```
+
+## Behaviour Changes
+
+These compile without errors but can change what your application does at runtime.
+
+### Fixes you may notice
+
+- **Executing a mutation again while it runs no longer flickers its state.** `Execute` while a run is in flight cancels that run in favour of the new one. In 2.x the cancelled run still published `Idle` (or its result, if the mutator ignored the token) once it wound down, so the mutation briefly looked idle — or finished — while the new run was still going, and a command gated on `IsRunning` could re-enable early. A superseded run now leaves `State` alone — and therefore also `Success`, `Failure`, `Settled`, and `InvalidateKeys`, which are driven by it. Its callbacks still fire as before: `OnSettled` always, and `OnSuccess` / `OnFailure` if the mutator ignored the token and completed anyway. If you relied on that stray emission — for example, waiting for `Idle` after the second `Execute` — wait for the second run's `Settled` instead.

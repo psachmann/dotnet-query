@@ -21,8 +21,8 @@ dotnet test --configuration Release
 # Run a single test project
 dotnet test tests/DotNetQuery.Core.Tests --configuration Release
 
-# Run a specific test by name (TUnit)
-dotnet test tests/DotNetQuery.Core.Tests --configuration Release -- --filter "FullyQualifiedName~QueryCacheTests"
+# Run a specific test class (TUnit tree-node filter: /assembly/namespace/class/test, wildcards allowed)
+dotnet test tests/DotNetQuery.Core.Tests --configuration Release -- --treenode-filter "/*/*/QueryCacheTests/*"
 
 # Check formatting
 dotnet csharpier check .
@@ -159,7 +159,7 @@ The solution has five projects under `src/` and four test projects under `tests/
 
 ### Core layer (`DotNetQuery.Core`)
 
-**Public surface** — `IQueryClient`, `IQuery<TArgs,TData>`, `IInfiniteQuery<TArgs,TData,TPageParam>`, `IMutation<TArgs,TData>`, all `*Options` records.
+**Public surface** — `IQueryClient`, `IQuery<TArgs,TData>`, `IInfiniteQuery<TArgs,TData,TPageParam>`, `IMutation<TArgs,TData>`, `IMutation<TArgs,TData,TProgress>`, all `*Options` records.
 
 **Internal implementation** (all `internal sealed`):
 
@@ -169,7 +169,7 @@ The solution has five projects under `src/` and four test projects under `tests/
 - `Query<TArgs,TData>` — the actual cached entry. Holds state as a `BehaviorSubject<QueryState<TData>>`. Uses `Observable.FromAsync(...).Switch()` so that a new invalidation cancels the previous in-flight fetch. When invalidated with no active subscribers, sets `_isStale = true`; the fetch is deferred until the first subscriber joins (stale-while-revalidate). `Cancel()` swaps in a fresh `CancellationTokenSource` so cancelling does not permanently poison the entry.
 - **Streamed queries** are not a separate entry type. `QueryObserver.MergeOptions(StreamedQueryOptions)` folds the chunk type away into an internal `StreamedFetch<TArgs,TData>` set on `EffectiveQueryOptions.Stream`, and `Query.FetchAsync` takes its streaming path whenever `Stream` is set: each folded chunk is published as `QueryState.CreateStreaming` (`Success` + `IsStreaming`), and `QueryObserver.Success` / `Settled` filter `IsStreaming` states out so they still emit once per completed fetch. `RefetchMode` (`Reset` / `Replace`) decides whether a refetch publishes chunks or keeps `LastData` until completion; a failure or cancel carries the shown partial data as `LastData`; each retry attempt restarts the fold from `InitialValue`. While a stream is in flight (`_streamsInFlight`), `Invalidate` only marks the entry stale instead of restarting it — focus/reconnect/interval invalidations would otherwise throw away a half-received stream — while `Refetch` still restarts it. A streamed query ignores the global `RefetchInterval`. Keep the streamed path inside `Query` rather than forking a new cache entry type, so `<Suspense>`, `<Transition>`, `QueryViewModel` and DevTools keep working unchanged.
 - `InfiniteQueryObserver<TArgs,TData,TPageParam>` / `InfiniteQuery<TArgs,TData,TPageParam>` — the paginated counterparts of `QueryObserver` / `Query`, following the same proxy-plus-cache-entry split and the same `Switch()`, stale-while-revalidate, and cancellation semantics. `InfiniteQuery` accumulates `_pages` / `_pageParams` and serves three commands (`RefetchAll`, `FetchNext`, `FetchPrevious`); `RefetchAll` re-fetches every currently loaded page under a single fetch span.
-- `Mutation<TArgs,TData>` — same `Switch()` pattern for cancellation. Calls `OnMutate → Mutator → OnSuccess/OnFailure → OnSettled` in order.
+- `Mutation<TArgs,TData>` / `Mutation<TArgs,TData,TProgress>` — thin subclasses of `MutationCore<TArgs,TData,TProgress,TState>`, which holds the whole engine: same `Switch()` pattern for cancellation, calls `OnMutate → Mutator → OnSuccess/OnFailure → OnSettled` in order. The subclasses only supply their state record via four `Create*` factories (the progress-less one runs the engine with `TProgress = Unit`); the engine reads states through the internal `IMutationState<TData>`, implemented implicitly by both public records. Do **not** derive one mutation shape by projecting the other's states — `UiStateBinding` dedups by reference, so a projected stream re-notifies on every replay. Every state emission goes through one `_gate` lock, and a run publishes only while it is the active run (`_activeRun`): a superseded or cancelled run, or a stale retry attempt, can neither stomp the newer run's state nor deliver a late progress report. The `IProgress<T>` handed to the mutator is the engine's own synchronous one — never `System.Progress<T>`, which posts to the `SynchronizationContext` and could report after settling.
 - `QueryInstrumentation` / `QueryTelemetry` — OTel-compatible; uses only BCL `ActivitySource` and `Meter` APIs (no OpenTelemetry package required in the library itself).
 
 **`IScheduler` injection** — all time-dependent code (eviction timers, refetch intervals, stale-time checks) uses an injected `IScheduler`. `QueryClientFactory.Create` defaults to `DefaultScheduler.Instance`. Tests inject `TestScheduler` from `Microsoft.Reactive.Testing` to control virtual time.
@@ -192,23 +192,27 @@ The solution has five projects under `src/` and four test projects under `tests/
 
 ### Mvvm layer (`DotNetQuery.Mvvm`)
 
-Three view models — `QueryViewModel<TArgs,TData>`, `InfiniteQueryViewModel<TArgs,TData,TPageParam>`,
-`MutationViewModel<TArgs,TData>` — wrap the correspondingly-named Core type and expose its state as
-bindable `INotifyPropertyChanged` properties. All three share the same mechanics, factored into one
-internal helper rather than copied three times:
+Four view models — `QueryViewModel<TArgs,TData>`, `InfiniteQueryViewModel<TArgs,TData,TPageParam>`,
+`MutationViewModel<TArgs,TData>`, `MutationViewModel<TArgs,TData,TProgress>` — wrap the
+correspondingly-named Core type and expose its state as bindable `INotifyPropertyChanged` properties.
+All of them share the same mechanics, factored into internal helpers rather than copied per view model:
 
 - `UiStateBinding<TState>` (`internal sealed`) — owns the state subscription, the
   latest-wins coalescing (a burst of emissions collapses into one dispatcher `Post`), and the
   atomic-swap-before-diffed-raise sequencing (`Current` is updated *before* `apply(previous, next)`
   runs, so a handler reading a sibling property never sees a torn state). Each view model holds one
   and forwards `ApplyState` into it; `Current` backs every bindable property.
+- `MutationCommands<TArgs>` (`internal sealed`) — the two mutation view models' `ExecuteCommand` /
+  `CancelCommand`, `ToCommand` overloads, double-submit guard, and running-dependent
+  `CanExecuteChanged` refresh list. Each mutation view model holds one and calls
+  `RefreshRunningDependentCommands()` from `ApplyState` when `IsRunning` flips.
 - Ownership follows the constructor used: wrapping an existing query/mutation (or `ToViewModel()`,
   which is sugar for that constructor) leaves ownership with the caller — `Dispose()` releases only
   the subscription. The `IQueryClient` + options constructor makes the view model own what it
   creates — `Dispose()` disposes it too. Holding the live subscription is what retains a query's
   cache entry; a forgotten dispose pins it indefinitely.
 - `StateChanged` (`event EventHandler?`) — raised on the UI thread after every `PropertyChanged` for
-  an applied state, on all three view models. The hook for page-specific work that needs to run once
+  an applied state, on every view model. The hook for page-specific work that needs to run once
   per state change without a second raw subscription — most commonly syncing an
   `ObservableCollection` via `SyncFrom` (see below).
 - `MutationViewModel.ExecuteCommand` / `ToCommand(...)` guard against double-submit by reading the
@@ -229,7 +233,7 @@ internal helper rather than copied three times:
   dispatcher captured when `ObserveOnUi` is *called* (not when the returned observable is
   subscribed). Named `ObserveOnUi`, not `SubscribeOnUi`, because Rx's `SubscribeOn` means something
   unrelated.
-- `QueryViewModelExtensions.ToViewModel()` — three overloads, one per query/mutation interface;
+- `QueryViewModelExtensions.ToViewModel()` — four overloads, one per query/mutation interface;
   always wraps (never takes ownership), despite the name not saying so on its own. Optional
   `CompositeDisposable? disposeWith` (deliberately *before* `dispatcher`, since it's the argument
   callers pass far more often) adds the view model to that container. It's a parameter rather than a
@@ -269,6 +273,10 @@ Versions are derived by `MinVer` from git tags with prefix `v`. NuGet packages t
 There is no `CHANGELOG.md` or `release-notes.md`, deliberately. Release notes are generated by GitHub from
 PR titles when the release workflow runs (`generate_release_notes: true`), and each package's
 `PackageReleaseNotes` links to that release — a hand-kept file would only duplicate it and drift.
+
+Grouping is controlled by `.github/release.yml`: PR labels `breaking-change` / `enhancement` / `bug` pick the
+section, everything else is "Other Changes", and `dependencies`-labelled / `dependabot[bot]` PRs are excluded.
+Labels are evaluated when the release is published, so labelling merged PRs retroactively works.
 
 What GitHub cannot generate is upgrade advice, so breaking changes are documented in a per-major migration
 guide: `docs/doc/migrating-to-v<N>.md`, where `<N>` is the upcoming major (currently

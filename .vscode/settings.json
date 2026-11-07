@@ -17,14 +17,17 @@
     "docfx",
     "dotnet",
     "github",
+    "Invokable",
     "Linq",
     "Mvvm",
     "nullable",
     "psachmann",
     "Radzen",
+    "refetches",
     "slnx",
     "snupkg",
     "softprops",
-    "tunit"
+    "tunit",
+    "typeparam"
   ]
 }
