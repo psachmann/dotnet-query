@@ -9,7 +9,7 @@ runs:
       with:
         global-json-file: global.json
 
-    - name: Cache NuGet packages
+    - name: Cache NuGet Packages
       uses: actions/cache@v6
       with:
         path: ~/.nuget/packages
@@ -18,10 +18,10 @@ runs:
           nuget-${{ runner.os }}
           nuget
 
-    - name: Restore tools
+    - name: Restore Tools
       shell: bash
       run: dotnet tool restore
 
-    - name: Restore packages
+    - name: Restore Packages
       shell: bash
       run: dotnet restore

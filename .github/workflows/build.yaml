@@ -10,6 +10,9 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout
@@ -35,10 +38,10 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --no-restore --no-build --results-directory ./coverage -- --coverage --coverage-output-format cobertura
 
-      - name: Pack (package validation)
+      - name: Pack Validation
         run: dotnet pack --configuration Release --no-restore --no-build --output ./artifacts
 
-      - name: Find coverage files
+      - name: Find Coverage Files
         id: coverage
         run: |
           FILES=$(find ./coverage -name "*.cobertura.xml" | tr '\n' ',' | sed 's/,$//')
@@ -47,7 +50,7 @@ jobs:
       - name: Upload Test Results to Codecov
         uses: codecov/codecov-action@v7
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: ${{ steps.coverage.outputs.files }}
           fail_ci_if_error: true
 

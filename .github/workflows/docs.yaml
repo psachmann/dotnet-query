@@ -31,10 +31,10 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Create docs
+      - name: Create Docs
         run: dotnet docfx ./docs/docfx.json
 
-      - name: Upload docs artifact
+      - name: Upload Docs
         uses: actions/upload-pages-artifact@v5
         with:
           path: ./docs/_site

@@ -18,7 +18,7 @@ jobs:
     permissions: {}
 
     steps:
-      - name: Trigger Context7 refresh
+      - name: Trigger Context7 Refresh
         env:
           CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
         run: |
