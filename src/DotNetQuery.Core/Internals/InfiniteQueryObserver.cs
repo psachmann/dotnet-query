@@ -12,7 +12,11 @@ internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam> : IInfinit
     private readonly Subject<TArgs> _args = new();
     private readonly CompositeDisposable _subscriptions = [];
 
+    private readonly Func<TArgs, QueryKey> _keyFactory;
+
     private QueryKey _currentKey = QueryKey.Default;
+    private TArgs _currentArgs = default!;
+    private bool _hasArgs;
     private bool _disposed;
 
     public InfiniteQueryObserver(
@@ -28,39 +32,60 @@ internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam> : IInfinit
         _scheduler = scheduler;
         _instrumentation = instrumentation;
         _isEnabled = new BehaviorSubject<bool>(options.IsEnabled);
+        _keyFactory = options.KeyFactory;
+
+        _subscriptions.Add(_args.Subscribe(Attach));
 
         _subscriptions.Add(
-            _args.Subscribe(args =>
+            _isEnabled
+                .DistinctUntilChanged()
+                .Where(enabled => enabled)
+                .Subscribe(_ => _activeQuery.Value?.InvalidateOnAttach())
+        );
+    }
+
+    private void Attach(TArgs args)
+    {
+        var key = _keyFactory(args);
+        var candidate = new InfiniteQuery<TArgs, TData, TPageParam>(key, args, _options, _scheduler, _instrumentation);
+        var query = _cache.GetOrCreate(key, candidate);
+
+        if (!ReferenceEquals(query, candidate))
+        {
+            candidate.Dispose();
+        }
+
+        _currentKey = key;
+        _currentArgs = args;
+        _hasArgs = true;
+
+        if (_isEnabled.Value)
+        {
+            query.InvalidateOnAttach();
+        }
+
+        _activeQuery.OnNext(query);
+    }
+
+    /// <summary>
+    /// The cache entry for the current args. The cache evicts an entry once nothing has been subscribed
+    /// to it for <c>CacheTime</c>, which can happen while this observer is still alive — so an evicted
+    /// entry is replaced by attaching to the current args again, exactly as <see cref="SetArgs"/> would.
+    /// </summary>
+    private InfiniteQuery<TArgs, TData, TPageParam>? Active
+    {
+        get
+        {
+            var query = _activeQuery.Value;
+
+            if (query is { IsDisposed: true } && _hasArgs && !_disposed && !_cache.IsDisposed)
             {
-                var key = options.KeyFactory(args);
-                var candidate = new InfiniteQuery<TArgs, TData, TPageParam>(
-                    key,
-                    args,
-                    _options,
-                    _scheduler,
-                    _instrumentation
-                );
-                var query = _cache.GetOrCreate(key, candidate);
+                Attach(_currentArgs);
+                query = _activeQuery.Value;
+            }
 
-                if (!ReferenceEquals(query, candidate))
-                {
-                    candidate.Dispose();
-                }
-
-                _currentKey = key;
-
-                if (_isEnabled.Value)
-                {
-                    query.Invalidate();
-                }
-
-                _activeQuery.OnNext(query);
-            })
-        );
-
-        _subscriptions.Add(
-            _isEnabled.DistinctUntilChanged().Where(enabled => enabled).Subscribe(_ => _activeQuery.Value?.Invalidate())
-        );
+            return query;
+        }
     }
 
     public QueryKey Key => _currentKey;
@@ -68,18 +93,24 @@ internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam> : IInfinit
     public TimeSpan CacheTime => _options.CacheTime;
 
     public InfiniteQueryState<TData, TPageParam> CurrentState =>
-        _activeQuery.Value?.CurrentState ?? InfiniteQueryState<TData, TPageParam>.CreateIdle();
+        Active?.CurrentState ?? InfiniteQueryState<TData, TPageParam>.CreateIdle();
 
     public void SetArgs(TArgs args) => _args.OnNext(args);
 
     public void SetEnabled(bool enabled) => _isEnabled.OnNext(enabled);
 
-    public void FetchNextPage() => _activeQuery.Value?.FetchNextPage();
+    public void FetchNextPage() => Active?.FetchNextPage();
 
-    public void FetchPreviousPage() => _activeQuery.Value?.FetchPreviousPage();
+    public void FetchPreviousPage() => Active?.FetchPreviousPage();
 
     public IObservable<InfiniteQueryState<TData, TPageParam>> State =>
-        _activeQuery.Where(query => query is not null).Select(query => query!.State).Switch();
+        Observable.Defer(() =>
+        {
+            // Replaces an evicted entry before subscribing to it; see Active.
+            _ = Active;
+
+            return _activeQuery.Where(query => query is not null).Select(query => query!.Observe(_isEnabled)).Switch();
+        });
 
     public IObservable<IReadOnlyList<TData>> Success =>
         State
@@ -92,11 +123,11 @@ internal sealed class InfiniteQueryObserver<TArgs, TData, TPageParam> : IInfinit
     public IObservable<InfiniteQueryState<TData, TPageParam>> Settled =>
         State.Where(s => s.IsFailure || (s.IsSuccess && !s.IsFetchingNextPage && !s.IsFetchingPreviousPage));
 
-    public void Refetch() => _activeQuery.Value?.Refetch();
+    public void Refetch() => Active?.Refetch();
 
     public void Cancel() => _activeQuery.Value?.Cancel();
 
-    public void Invalidate() => _activeQuery.Value?.Invalidate();
+    public void Invalidate() => Active?.Invalidate();
 
     public void Detach() => _cache.Remove(_currentKey);
 

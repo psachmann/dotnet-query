@@ -1,5 +1,7 @@
 namespace DotNetQuery.Core.Internals;
 
+using System.Runtime.ExceptionServices;
+
 /// <summary>
 /// The execution engine behind both mutation shapes. Running, retrying, cancelling, progress reporting
 /// and the callback sequence live here once; <see cref="Mutation{TArgs,TData}"/> and
@@ -110,7 +112,21 @@ internal abstract class MutationCore<TArgs, TData, TProgress, TState> : IDisposa
         var attempts = 0;
         var run = new Run(cancellationToken);
 
-        _options.OnMutate.Invoke(args);
+        // The callbacks are user code. An exception escaping this method would fault the Switch()
+        // pipeline in the constructor and leave every later Execute() silently doing nothing, so none
+        // of them may throw past here: a throwing OnMutate fails the run like a throwing mutator does,
+        // and the settle callbacks, which run after the state is final, are logged and swallowed.
+        Exception? mutateError = null;
+
+        try
+        {
+            _options.OnMutate.Invoke(args);
+        }
+        catch (Exception ex)
+        {
+            mutateError = ex;
+        }
+
         Start(run);
         _instrumentation.RecordMutationStart(_options.Name);
 
@@ -120,6 +136,11 @@ internal abstract class MutationCore<TArgs, TData, TProgress, TState> : IDisposa
 
         try
         {
+            if (mutateError is not null)
+            {
+                ExceptionDispatchInfo.Throw(mutateError);
+            }
+
             data = await _options
                 .RetryHandler.ExecuteAsync(
                     ct =>
@@ -177,15 +198,27 @@ internal abstract class MutationCore<TArgs, TData, TProgress, TState> : IDisposa
         {
             if (error is null)
             {
-                _options.OnSuccess.Invoke(args, data);
+                InvokeCallback(() => _options.OnSuccess.Invoke(args, data));
             }
             else
             {
-                _options.OnFailure.Invoke(error);
+                InvokeCallback(() => _options.OnFailure.Invoke(error));
             }
         }
 
-        _options.OnSettled.Invoke();
+        InvokeCallback(_options.OnSettled.Invoke);
+    }
+
+    private void InvokeCallback(Action callback)
+    {
+        try
+        {
+            callback();
+        }
+        catch (Exception ex)
+        {
+            _instrumentation.RecordMutationCallbackFailure(_options.Name, ex);
+        }
     }
 
     private void Start(Run run)
