@@ -6,9 +6,16 @@ TestResults/
 # Test coverage output (see the CI test command in CLAUDE.md)
 coverage/
 
-# Direnv excludes
-.direnv/
-
 # DocFx excludes
 docs/_site/
 docs/api/
+
+# Ide excludes
+.vscode/
+.zed/
+.idea/
+.mcp.json
+
+# Temporary excludes
+temp/
+tmp/

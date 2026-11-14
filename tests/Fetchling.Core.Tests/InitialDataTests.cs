@@ -90,16 +90,13 @@ public class InitialDataTests
         var fetchStarted = new TaskCompletionSource();
         var releaseAfterFetch = new TaskCompletionSource();
 
-        using var sut = CreateObserver(
-            initialData: "seed",
-            fetcher: async (_, ct) =>
-            {
-                fetchStarted.TrySetResult();
-                await releaseAfterFetch.Task.WaitAsync(ct);
+        using var sut = CreateObserver(initialData: "seed", fetcher: async (_, ct) =>
+        {
+            fetchStarted.TrySetResult();
+            await releaseAfterFetch.Task.WaitAsync(ct);
 
-                return "real";
-            }
-        );
+            return "real";
+        });
 
         var fetchingState = new TaskCompletionSource<QueryState<string>>();
         using var sub = sut.State.Where(s => s.IsFetching).Subscribe(s => fetchingState.TrySetResult(s));

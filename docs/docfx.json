@@ -7,14 +7,10 @@
           "src": "../src",
           "files": [
             "**/*.csproj"
-          ],
-          "exclude": [
-            "Fetchling.Blazor/**",
-            "Fetchling.Blazor.DevTools/**"
           ]
         }
       ],
-      "dest": "api"
+      "output": "api"
     }
   ],
   "build": {

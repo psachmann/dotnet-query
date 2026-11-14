@@ -11,18 +11,6 @@ cd fetchling
 
 ## Setting Up Your Dev Environment
 
-### Option A: Nix (recommended for reproducibility)
-
-A [Nix flake](https://github.com/psachmann/fetchling/blob/main/flake.nix) is provided with all required tools pinned to exact versions. With [Nix](https://nixos.org/) and [direnv](https://direnv.net/) installed, simply run:
-
-```bash
-direnv allow
-```
-
-The environment activates automatically whenever you enter the directory.
-
-### Option B: Manual
-
 You need:
 
 | Tool | Version |
@@ -182,6 +170,28 @@ The [build pipeline](https://github.com/psachmann/fetchling/actions/workflows/bu
 5. Coverage upload to [Codecov](https://codecov.io/gh/psachmann/fetchling)
 
 Pull requests must pass all CI checks before merging.
+
+## Release Process (Maintainers)
+
+### Cutting a stable release
+
+- **Public API files:** move the accumulated `PublicAPI.Unshipped.txt` additions into `PublicAPI.Shipped.txt`, delete each `*REMOVED*` line together with its `Shipped` counterpart, and leave `Unshipped` with only its `#nullable enable` header. Prereleases leave both files alone. Members whose only change since 2.0.0 is nullability annotation (`!`, `?`, `~`) already appear in `Shipped` in their current form: the analyzer matches symbols ignoring annotations and would reject a `*REMOVED*`/re-add pair (`RS0025`, `RS0050`, `RS0036`).
+- **Package validation:** set `PackageValidationBaselineVersion` to the new stable version (currently unset, because no stable `Fetchling.*` package exists; the 2.x `DotNetQuery.*` assemblies share no names). The baseline is deliberately the last stable release, not the latest prerelease. For an intentional break, generate a suppression file instead of weakening the gate: `mise run suppressions`.
+- **Docs:** remove the "not released yet" note from `migrating-to-v3.md`, drop the "the upcoming N.0" wording from other docs, and link the guide from `README.md`, `docs/index.md` and the upgrade paragraph of `docs/llms.txt`.
+- **Context7:** add the new tag to `previousVersions` in `context7.json` (keep the previous one) and update the versioned ID in `README.md` and `docs/llms.txt`. A push to `main` touching indexed paths re-indexes via `.github/workflows/context7.yaml` (needs `CONTEXT7_API_KEY`).
+
+### Migration guide
+
+`docs/doc/migrating-to-v<N>.md` is written in the PR that makes the break. Each entry is a row in the "At a Glance" table (change / affects you if… / what to do) plus a "Breaking Changes" section with what changed, the symptom a consumer sees, a **Why:** and a **How to migrate:** with before/after code. When the first break of a new major lands, create the file and add it to `docs/doc/toc.yml` above the previous guide. The docs site deploys from `main`, so open the guide with a "not released yet" note.
+
+Release notes come from PR titles (`generate_release_notes: true`); grouping is in `.github/release.yml` (labels `breaking-change` / `enhancement` / `bug`; `dependencies` and Dependabot PRs are excluded).
+
+### Other gate details
+
+- `TrackPublicApi` and `IsAotCompatible` have no default; `RequireExplicitProjectProperties` fails the build if a `src/` project omits either, so an opt-out is always visible.
+- `Fetchling.Blazor.DevTools` sets `TrackPublicApi=false` (a drop-in debugging component, not an API to program against) and `IsAotCompatible=false` (its inspector reflection-serializes arbitrary consumer data, tripping `IL2026`/`IL3050`; under trimming `JsonSerializer` emits silently-empty JSON).
+- `RS0041` is suppressed in `Fetchling.Blazor` (Razor-generated `BuildRenderTree` overrides use oblivious reference types).
+- To ban another API, add a documentation-comment-ID line (`P:` / `M:` with full parameter list / `T:`), then `;` and the message, to `src/BannedSymbols.txt`.
 
 ## Reporting Issues
 

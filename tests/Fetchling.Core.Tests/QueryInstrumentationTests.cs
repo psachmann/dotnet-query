@@ -283,10 +283,8 @@ public class QueryInstrumentationTests
         var key = QueryKey.From("inst-retries");
         long? recorded = null;
 
-        using var listener = CreateNamedMeterListener<long>(
-            "fetchling.query.retries",
-            "inst-retries",
-            (m, _) => recorded = m
+        using var listener = CreateNamedMeterListener<long>("fetchling.query.retries", "inst-retries", (m, _) =>
+            recorded = m
         );
 
         _sut.RecordFetchStart(key, "inst-retries");
@@ -301,10 +299,8 @@ public class QueryInstrumentationTests
         var key = QueryKey.From("inst-failure-retries");
         long? recorded = null;
 
-        using var listener = CreateNamedMeterListener<long>(
-            "fetchling.query.retries",
-            "inst-failure-retries",
-            (m, _) => recorded = m
+        using var listener = CreateNamedMeterListener<long>("fetchling.query.retries", "inst-failure-retries", (m, _) =>
+            recorded = m
         );
 
         _sut.RecordFetchStart(key, "inst-failure-retries");
@@ -325,16 +321,13 @@ public class QueryInstrumentationTests
     {
         long? recorded = null;
 
-        using var listener = CreateMeterListener<long>(
-            "fetchling.mutation.retries",
-            (m, tags) =>
+        using var listener = CreateMeterListener<long>("fetchling.mutation.retries", (m, tags) =>
+        {
+            if (tags.Any(t => t.Key == QueryTelemetryTags.TagMutationName && Equals(t.Value, "createTodo")))
             {
-                if (tags.Any(t => t.Key == QueryTelemetryTags.TagMutationName && Equals(t.Value, "createTodo")))
-                {
-                    recorded = m;
-                }
+                recorded = m;
             }
-        );
+        });
 
         _sut.RecordMutationFailure(
             "createTodo",
@@ -352,10 +345,8 @@ public class QueryInstrumentationTests
         var key = QueryKey.From("inst-no-retries");
         long? recorded = null;
 
-        using var listener = CreateNamedMeterListener<long>(
-            "fetchling.query.retries",
-            "inst-no-retries",
-            (m, _) => recorded = m
+        using var listener = CreateNamedMeterListener<long>("fetchling.query.retries", "inst-no-retries", (m, _) =>
+            recorded = m
         );
 
         _sut.RecordFetchStart(key, "inst-no-retries");
@@ -376,10 +367,8 @@ public class QueryInstrumentationTests
         var key = QueryKey.From("inst-active-inc");
         int? delta = null;
 
-        using var listener = CreateNamedMeterListener<int>(
-            "fetchling.query.active",
-            "inst-active-inc",
-            (m, _) => delta = m
+        using var listener = CreateNamedMeterListener<int>("fetchling.query.active", "inst-active-inc", (m, _) =>
+            delta = m
         );
 
         _sut.RecordFetchStart(key, "inst-active-inc");
@@ -393,10 +382,8 @@ public class QueryInstrumentationTests
         var key = QueryKey.From("inst-active-dec");
         var deltas = new List<int>();
 
-        using var listener = CreateNamedMeterListener<int>(
-            "fetchling.query.active",
-            "inst-active-dec",
-            (m, _) => deltas.Add(m)
+        using var listener = CreateNamedMeterListener<int>("fetchling.query.active", "inst-active-dec", (m, _) =>
+            deltas.Add(m)
         );
 
         _sut.RecordFetchStart(key, "inst-active-dec");
@@ -411,10 +398,8 @@ public class QueryInstrumentationTests
         var key = QueryKey.From("inst-cache-hit");
         long? recorded = null;
 
-        using var listener = CreateNamedMeterListener<long>(
-            "fetchling.cache.hits",
-            "inst-cache-hit",
-            (m, _) => recorded = m
+        using var listener = CreateNamedMeterListener<long>("fetchling.cache.hits", "inst-cache-hit", (m, _) =>
+            recorded = m
         );
 
         _sut.RecordCacheHit(key, "inst-cache-hit");
@@ -429,10 +414,8 @@ public class QueryInstrumentationTests
         long? misses = null;
         int? entries = null;
 
-        using var missListener = CreateNamedMeterListener<long>(
-            "fetchling.cache.misses",
-            "inst-cache-miss",
-            (m, _) => misses = m
+        using var missListener = CreateNamedMeterListener<long>("fetchling.cache.misses", "inst-cache-miss", (m, _) =>
+            misses = m
         );
         using var entriesListener = CreateNamedMeterListener<int>(
             "fetchling.cache.entries",
@@ -529,16 +512,13 @@ public class QueryInstrumentationTests
     {
         long? recorded = null;
 
-        using var listener = CreateMeterListener<long>(
-            "fetchling.mutation.retries",
-            (m, tags) =>
+        using var listener = CreateMeterListener<long>("fetchling.mutation.retries", (m, tags) =>
+        {
+            if (tags.Any(t => t.Key == QueryTelemetryTags.TagMutationName && Equals(t.Value, "createTodo")))
             {
-                if (tags.Any(t => t.Key == QueryTelemetryTags.TagMutationName && Equals(t.Value, "createTodo")))
-                {
-                    recorded = m;
-                }
+                recorded = m;
             }
-        );
+        });
 
         _sut.RecordMutationSuccess("createTodo", TimeSpan.FromMilliseconds(77), attempts: 4);
 
@@ -604,10 +584,8 @@ public class QueryInstrumentationTests
         var key = QueryKey.From("inst-with-key", 7);
         List<KeyValuePair<string, object?>> recordedTags = [];
 
-        using var listener = CreateNamedMeterListener<int>(
-            "fetchling.query.active",
-            "inst-with-key",
-            (_, tags) => recordedTags = tags
+        using var listener = CreateNamedMeterListener<int>("fetchling.query.active", "inst-with-key", (_, tags) =>
+            recordedTags = tags
         );
 
         sutWithKey.RecordFetchStart(key, "inst-with-key");
@@ -623,34 +601,26 @@ public class QueryInstrumentationTests
         string name,
         Action<T, List<KeyValuePair<string, object?>>> onMeasurement
     )
-        where T : struct =>
-        CreateMeterListener<T>(
-            instrumentName,
-            (m, tags) =>
+        where T : struct => CreateMeterListener<T>(instrumentName, (m, tags) =>
+        {
+            if (tags.Any(t => t.Key == QueryTelemetryTags.TagQueryName && Equals(t.Value, name)))
             {
-                if (tags.Any(t => t.Key == QueryTelemetryTags.TagQueryName && Equals(t.Value, name)))
-                {
-                    onMeasurement(m, tags);
-                }
+                onMeasurement(m, tags);
             }
-        );
+        });
 
     private MeterListener CreateStatusMeterListener<T>(
         string instrumentName,
         string statusValue,
         Action<T, List<KeyValuePair<string, object?>>> onMeasurement
     )
-        where T : struct =>
-        CreateMeterListener<T>(
-            instrumentName,
-            (m, tags) =>
+        where T : struct => CreateMeterListener<T>(instrumentName, (m, tags) =>
+        {
+            if (tags.Any(t => t.Key == QueryTelemetryTags.TagStatus && Equals(t.Value, statusValue)))
             {
-                if (tags.Any(t => t.Key == QueryTelemetryTags.TagStatus && Equals(t.Value, statusValue)))
-                {
-                    onMeasurement(m, tags);
-                }
+                onMeasurement(m, tags);
             }
-        );
+        });
 
     private MeterListener CreateMeterListener<T>(
         string instrumentName,

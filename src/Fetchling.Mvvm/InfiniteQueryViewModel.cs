@@ -81,13 +81,11 @@ public class InfiniteQueryViewModel<TArgs, TData, TPageParam> : BindableBase, ID
         // RelayCommand never invokes canExecute from its own constructor.
         _refetchCommand = new RelayCommand(query.Refetch, () => !IsAnyFetchInFlight(_stateBinding!.Current));
         _cancelCommand = new RelayCommand(query.Cancel, () => IsAnyFetchInFlight(_stateBinding!.Current));
-        _fetchNextPageCommand = new RelayCommand(
-            query.FetchNextPage,
-            () => _stateBinding!.Current.HasNextPage && !IsAnyFetchInFlight(_stateBinding.Current)
+        _fetchNextPageCommand = new RelayCommand(query.FetchNextPage, () =>
+            _stateBinding!.Current.HasNextPage && !IsAnyFetchInFlight(_stateBinding.Current)
         );
-        _fetchPreviousPageCommand = new RelayCommand(
-            query.FetchPreviousPage,
-            () => _stateBinding!.Current.HasPreviousPage && !IsAnyFetchInFlight(_stateBinding.Current)
+        _fetchPreviousPageCommand = new RelayCommand(query.FetchPreviousPage, () =>
+            _stateBinding!.Current.HasPreviousPage && !IsAnyFetchInFlight(_stateBinding.Current)
         );
 
         // Apply the current state synchronously so bindings evaluated right after construction
