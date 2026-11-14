@@ -12,36 +12,11 @@
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" />
-    <PackageVersion
-      Include="Microsoft.EntityFrameworkCore.InMemory"
-      Version="10.0.15"
-      Condition="'$(TargetFramework)' == 'net10.0'"
-    />
-    <PackageVersion
-      Include="Microsoft.EntityFrameworkCore.InMemory"
-      Version="11.0.0"
-      Condition="'$(TargetFramework)' == 'net11.0'"
-    />
-    <PackageVersion
-      Include="Microsoft.Extensions.DependencyInjection"
-      Version="10.0.15"
-      Condition="'$(TargetFramework)' == 'net10.0'"
-    />
-    <PackageVersion
-      Include="Microsoft.Extensions.DependencyInjection"
-      Version="11.0.0"
-      Condition="'$(TargetFramework)' == 'net11.0'"
-    />
-    <PackageVersion
-      Include="Microsoft.Extensions.Logging.Abstractions"
-      Version="10.0.15"
-      Condition="'$(TargetFramework)' == 'net10.0'"
-    />
-    <PackageVersion
-      Include="Microsoft.Extensions.Logging.Abstractions"
-      Version="11.0.0"
-      Condition="'$(TargetFramework)' == 'net11.0'"
-    />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.15" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" Condition="'$(TargetFramework)' == 'net11.0'" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" Condition="'$(TargetFramework)' == 'net11.0'" />
     <PackageVersion Include="Microsoft.Reactive.Testing" Version="7.0.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="11.0.100" />
     <PackageVersion Include="MinVer" Version="8.0.0" />
