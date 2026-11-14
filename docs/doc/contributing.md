@@ -11,18 +11,6 @@ cd fetchling
 
 ## Setting Up Your Dev Environment
 
-### Option A: Nix (recommended for reproducibility)
-
-A [Nix flake](https://github.com/psachmann/fetchling/blob/main/flake.nix) is provided with all required tools pinned to exact versions. With [Nix](https://nixos.org/) and [direnv](https://direnv.net/) installed, simply run:
-
-```bash
-direnv allow
-```
-
-The environment activates automatically whenever you enter the directory.
-
-### Option B: Manual
-
 You need:
 
 | Tool | Version |

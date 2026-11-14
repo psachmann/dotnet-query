@@ -1,0 +1,131 @@
+[tools]
+# Matches global.json (10.0.100, rollForward latestMinor)
+dotnet = "10"
+
+[vars]
+solution = "Fetchling.slnx"
+blazor_sample = "samples/Fetchling.Samples.Blazor/Fetchling.Samples.Blazor.csproj"
+avalonia_sample = "samples/Fetchling.Samples.Avalonia/Fetchling.Samples.Avalonia.csproj"
+
+# --- Mirrors .vscode/tasks.json ----------------------------------------------
+
+[tasks.restore-tools]
+description = "Restore local dotnet tools (CSharpier, docfx, ...)"
+run = "dotnet tool restore"
+
+[tasks.restore-packages]
+description = "Restore NuGet packages"
+run = "dotnet restore {{vars.solution}}"
+
+[tasks.build-debug]
+description = "Build the solution in Debug"
+run = "dotnet build {{vars.solution}} --configuration Debug"
+
+[tasks.build-release]
+description = "Build the solution in Release (enables the public API / banned symbol gates)"
+run = "dotnet build {{vars.solution}} --configuration Release"
+
+[tasks.test-debug]
+description = "Run all tests in Debug"
+run = "dotnet test {{vars.solution}} --configuration Debug"
+
+[tasks.test-release]
+description = "Run all tests in Release"
+run = "dotnet test {{vars.solution}} --configuration Release"
+
+[tasks.format-check]
+description = "Check formatting (CI gate)"
+depends = ["restore-tools"]
+run = "dotnet csharpier check ."
+
+[tasks.format-fix]
+description = "Fix formatting"
+depends = ["restore-tools"]
+run = "dotnet csharpier format ."
+
+[tasks.clean]
+description = "Clean Debug and Release outputs"
+run = [
+  "dotnet clean {{vars.solution}} --configuration Debug",
+  "dotnet clean {{vars.solution}} --configuration Release",
+]
+
+[tasks.run-blazor]
+description = "Run the Blazor sample"
+run = "dotnet run --project {{vars.blazor_sample}}"
+
+[tasks.run-avalonia]
+description = "Run the Avalonia sample"
+run = "dotnet run --project {{vars.avalonia_sample}}"
+
+# --- Extras ------------------------------------------------------------------
+
+[tasks.build]
+description = "Build the solution with the given configuration (default Debug)"
+usage = 'arg "[config]" default="Debug"'
+run = 'dotnet build {{vars.solution}} --configuration "$usage_config"'
+
+[tasks.test]
+description = "Run all tests with the given configuration (default Debug)"
+usage = 'arg "[config]" default="Debug"'
+run = 'dotnet test {{vars.solution}} --configuration "$usage_config"'
+
+[tasks.test-filter]
+description = "Run one test project, optionally only classes whose name contains <filter>, e.g. `mise run test-filter Core QueryCache`"
+usage = '''
+arg "<project>" help="Test project, e.g. Core (tests/Fetchling.<project>.Tests)"
+arg "[filter]" help="Substring of the test class name"
+arg "[config]" default="Release"
+'''
+run = '''
+if [ -n "${usage_filter:-}" ]; then
+  dotnet test "tests/Fetchling.${usage_project}.Tests" --configuration "$usage_config" -- --treenode-filter "/*/*/*${usage_filter}*/*"
+else
+  dotnet test "tests/Fetchling.${usage_project}.Tests" --configuration "$usage_config"
+fi
+'''
+
+[tasks.coverage]
+description = "Run all tests with cobertura coverage, as CI does (output in ./coverage)"
+run = "dotnet test {{vars.solution}} --configuration Release --results-directory ./coverage -- --coverage --coverage-output-format cobertura"
+
+[tasks.pack]
+description = "Pack NuGet packages into ./artifacts (runs package validation against the baseline)"
+depends = ["build-release"]
+run = "dotnet pack {{vars.solution}} --configuration Release --no-build --output ./artifacts"
+
+[tasks.suppressions]
+description = "Regenerate CompatibilitySuppressions.xml for intentional breaking changes"
+run = "dotnet pack {{vars.solution}} --configuration Release -p:ApiCompatGenerateSuppressionFile=true --output ./artifacts"
+
+[tasks.public-api]
+description = "Add missing entries to PublicAPI.Unshipped.txt (.razor members must still be added by hand)"
+shell = "bash -euo pipefail -c"
+run = '''
+count() { cat src/*/PublicAPI.Unshipped.txt | wc -l; }
+previous=-1
+current=$(count)
+while [ "$current" != "$previous" ]; do
+  previous=$current
+  dotnet format analyzers {{vars.solution}} --diagnostics RS0016 --severity warn || true
+  current=$(count)
+  echo "PublicAPI.Unshipped.txt lines: $previous -> $current"
+done
+'''
+
+[tasks.ci]
+description = "Run the same gates as the CI build workflow: format, build, test, pack"
+depends = ["format-check", "build-release", "coverage"]
+run = "dotnet pack {{vars.solution}} --configuration Release --no-build --output ./artifacts"
+
+[tasks.docs]
+description = "Build and serve the docfx site locally"
+depends = ["build-release", "restore-tools"]
+run = "dotnet docfx ./docs/docfx.json --serve"
+
+[tasks.clean-all]
+description = "Remove all build output, including bin/obj, coverage, artifacts and the docs site"
+run = '''
+find src tests samples \( -name bin -o -name obj \) -type d -prune -exec rm -rf {} +
+rm -rf ./artifacts ./coverage ./TestResults ./docs/_site ./docs/api
+'''

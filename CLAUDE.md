@@ -148,7 +148,7 @@ before a single line compiled — which in turn forced `global.json` to pin an e
 `rollForward: disable`, and left Dependabot to regenerate nine lock files per bump.
 
 So if you are tempted to switch `RestorePackagesWithLockFile` back on, know that it also commits you to
-pinning the SDK exactly and keeping that pin in step with `dotnet-sdk_10` in `flake.nix`.
+pinning the SDK exactly in `global.json`.
 
 ## Architecture
 
