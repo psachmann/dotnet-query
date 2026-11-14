@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository.
 
 ## Project
 
-Fetchling is a [TanStack Query](https://tanstack.com/query)-inspired async data fetching and state management library for .NET and Blazor: automatic caching, background refetching, stale-while-revalidate, reactive state, built on [Rx.NET](https://github.com/dotnet/reactive). Packages target `net10.0` only; versions come from `MinVer` (git tags, prefix `v`).
+Fetchling is a [TanStack Query](https://tanstack.com/query)-inspired async data fetching and state management library for .NET and Blazor: automatic caching, background refetching, stale-while-revalidate, reactive state, built on [Rx.NET](https://github.com/dotnet/reactive). Packages multi-target `net10.0` and `net11.0`; versions come from `MinVer` (git tags, prefix `v`).
 
 | Project (`src/`) | Purpose |
 |---|---|

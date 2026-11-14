@@ -12,7 +12,7 @@ NuGet packages:
 - `Fetchling.Blazor.DevTools` — `<QueryDevTools>` live cache inspector (development only)
 - `Fetchling.Mvvm` — `QueryViewModel`/`InfiniteQueryViewModel`/`MutationViewModel` INotifyPropertyChanged bindings for MAUI, WPF, WinUI, UNO, and Avalonia
 
-Target framework: net10.0 (the upcoming 3.0 drops net9.0; the current stable release, 2.0.0, still targets net9.0 and net10.0). All code is in C# with `nullable enable`.
+Target frameworks: net10.0 and net11.0 (the upcoming 3.0 drops net9.0; the current stable release, 2.0.0, still targets net9.0 and net10.0). All code is in C# with `nullable enable`.
 
 Upgrading from 1.x? The migration guide at https://psachmann.github.io/fetchling/doc/migrating-to-v2.html lists every breaking change: query `TData` constrained to reference types, new `IQueryClient`/`IMutation` members, `AddFetchling` using `TryAdd`, automatic cache eviction, and telemetry unit/tag changes.
 

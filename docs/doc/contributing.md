@@ -15,7 +15,7 @@ You need:
 
 | Tool | Version |
 |------|---------|
-| .NET SDK | 10.0 (see [global.json](https://github.com/psachmann/fetchling/blob/main/global.json)) |
+| .NET SDK | 11.0 (see [global.json](https://github.com/psachmann/fetchling/blob/main/global.json)) |
 | CSharpier | 1.3.0 (installed as a local dotnet tool) |
 
 After cloning, restore the local tools and packages:

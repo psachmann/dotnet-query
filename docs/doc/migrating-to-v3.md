@@ -61,13 +61,13 @@ error CS0246: The type or namespace name 'DotNetQuery' could not be found (are y
 
 ### .NET 9 is no longer supported
 
-All packages now target `net10.0` only. 2.x shipped `net9.0` and `net10.0` assemblies side by side; 3.0 drops the `net9.0` one, so a project targeting `net9.0` fails at restore:
+All packages now target `net10.0` and `net11.0`. 2.x shipped `net9.0` and `net10.0` assemblies side by side; 3.0 drops the `net9.0` one, so a project targeting `net9.0` fails at restore:
 
 ```
 error NU1202: Package Fetchling.Core 3.0.0 is not compatible with net9.0 (.NETCoreApp,Version=v9.0).
 ```
 
-**Why:** .NET 9 reaches end of support on 10 November 2026, and targeting .NET 10 alone lets the library use .NET 10 APIs without fallbacks.
+**Why:** .NET 9 reaches end of support on 10 November 2026, and dropping it lets the library use newer .NET APIs without fallbacks.
 
 **How to migrate:** retarget your application to `net10.0`. There is no API change tied to this — code that built against the `net10.0` assemblies of 2.0.0 is unaffected.
 

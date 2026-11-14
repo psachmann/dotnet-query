@@ -66,15 +66,23 @@ public sealed partial class QueryDevTools : IAsyncDisposable
         }
 
         _dotnetRef = DotNetObjectReference.Create(this);
-        _module = await JS.InvokeAsync<IJSObjectReference>(
-            "import",
-            "./_content/Fetchling.Blazor.DevTools/QueryDevTools.js"
-        );
-        await _module.InvokeVoidAsync("init", _dotnetRef);
 
-        var theme = await _module.InvokeAsync<string>("getTheme");
-        _isDarkMode = theme != "light";
-        StateHasChanged();
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./_content/Fetchling.Blazor.DevTools/QueryDevTools.js"
+            );
+            await _module.InvokeVoidAsync("init", _dotnetRef);
+
+            var theme = await _module.InvokeAsync<string>("getTheme");
+            _isDarkMode = theme != "light";
+            StateHasChanged();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is gone; the panel can no longer be shown.
+        }
     }
 
     private async Task ToggleTheme()
@@ -82,7 +90,14 @@ public sealed partial class QueryDevTools : IAsyncDisposable
         _isDarkMode = !_isDarkMode;
         if (_module is not null)
         {
-            await _module.InvokeVoidAsync("setTheme", _isDarkMode ? "dark" : "light");
+            try
+            {
+                await _module.InvokeVoidAsync("setTheme", _isDarkMode ? "dark" : "light");
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit is gone; nothing to update.
+            }
         }
     }
 
@@ -93,7 +108,14 @@ public sealed partial class QueryDevTools : IAsyncDisposable
             return;
         }
 
-        await _module.InvokeVoidAsync("startResize", _panelRef, (int)e.ClientY, _panelHeight);
+        try
+        {
+            await _module.InvokeVoidAsync("startResize", _panelRef, (int)e.ClientY, _panelHeight);
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is gone; nothing to resize.
+        }
     }
 
     /// <summary>Called from JS when the user finishes dragging the panel height resize handle.</summary>
@@ -110,7 +132,14 @@ public sealed partial class QueryDevTools : IAsyncDisposable
             return;
         }
 
-        await _module.InvokeVoidAsync("startDetailResize", _detailRef, (int)e.ClientX, _detailWidth);
+        try
+        {
+            await _module.InvokeVoidAsync("startDetailResize", _detailRef, (int)e.ClientX, _detailWidth);
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is gone; nothing to resize.
+        }
     }
 
     /// <summary>Called from JS when the user finishes dragging the detail panel width resize handle.</summary>
