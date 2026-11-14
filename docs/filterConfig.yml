@@ -1,0 +1,5 @@
+apiRules:
+  # Razor-generated per-project _Imports classes carry no public API.
+  - exclude:
+      uidRegex: ^.*\._Imports$
+      type: Type

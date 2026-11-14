@@ -6,11 +6,16 @@
         {
           "src": "../src",
           "files": [
-            "**/*.csproj"
+            "Fetchling.Core/bin/Release/net10.0/Fetchling.Core.dll",
+            "Fetchling.Extensions.DependencyInjection/bin/Release/net10.0/Fetchling.Extensions.DependencyInjection.dll",
+            "Fetchling.Blazor/bin/Release/net10.0/Fetchling.Blazor.dll",
+            "Fetchling.Blazor.DevTools/bin/Release/net10.0/Fetchling.Blazor.DevTools.dll",
+            "Fetchling.Mvvm/bin/Release/net10.0/Fetchling.Mvvm.dll"
           ]
         }
       ],
-      "output": "api"
+      "output": "api",
+      "filter": "filterConfig.yml"
     }
   ],
   "build": {
@@ -20,7 +25,8 @@
           "**/*.{md,yml}"
         ],
         "exclude": [
-          "_site/**"
+          "_site/**",
+          "filterConfig.yml"
         ]
       }
     ],
