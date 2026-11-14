@@ -1,0 +1,6 @@
+/* The modern template renders the logo at the SVG's intrinsic size (128px); fit it to the navbar. */
+#logo {
+    width: 40px;
+    height: 40px;
+    margin-right: 0.5rem;
+}

@@ -1,0 +1,93 @@
+namespace Fetchling.Core.Internals;
+
+internal sealed class QueryClient : IQueryClient, IQueryCacheInspector
+{
+    private readonly QueryCache _cache;
+    private readonly QueryClientOptions _globalOptions;
+    private readonly IScheduler _scheduler;
+    private readonly QueryInstrumentation _instrumentation;
+
+    public QueryClient(QueryClientOptions globalOptions, IScheduler scheduler, QueryInstrumentation instrumentation)
+    {
+        _globalOptions = globalOptions;
+        _scheduler = scheduler;
+        _instrumentation = instrumentation;
+        _cache = new(_scheduler, _instrumentation);
+    }
+
+    public IObservable<IReadOnlyList<IQueryCacheEntry>> Entries => _cache.Entries;
+
+    public IQuery<TArgs, TData> CreateQuery<TArgs, TData>(QueryOptions<TArgs, TData> options)
+        where TData : class =>
+        new QueryObserver<TArgs, TData>(options, _globalOptions, _cache, _scheduler, _instrumentation);
+
+    public IInfiniteQuery<TArgs, TData, TPageParam> CreateInfiniteQuery<TArgs, TData, TPageParam>(
+        InfiniteQueryOptions<TArgs, TData, TPageParam> options
+    )
+        where TData : class =>
+        new InfiniteQueryObserver<TArgs, TData, TPageParam>(
+            options,
+            _globalOptions,
+            _cache,
+            _scheduler,
+            _instrumentation
+        );
+
+    public IQuery<TArgs, TData> CreateStreamedQuery<TArgs, TData, TChunk>(
+        StreamedQueryOptions<TArgs, TData, TChunk> options
+    )
+        where TData : class =>
+        new QueryObserver<TArgs, TData>(
+            QueryObserver<TArgs, TData>.MergeOptions(options, _globalOptions),
+            options.KeyFactory,
+            _cache,
+            _scheduler,
+            _instrumentation
+        );
+
+    public IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options)
+    {
+        var mutation = new Mutation<TArgs, TData>(options, _globalOptions, _instrumentation);
+        InvalidateOnSuccess(mutation, options.InvalidateKeys);
+
+        return mutation;
+    }
+
+    public IMutation<TArgs, TData, TProgress> CreateMutation<TArgs, TData, TProgress>(
+        MutationOptions<TArgs, TData, TProgress> options
+    )
+    {
+        var mutation = new Mutation<TArgs, TData, TProgress>(options, _globalOptions, _instrumentation);
+        InvalidateOnSuccess(mutation, options.InvalidateKeys);
+
+        return mutation;
+    }
+
+    public void Invalidate(QueryKey key) => _cache.Invalidate(key);
+
+    public void Invalidate(Func<QueryKey, bool> predicate) => _cache.Invalidate(predicate);
+
+    public void Dispose() => _cache.Dispose();
+
+    private void InvalidateOnSuccess<TArgs, TData, TProgress, TState>(
+        MutationCore<TArgs, TData, TProgress, TState> mutation,
+        IReadOnlyList<QueryKey>? keys
+    )
+        where TState : class, IMutationState<TData>
+    {
+        if (keys is not { Count: > 0 })
+        {
+            return;
+        }
+
+        var subscription = mutation.Success.Subscribe(_ =>
+        {
+            foreach (var key in keys)
+            {
+                Invalidate(key);
+            }
+        });
+
+        mutation.AddDisposable(subscription);
+    }
+}

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="TUnit.Mocks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Fetchling.Mvvm\Fetchling.Mvvm.csproj" />
+  </ItemGroup>
+</Project>

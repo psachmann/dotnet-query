@@ -1,6 +1,6 @@
 # Queries
 
-Queries are the core primitive in DotNet Query. A query represents a single async read operation with automatic caching, lifecycle management, and reactive state.
+Queries are the core primitive in Fetchling. A query represents a single async read operation with automatic caching, lifecycle management, and reactive state.
 
 ## Creating a Query
 

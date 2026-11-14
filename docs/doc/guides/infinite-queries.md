@@ -193,7 +193,7 @@ query.Settled.Subscribe(_ => HideGlobalSpinner());
 
 ## Blazor Components
 
-`<InfiniteTransition>` and `<InfiniteSuspense>` in `DotNetQuery.Blazor` handle subscriptions and re-rendering automatically. Both receive the full `InfiniteQueryState` as the `Content` context so the template can access pages, page counts, and loading flags in one place.
+`<InfiniteTransition>` and `<InfiniteSuspense>` in `Fetchling.Blazor` handle subscriptions and re-rendering automatically. Both receive the full `InfiniteQueryState` as the `Content` context so the template can access pages, page counts, and loading flags in one place.
 
 ### \<InfiniteTransition\> (recommended)
 

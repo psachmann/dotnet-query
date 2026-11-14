@@ -1,8 +1,8 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-solution := justfile_directory() / "DotNetQuery.slnx"
-blazor_sample := justfile_directory() / "samples/DotNetQuery.Samples.Blazor/DotNetQuery.Samples.Blazor.csproj"
-avalonia_sample := justfile_directory() / "samples/DotNetQuery.Samples.Avalonia/DotNetQuery.Samples.Avalonia.csproj"
+solution := justfile_directory() / "Fetchling.slnx"
+blazor_sample := justfile_directory() / "samples/Fetchling.Samples.Blazor/Fetchling.Samples.Blazor.csproj"
+avalonia_sample := justfile_directory() / "samples/Fetchling.Samples.Avalonia/Fetchling.Samples.Avalonia.csproj"
 
 # List all recipes
 default:
@@ -63,7 +63,7 @@ test config="Debug":
 
 # Run tests in one project, optionally only classes whose name contains `filter`, e.g. `just test-filter Core QueryCache`
 test-filter project filter="" config="Release":
-    dotnet test tests/DotNetQuery.{{ project }}.Tests --configuration {{ config }} \
+    dotnet test tests/Fetchling.{{ project }}.Tests --configuration {{ config }} \
         {{ if filter != "" { "-- --treenode-filter \"/*/*/*" + filter + "*/*\"" } else { "" } }}
 
 # Run all tests with cobertura coverage, as CI does (output in ./coverage)

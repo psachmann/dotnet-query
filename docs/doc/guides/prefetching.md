@@ -4,7 +4,7 @@ Prefetching warms the cache before any component subscribes to a query. When a c
 
 ## The Facade Pattern
 
-The recommended way to use DotNet Query is to create queries and mutations in a dedicated service or facade, then inject that class into your components. Prefetching fits naturally into this model: the facade owns the query, so it is the right place to call `PrefetchAsync`.
+The recommended way to use Fetchling is to create queries and mutations in a dedicated service or facade, then inject that class into your components. Prefetching fits naturally into this model: the facade owns the query, so it is the right place to call `PrefetchAsync`.
 
 ```csharp
 public class UserFacade

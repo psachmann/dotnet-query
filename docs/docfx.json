@@ -9,8 +9,8 @@
             "**/*.csproj"
           ],
           "exclude": [
-            "DotNetQuery.Blazor/**",
-            "DotNetQuery.Blazor.DevTools/**"
+            "Fetchling.Blazor/**",
+            "Fetchling.Blazor.DevTools/**"
           ]
         }
       ],
@@ -39,13 +39,14 @@
     "output": "_site",
     "template": [
       "default",
-      "modern"
+      "modern",
+      "template"
     ],
     "globalMetadata": {
-      "_appName": "DotNet Query",
-      "_appTitle": "DotNet Query",
-      "_appLogoPath": "images/dotnet-query-icon.64x64.svg",
-      "_appFaviconPath": "images/dotnet-query-icon.128x128.png",
+      "_appName": "Fetchling",
+      "_appTitle": "Fetchling",
+      "_appLogoPath": "images/fetchling-icon.svg",
+      "_appFaviconPath": "images/fetchling-icon.png",
       "_enableSearch": true,
       "pdf": false
     }

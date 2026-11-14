@@ -1,19 +1,22 @@
-# DotNet Query
+# Fetchling
 
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/psachmann/dotnet-query/build.yaml)
-](https://github.com/psachmann/dotnet-query/actions/workflows/build.yaml)
-[![Codecov (with branch)](https://img.shields.io/codecov/c/github/psachmann/dotnet-query/main)](https://codecov.io/gh/psachmann/dotnet-query)
-[![NuGet Version](https://img.shields.io/nuget/v/dotnetquery.core)
-](https://www.nuget.org/packages?q=dotnetquery+psachmann)
-[![GitHub License](https://img.shields.io/github/license/psachmann/dotnet-query)](https://github.com/psachmann/dotnet-query/blob/main/LICENSE.md)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/psachmann/fetchling/build.yaml)
+](https://github.com/psachmann/fetchling/actions/workflows/build.yaml)
+[![Codecov (with branch)](https://img.shields.io/codecov/c/github/psachmann/fetchling/main)](https://codecov.io/gh/psachmann/fetchling)
+[![NuGet Version](https://img.shields.io/nuget/v/fetchling.core)
+](https://www.nuget.org/packages?q=fetchling+psachmann)
+[![GitHub License](https://img.shields.io/github/license/psachmann/fetchling)](https://github.com/psachmann/fetchling/blob/main/LICENSE.md)
 
 > A [TanStack Query](https://tanstack.com/query)-inspired async data fetching and state management library for .NET and Blazor.
 
-DotNet Query brings the battle-tested data-fetching patterns of TanStack Query to the .NET ecosystem. It gives you predictable loading, error, and success states out of the box — powered by [Rx.NET](https://github.com/dotnet/reactive) observables, so everything is composable, lazy, and reactive by default.
+> [!NOTE]
+> **Formerly DotNetQuery.** Fetchling is the same library, renamed for 3.0. The `DotNetQuery.*` packages stay on 2.x and get no further releases. To upgrade, switch each `DotNetQuery.*` package to its `Fetchling.*` counterpart and replace `DotNetQuery` with `Fetchling` in namespaces and in `AddDotNetQuery()`.
+
+Fetchling brings the battle-tested data-fetching patterns of TanStack Query to the .NET ecosystem. It gives you predictable loading, error, and success states out of the box — powered by [Rx.NET](https://github.com/dotnet/reactive) observables, so everything is composable, lazy, and reactive by default.
 
 ## Table of Contents
 
-- [DotNet Query](#dotnet-query)
+- [Fetchling](#fetchling)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
   - [Installation](#installation)
@@ -41,40 +44,43 @@ DotNet Query brings the battle-tested data-fetching patterns of TanStack Query t
 ## Installation
 
 ```bash
+# Core + DI integration in one package — the usual starting point
+dotnet add package Fetchling
+
 # Core library — always required
-dotnet add package DotNetQuery.Core
+dotnet add package Fetchling.Core
 
 # DI integration
-dotnet add package DotNetQuery.Extensions.DependencyInjection
+dotnet add package Fetchling.Extensions.DependencyInjection
 
 # Blazor components
-dotnet add package DotNetQuery.Blazor
+dotnet add package Fetchling.Blazor
 
 # Blazor DevTools — live cache inspector for development
-dotnet add package DotNetQuery.Blazor.DevTools
+dotnet add package Fetchling.Blazor.DevTools
 
 # MVVM view models (MAUI, WPF, WinUI, UNO, Avalonia)
-dotnet add package DotNetQuery.Mvvm
+dotnet add package Fetchling.Mvvm
 ```
 
 ## Documentation
 
-Full guides, examples, and API reference are available **[here](https://psachmann.github.io/dotnet-query/)**.
+Full guides, examples, and API reference are available **[here](https://psachmann.github.io/fetchling/)**.
 
-- [Introduction](https://psachmann.github.io/dotnet-query/doc/introduction.html) — core concepts and motivation
-- [Getting Started](https://psachmann.github.io/dotnet-query/doc/getting-started.html) — install and write your first query
-- [Guides](https://psachmann.github.io/dotnet-query/doc/guides/queries.html) — queries, mutations, caching, Blazor, retries, and SSR
-- [Migrating to v2](https://psachmann.github.io/dotnet-query/doc/migrating-to-v2.html) — breaking changes and upgrade steps for 2.0
-- [API Reference](https://psachmann.github.io/dotnet-query/api/DotNetQuery.Core.html) — full generated API docs
-- [Blazor sample](https://github.com/psachmann/dotnet-query/tree/main/samples/DotNetQuery.Samples.Blazor) and [Avalonia sample](https://github.com/psachmann/dotnet-query/tree/main/samples/DotNetQuery.Samples.Avalonia) — complete, runnable apps built on the library
+- [Introduction](https://psachmann.github.io/fetchling/doc/introduction.html) — core concepts and motivation
+- [Getting Started](https://psachmann.github.io/fetchling/doc/getting-started.html) — install and write your first query
+- [Guides](https://psachmann.github.io/fetchling/doc/guides/queries.html) — queries, mutations, caching, Blazor, retries, and SSR
+- [Migrating to v2](https://psachmann.github.io/fetchling/doc/migrating-to-v2.html) — breaking changes and upgrade steps for 2.0
+- [API Reference](https://psachmann.github.io/fetchling/api/Fetchling.Core.html) — full generated API docs
+- [Blazor sample](https://github.com/psachmann/fetchling/tree/main/samples/Fetchling.Samples.Blazor) and [Avalonia sample](https://github.com/psachmann/fetchling/tree/main/samples/Fetchling.Samples.Avalonia) — complete, runnable apps built on the library
 
-> **AI agents / LLMs:** a single-file reference covering the full public API, all patterns, and architecture notes is available at [`/llms.txt`](https://psachmann.github.io/dotnet-query/llms.txt). The docs are also indexed on [Context7](https://context7.com/psachmann/dotnet-query) under the library ID `/psachmann/dotnet-query` (`/psachmann/dotnet-query/v2.0.0` for the current stable release).
+> **AI agents / LLMs:** a single-file reference covering the full public API, all patterns, and architecture notes is available at [`/llms.txt`](https://psachmann.github.io/fetchling/llms.txt). The docs are also indexed on [Context7](https://context7.com/psachmann/fetchling) under the library ID `/psachmann/fetchling` (`/psachmann/fetchling/v2.0.0` for the current stable release).
 
 ## Quick Start
 
 ```csharp
 // Program.cs
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.StaleTime = TimeSpan.FromMinutes(1);
 });
@@ -117,8 +123,8 @@ mutation.Execute(new CreateUserRequest { Name = "Alice" });
 
 ## Contributing
 
-Contributions are welcome! Please see the [Contributing guide](https://psachmann.github.io/dotnet-query/doc/contributing.html) for setup instructions, coding conventions, and the PR workflow. For bugs and feature requests, [open an issue](https://github.com/psachmann/dotnet-query/issues).
+Contributions are welcome! Please see the [Contributing guide](https://psachmann.github.io/fetchling/doc/contributing.html) for setup instructions, coding conventions, and the PR workflow. For bugs and feature requests, [open an issue](https://github.com/psachmann/fetchling/issues).
 
 ## License
 
-[MIT](https://github.com/psachmann/dotnet-query/blob/main/LICENSE.md) — Copyright (c) 2026 Patrick Sachmann
+[MIT](https://github.com/psachmann/fetchling/blob/main/LICENSE.md) — Copyright (c) 2026 Patrick Sachmann

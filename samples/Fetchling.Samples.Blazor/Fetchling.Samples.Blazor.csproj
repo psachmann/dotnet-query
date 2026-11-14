@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Radzen.Blazor" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fetchling.Samples.Shared\Fetchling.Samples.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Fetchling.Blazor\Fetchling.Blazor.csproj" />
+    <ProjectReference Include="..\..\src\Fetchling.Blazor.DevTools\Fetchling.Blazor.DevTools.csproj" />
+    <ProjectReference Include="..\..\src\Fetchling.Core\Fetchling.Core.csproj" />
+    <ProjectReference Include="..\..\src\Fetchling.Extensions.DependencyInjection\Fetchling.Extensions.DependencyInjection.csproj" />
+  </ItemGroup>
+</Project>

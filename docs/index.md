@@ -2,13 +2,13 @@
 _disableToc: true
 ---
 
-# DotNet Query
+# Fetchling
 
 > A [TanStack Query](https://tanstack.com/query)-inspired async data fetching and state management library for .NET and Blazor.
 
-DotNet Query brings the battle-tested data-fetching patterns of TanStack Query to the .NET ecosystem. It gives you predictable loading, error, and success states out of the box — powered by [Rx.NET](https://github.com/dotnet/reactive) observables, so everything is composable, lazy, and reactive by default.
+Fetchling brings the battle-tested data-fetching patterns of TanStack Query to the .NET ecosystem. It gives you predictable loading, error, and success states out of the box — powered by [Rx.NET](https://github.com/dotnet/reactive) observables, so everything is composable, lazy, and reactive by default.
 
-If you have ever found yourself writing the same `isLoading / hasError / data` boilerplate over and over, or wrestling with cache invalidation after a form submission, DotNet Query is here to help.
+If you have ever found yourself writing the same `isLoading / hasError / data` boilerplate over and over, or wrestling with cache invalidation after a form submission, Fetchling is here to help.
 
 ---
 
@@ -34,7 +34,7 @@ If you have ever found yourself writing the same `isLoading / hasError / data` b
 
 ```csharp
 // Register in Program.cs
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.StaleTime = TimeSpan.FromMinutes(1);
 });
@@ -60,4 +60,4 @@ query.Failure.Subscribe(error => Console.WriteLine($"Oops: {error.Message}"));
 - [Getting Started](doc/getting-started.md) — install and write your first query in minutes.
 - [Guides](doc/guides/queries.md) — deep dives into queries, mutations, caching, Blazor, MVVM, and more.
 - [Migrating to v2](doc/migrating-to-v2.md) — breaking changes and upgrade steps for 2.0.
-- [API Reference](api/DotNetQuery.Core.yml) — full generated API documentation.
+- [API Reference](api/Fetchling.Core.yml) — full generated API documentation.

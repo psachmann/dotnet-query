@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <Description>DevTools Blazor component for inspecting the Fetchling cache at runtime</Description>
+    <TrackPublicApi>false</TrackPublicApi>
+    <IsAotCompatible>false</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fetchling.Core\Fetchling.Core.csproj" />
+  </ItemGroup>
+</Project>
