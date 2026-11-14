@@ -15,3 +15,7 @@ docs/api/
 .zed/
 .idea/
 .mcp.json
+
+# Temporary excludes
+temp/
+tmp/
