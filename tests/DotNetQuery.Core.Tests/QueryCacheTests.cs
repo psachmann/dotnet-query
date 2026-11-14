@@ -93,9 +93,10 @@ public class QueryCacheTests
         _sut.GetOrCreate(key, query);
         _sut.Remove(key);
 
-        // Re-add before timer fires — pending removal should be cancelled
+        // Re-add before timer fires and subscribe, as an observer would — pending removal should be cancelled
         using var replacement = CreateQuery(key);
         var result = _sut.GetOrCreate(key, replacement);
+        using var subscription = result.State.Subscribe();
 
         // Advance past _sut time — query should NOT be removed
         _scheduler.AdvanceBy(TimeSpan.FromMinutes(10).Ticks);
@@ -414,7 +415,7 @@ public class QueryCacheTests
         cache.Remove(key);
 
         using var rejoin = CreateQuery(key);
-        cache.GetOrCreate(key, rejoin);
+        using var subscription = cache.GetOrCreate(key, rejoin).State.Subscribe();
 
         _scheduler.AdvanceBy(TimeSpan.FromMinutes(10).Ticks);
 

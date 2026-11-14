@@ -15,6 +15,7 @@ using Microsoft.JSInterop;
 public sealed partial class QueryRefreshMonitor : IAsyncDisposable
 {
     private IJSObjectReference? _module;
+    private IJSObjectReference? _registration;
     private DotNetObjectReference<QueryRefreshMonitor>? _dotnetRef;
 
     /// <summary>When <c>true</c> (default), stale queries are invalidated when the browser tab regains focus.</summary>
@@ -39,7 +40,12 @@ public sealed partial class QueryRefreshMonitor : IAsyncDisposable
             "./_content/DotNetQuery.Blazor/QueryRefreshMonitor.js"
         );
 
-        await _module.InvokeVoidAsync("register", _dotnetRef, RefetchOnFocus, RefetchOnReconnect);
+        _registration = await _module.InvokeAsync<IJSObjectReference>(
+            "register",
+            _dotnetRef,
+            RefetchOnFocus,
+            RefetchOnReconnect
+        );
     }
 
     /// <summary>Called by the browser when the tab regains focus. Not intended for direct use.</summary>
@@ -55,9 +61,14 @@ public sealed partial class QueryRefreshMonitor : IAsyncDisposable
     {
         try
         {
+            if (_registration is not null)
+            {
+                await _registration.InvokeVoidAsync("unregister");
+                await _registration.DisposeAsync();
+            }
+
             if (_module is not null)
             {
-                await _module.InvokeVoidAsync("unregister");
                 await _module.DisposeAsync();
             }
         }

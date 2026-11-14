@@ -15,6 +15,8 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
 
     public IObservable<IReadOnlyList<IQueryCacheEntry>> Entries => _entriesSubject.AsObservable();
 
+    public bool IsDisposed => _disposed;
+
     private IReadOnlyList<IQueryCacheEntry> Snapshot() => [.. _entries.Values];
 
     public TEntry GetOrCreate<TEntry>(QueryKey key, TEntry entry)
@@ -57,6 +59,14 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
             else
             {
                 _instrumentation.RecordCacheHit(key, result.Name);
+            }
+
+            // Eviction is otherwise only scheduled when an entry's last subscriber leaves, so an entry
+            // nobody ever subscribes to (a prefetch, or args set on an observer that is never rendered)
+            // would stay cached for good. Start its countdown here; the first subscriber cancels it.
+            if (result.ObserverCount == 0)
+            {
+                Remove(key);
             }
         }
 

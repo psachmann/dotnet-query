@@ -19,12 +19,15 @@ public class QueryRefreshMonitorTests
         return client;
     }
 
-    private BunitJSModuleInterop SetupJsModule()
+    private BunitJSModuleInterop SetupJsModule() => SetupJsModule(out _);
+
+    /// <param name="registration">The per-instance handle <c>register</c> returns; it owns <c>unregister</c>.</param>
+    private BunitJSModuleInterop SetupJsModule(out BunitJSModuleInterop registration)
     {
         var module = _context.JSInterop.SetupModule("./_content/DotNetQuery.Blazor/QueryRefreshMonitor.js");
 
-        module.SetupVoid("register", _ => true).SetVoidResult();
-        module.SetupVoid("unregister", _ => true).SetVoidResult();
+        registration = module.SetupModule("register", _ => true);
+        registration.SetupVoid("unregister", _ => true).SetVoidResult();
 
         return module;
     }
@@ -138,12 +141,12 @@ public class QueryRefreshMonitorTests
     public async Task DisposeAsync_UnregistersAndDisposesModule()
     {
         SetupQueryClient();
-        var jsModule = SetupJsModule();
+        SetupJsModule(out var registration);
 
         var cut = _context.Render<QueryRefreshMonitor>();
         await cut.Instance.DisposeAsync();
 
-        jsModule.VerifyInvoke("unregister", calledTimes: 1);
+        registration.VerifyInvoke("unregister", calledTimes: 1);
     }
 
     [Test]
@@ -151,8 +154,10 @@ public class QueryRefreshMonitorTests
     {
         SetupQueryClient();
         var module = _context.JSInterop.SetupModule("./_content/DotNetQuery.Blazor/QueryRefreshMonitor.js");
-        module.SetupVoid("register", _ => true).SetVoidResult();
-        module.SetupVoid("unregister", _ => true).SetException(new JSDisconnectedException("circuit disconnected"));
+        var registration = module.SetupModule("register", _ => true);
+        registration
+            .SetupVoid("unregister", _ => true)
+            .SetException(new JSDisconnectedException("circuit disconnected"));
 
         var cut = _context.Render<QueryRefreshMonitor>();
 

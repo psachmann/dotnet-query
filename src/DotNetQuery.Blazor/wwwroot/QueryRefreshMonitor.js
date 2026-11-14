@@ -1,31 +1,39 @@
-let _visibilityListener = null;
-let _onlineListener = null;
-
+/**
+ * Registers the focus/reconnect listeners for one <QueryRefreshMonitor> and returns a handle that owns
+ * them. The listeners live in the handle rather than in module state: the module is shared by every
+ * monitor on the page, so module-level references would be overwritten by a second instance and each
+ * one's dispose would then remove the wrong listeners.
+ */
 export function register(dotnetRef, onFocus, onReconnect) {
+    let visibilityListener = null;
+    let onlineListener = null;
+
     if (onFocus) {
-        _visibilityListener = () => {
+        visibilityListener = () => {
             if (!document.hidden) {
                 dotnetRef.invokeMethodAsync('OnFocus');
             }
         };
-        document.addEventListener('visibilitychange', _visibilityListener);
+        document.addEventListener('visibilitychange', visibilityListener);
     }
     if (onReconnect) {
-        _onlineListener = () => {
+        onlineListener = () => {
             dotnetRef.invokeMethodAsync('OnReconnect');
         };
-        window.addEventListener('online', _onlineListener);
+        window.addEventListener('online', onlineListener);
     }
-}
 
-/** Removes the listeners registered by {@link register}. Called from Blazor's DisposeAsync. */
-export function unregister() {
-    if (_visibilityListener) {
-        document.removeEventListener('visibilitychange', _visibilityListener);
-        _visibilityListener = null;
-    }
-    if (_onlineListener) {
-        window.removeEventListener('online', _onlineListener);
-        _onlineListener = null;
-    }
+    return {
+        /** Removes the listeners this handle registered. Called from Blazor's DisposeAsync. */
+        unregister() {
+            if (visibilityListener) {
+                document.removeEventListener('visibilitychange', visibilityListener);
+                visibilityListener = null;
+            }
+            if (onlineListener) {
+                window.removeEventListener('online', onlineListener);
+                onlineListener = null;
+            }
+        },
+    };
 }

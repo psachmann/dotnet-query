@@ -235,6 +235,11 @@ internal sealed partial class QueryInstrumentation(
         LogMutationCancelled(name);
     }
 
+    internal void RecordMutationCallbackFailure(string name, Exception ex)
+    {
+        LogMutationCallbackFailed(ex, name);
+    }
+
     // ── Source-generated log messages ────────────────────────────────────────
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Fetch started for key '{QueryKey}'")]
@@ -275,4 +280,10 @@ internal sealed partial class QueryInstrumentation(
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Mutation '{MutationName}' cancelled")]
     private partial void LogMutationCancelled(string mutationName);
+
+    [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "A callback of mutation '{MutationName}' threw; the mutation's state is unaffected"
+    )]
+    private partial void LogMutationCallbackFailed(Exception exception, string mutationName);
 }
