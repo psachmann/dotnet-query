@@ -48,8 +48,7 @@ internal sealed class TodosClientImpl(TodosContext context) : ITodosClient, IDis
 
     public async Task UpdateTodoListAsync(Guid listId, string title, CancellationToken cts = default)
     {
-        var list =
-            await context.Set<TodoList>().FindAsync([listId], cts)
+        var list = await context.Set<TodoList>().FindAsync([listId], cts)
             ?? throw new KeyNotFoundException($"TodoList {listId} not found.");
 
         context.Entry(list).CurrentValues.SetValues(list with { Title = title });
@@ -58,8 +57,7 @@ internal sealed class TodosClientImpl(TodosContext context) : ITodosClient, IDis
 
     public async Task DeleteTodoListAsync(Guid listId, CancellationToken cts = default)
     {
-        var list =
-            await context.Set<TodoList>().FindAsync([listId], cts)
+        var list = await context.Set<TodoList>().FindAsync([listId], cts)
             ?? throw new KeyNotFoundException($"TodoList {listId} not found.");
 
         context.Set<TodoList>().Remove(list);
@@ -102,8 +100,7 @@ internal sealed class TodosClientImpl(TodosContext context) : ITodosClient, IDis
 
     public async Task ToggleTodoItemAsync(Guid itemId, CancellationToken cts = default)
     {
-        var item =
-            await context.Set<TodoItem>().FindAsync([itemId], cts)
+        var item = await context.Set<TodoItem>().FindAsync([itemId], cts)
             ?? throw new KeyNotFoundException($"TodoItem {itemId} not found.");
 
         context.Entry(item).CurrentValues.SetValues(item with { IsDone = !item.IsDone });
@@ -112,8 +109,7 @@ internal sealed class TodosClientImpl(TodosContext context) : ITodosClient, IDis
 
     public async Task UpdateTodoItemAsync(Guid itemId, string description, CancellationToken cts = default)
     {
-        var item =
-            await context.Set<TodoItem>().FindAsync([itemId], cts)
+        var item = await context.Set<TodoItem>().FindAsync([itemId], cts)
             ?? throw new KeyNotFoundException($"TodoItem {itemId} not found.");
 
         context.Entry(item).CurrentValues.SetValues(item with { Description = description });
@@ -122,8 +118,7 @@ internal sealed class TodosClientImpl(TodosContext context) : ITodosClient, IDis
 
     public async Task DeleteTodoItemAsync(Guid itemId, CancellationToken cts = default)
     {
-        var item =
-            await context.Set<TodoItem>().FindAsync([itemId], cts)
+        var item = await context.Set<TodoItem>().FindAsync([itemId], cts)
             ?? throw new KeyNotFoundException($"TodoItem {itemId} not found.");
 
         context.Set<TodoItem>().Remove(item);

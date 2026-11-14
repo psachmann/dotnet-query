@@ -511,10 +511,8 @@ public class InfiniteQueryTests
     [Test]
     public async Task InitialData_ComputesHasNextPage()
     {
-        using var sut = CreateQuery(
-            initialData: "seed-page",
-            initialPageParam: 1,
-            getNextPageParam: info => PageParam<int>.Some(info.PageParam + 1)
+        using var sut = CreateQuery(initialData: "seed-page", initialPageParam: 1, getNextPageParam: info =>
+            PageParam<int>.Some(info.PageParam + 1)
         );
 
         await Assert.That(sut.CurrentState.HasNextPage).IsTrue();
@@ -523,10 +521,8 @@ public class InfiniteQueryTests
     [Test]
     public async Task InitialData_HasNextPage_IsFalse_WhenGetNextPageParamReturnsNone()
     {
-        using var sut = CreateQuery(
-            initialData: "seed-page",
-            initialPageParam: 1,
-            getNextPageParam: _ => PageParam<int>.None
+        using var sut = CreateQuery(initialData: "seed-page", initialPageParam: 1, getNextPageParam: _ =>
+            PageParam<int>.None
         );
 
         await Assert.That(sut.CurrentState.HasNextPage).IsFalse();
@@ -749,19 +745,16 @@ public class InfiniteQueryTests
         var fetchStarted = new TaskCompletionSource();
         var pageTcs = new TaskCompletionSource<string>();
 
-        using var sut = CreateQuery(
-            key: key,
-            fetcher: (_, page, _) =>
+        using var sut = CreateQuery(key: key, fetcher: (_, page, _) =>
+        {
+            if (page == 1)
             {
-                if (page == 1)
-                {
-                    fetchStarted.TrySetResult();
-                    return pageTcs.Task;
-                }
-
-                return Task.FromResult($"page{page}");
+                fetchStarted.TrySetResult();
+                return pageTcs.Task;
             }
-        );
+
+            return Task.FromResult($"page{page}");
+        });
 
         using var sub = sut.State.Subscribe();
         sut.Refetch();

@@ -3,6 +3,9 @@
     "avalonia",
     "Blazor",
     "docfx",
-    "Fetchling"
+    "Fetchling",
+    "llms",
+    "Mvvm",
+    "psachmann"
   ]
 }

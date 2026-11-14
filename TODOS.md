@@ -5,12 +5,12 @@
 - [ ] **NuGet prefix reservation:** wait for the reply from account@nuget.org (`Fetchling` + `Fetchling.*`).
   - [ ] Once granted, check that all six packages show the reserved-prefix checkmark on nuget.org.
   - [ ] Confirm via `curl -s "https://azuresearch-usnc.nuget.org/query?q=packageid:Fetchling.Core&prerelease=true" | jq '.data[].verified'` → `true`.
-- [ ] **NuGet search indexing:** check that the `Fetchling*` packages appear in nuget.org search (expected within a few hours of the first publish; if still missing after a day, look into it).
+- [x] **NuGet search indexing:** check that the `Fetchling*` packages appear in nuget.org search (expected within a few hours of the first publish; if still missing after a day, look into it).
 
 ## Check soon
 
-- [ ] **Codecov:** the `main` build after #135 uploaded coverage for the renamed repo, and the README badge shows a value.
-- [ ] **Old Context7 project** `/psachmann/dotnet-query`: delete it, or keep it until 3.0.0 ships (docs already point 2.x users at `/psachmann/fetchling/v2.0.0`).
+- [x] **Codecov:** the `main` build after #135 uploaded coverage for the renamed repo, and the README badge shows a value.
+- [x] **Old Context7 project** `/psachmann/dotnet-query`: create a redirect to `/psachmann/fetchling`.
 - [ ] **DevTools screenshots** (`docs/images/fetchling-blazor-devtools-*.png`): retake them if they still show the old name.
 
 ## At 3.0.0 stable
@@ -35,5 +35,5 @@
 
 ## Optional
 
-- [ ] Add `fetchling`, `tanstack-query`, `reactive` to the GitHub repo topics.
-- [ ] Rename the local folder `~/Projects/dotnet-query` → `~/Projects/fetchling`.
+- [x] Add `fetchling`, `tanstack-query`, `reactive` to the GitHub repo topics.
+- [x] Rename the local folder `~/Projects/dotnet-query` → `~/Projects/fetchling`.

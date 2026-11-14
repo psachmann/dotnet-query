@@ -24,8 +24,8 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var services =
-                Services ?? throw new InvalidOperationException($"{nameof(Services)} has not been initialized.");
+            var services = Services
+                ?? throw new InvalidOperationException($"{nameof(Services)} has not been initialized.");
 
             // The samples share EF Core services registered as scoped, so the app keeps a single
             // scope alive for its whole lifetime and resolves the shell view model from it.
