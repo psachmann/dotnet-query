@@ -223,7 +223,7 @@ Both overloads share `ExecuteCommand`'s double-submit protection and return an `
 partial void OnNewItemTextChanged(string value) => AddItemCommand.RaiseCanExecuteChanged();
 ```
 
-**Call `ToCommand` once per command**, typically in the constructor — not per row in a list. Each call appends to the view model's internal "refresh these on every state change" bookkeeping, with no way to remove an entry later; calling it in a loop leaks. For a command that needs a different argument per row, build the command **once** on the page view model with the mapped overload above, and hand the same `ICommand` instance to every row — see the [Avalonia sample](https://github.com/psachmann/dotnet-query/tree/main/samples/Fetchling.Samples.Avalonia)'s `TodoDetailsViewModel`/`TodoItemViewModel` for the full pattern, including how the row exposes it in a `CommandParameter` binding.
+**Call `ToCommand` once per command**, typically in the constructor — not per row in a list. Each call appends to the view model's internal "refresh these on every state change" bookkeeping, with no way to remove an entry later; calling it in a loop leaks. For a command that needs a different argument per row, build the command **once** on the page view model with the mapped overload above, and hand the same `ICommand` instance to every row — see the [Avalonia sample](https://github.com/psachmann/fetchling/tree/main/samples/Fetchling.Samples.Avalonia)'s `TodoDetailsViewModel`/`TodoItemViewModel` for the full pattern, including how the row exposes it in a `CommandParameter` binding.
 
 ### Progress
 

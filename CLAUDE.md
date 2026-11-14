@@ -313,7 +313,7 @@ still naming what the current stable release supports. Release prep removes the 
 
 ### Context7 indexing
 
-The repo is indexed on [Context7](https://context7.com/psachmann/dotnet-query) as `/psachmann/dotnet-query`.
+The repo is indexed on [Context7](https://context7.com/psachmann/fetchling) as `/psachmann/fetchling`.
 `context7.json` at the repo root scopes parsing to `docs/` and `samples/` and excludes contributor-facing
 files (this one, `contributing.md`) so they are not served to consumers as usage docs; its `rules` are handed
 to coding agents with every result, so keep them to consumer-facing gotchas. `.github/workflows/context7.yaml`

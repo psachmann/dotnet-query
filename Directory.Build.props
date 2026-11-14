@@ -22,8 +22,8 @@
     <Company>Patrick Sachmann</Company>
     <Copyright>Copyright (c) 2026 Patrick Sachmann</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://psachmann.github.io/dotnet-query</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/psachmann/dotnet-query</RepositoryUrl>
+    <PackageProjectUrl>https://psachmann.github.io/fetchling</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/psachmann/fetchling</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>query;caching;blazor;reactive;rx.net;tanstack</PackageTags>
@@ -36,7 +36,7 @@
 
   <Target Name="SetPackageReleaseNotes" BeforeTargets="GenerateNuspec">
     <PropertyGroup>
-      <PackageReleaseNotes>https://github.com/psachmann/dotnet-query/releases/tag/v$(Version)</PackageReleaseNotes>
+      <PackageReleaseNotes>https://github.com/psachmann/fetchling/releases/tag/v$(Version)</PackageReleaseNotes>
     </PropertyGroup>
   </Target>
 

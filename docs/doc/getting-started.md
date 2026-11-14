@@ -246,4 +246,4 @@ See the [Blazor Components guide](guides/blazor.md) for more details, including 
 - [Caching guide](guides/caching.md) — understand stale time, cache time, and deduplication.
 - [Blazor Components guide](guides/blazor.md) — `<Suspense>` and `<Transition>` in detail.
 - [Observability guide](guides/observability.md) — distributed tracing, metrics, and structured logging with OpenTelemetry.
-- [Blazor sample](https://github.com/psachmann/dotnet-query/tree/main/samples/Fetchling.Samples.Blazor) and [Avalonia sample](https://github.com/psachmann/dotnet-query/tree/main/samples/Fetchling.Samples.Avalonia) — complete, runnable apps built on the library.
+- [Blazor sample](https://github.com/psachmann/fetchling/tree/main/samples/Fetchling.Samples.Blazor) and [Avalonia sample](https://github.com/psachmann/fetchling/tree/main/samples/Fetchling.Samples.Avalonia) — complete, runnable apps built on the library.
