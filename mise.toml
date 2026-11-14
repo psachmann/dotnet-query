@@ -1,6 +1,6 @@
 [tools]
-# Matches global.json (10.0.100, rollForward latestMinor)
-dotnet = "10"
+# Matches global.json (11.0.100, rollForward latestPatch)
+dotnet = "11"
 
 [vars]
 solution = "Fetchling.slnx"

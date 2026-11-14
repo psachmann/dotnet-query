@@ -35,17 +35,25 @@ public sealed partial class QueryRefreshMonitor : IAsyncDisposable
         }
 
         _dotnetRef = DotNetObjectReference.Create(this);
-        _module = await JS.InvokeAsync<IJSObjectReference>(
-            "import",
-            "./_content/Fetchling.Blazor/QueryRefreshMonitor.js"
-        );
 
-        _registration = await _module.InvokeAsync<IJSObjectReference>(
-            "register",
-            _dotnetRef,
-            RefetchOnFocus,
-            RefetchOnReconnect
-        );
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./_content/Fetchling.Blazor/QueryRefreshMonitor.js"
+            );
+
+            _registration = await _module.InvokeAsync<IJSObjectReference>(
+                "register",
+                _dotnetRef,
+                RefetchOnFocus,
+                RefetchOnReconnect
+            );
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit disconnected before the monitor could register — nothing to monitor anymore.
+        }
     }
 
     /// <summary>Called by the browser when the tab regains focus. Not intended for direct use.</summary>

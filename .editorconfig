@@ -14,4 +14,4 @@ max_line_length = 120
 
 [*.{config,csproj,props,slnx,targets,xaml,xml}]
 indent_size = 2
-max_line_length = 120
+max_line_length = 160

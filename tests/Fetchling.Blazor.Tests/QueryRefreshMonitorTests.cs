@@ -163,4 +163,46 @@ public class QueryRefreshMonitorTests
 
         await Assert.That(async () => await cut.Instance.DisposeAsync()).ThrowsNothing();
     }
+
+    [Test]
+    public async Task OnReconnect_InvalidatePredicate_ReturnsTrueForAnyKey()
+    {
+        var client = SetupQueryClient();
+        SetupJsModule();
+
+        var cut = _context.Render<QueryRefreshMonitor>();
+        cut.Instance.OnReconnect();
+
+        var invocation = Mock.Invocations(client)
+            .Single(c => c.MemberName == nameof(IQueryClient.Invalidate) && c.Arguments[0] is Func<QueryKey, bool>);
+        var predicate = (Func<QueryKey, bool>)invocation.Arguments[0]!;
+
+        await Assert.That(predicate(QueryKey.From("any-key"))).IsTrue();
+    }
+
+    [Test]
+    [Arguments("import")]
+    [Arguments("register")]
+    public async Task OnFirstRender_WhenJSDisconnected_DoesNotThrow(string failingCall)
+    {
+        SetupQueryClient();
+        var js = new DisconnectingJSRuntime(failingCall);
+        _context.Services.AddSingleton<IJSRuntime>(js);
+
+        var cut = _context.Render<QueryRefreshMonitor>();
+
+        await Assert.That(js.Invocations).Contains(failingCall);
+        // Nothing was registered, so dispose has no "unregister" to call and must still succeed.
+        await Assert.That(async () => await cut.Instance.DisposeAsync()).ThrowsNothing();
+        await Assert.That(js.Invocations).DoesNotContain("unregister");
+    }
+
+    [Test]
+    public async Task DisposeAsync_BeforeFirstRenderCompletes_DoesNotThrow()
+    {
+        SetupQueryClient();
+        var cut = new QueryRefreshMonitor();
+
+        await Assert.That(async () => await cut.DisposeAsync()).ThrowsNothing();
+    }
 }

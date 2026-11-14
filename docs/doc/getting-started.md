@@ -4,7 +4,7 @@ This guide walks you through installing Fetchling and writing your first query a
 
 ## Prerequisites
 
-- .NET 9.0 or .NET 10.0
+- .NET 10.0 or .NET 11.0
 - A project that uses `Microsoft.Extensions.DependencyInjection` (ASP.NET Core, Blazor, or any generic host) — or just the factory if you are wiring things up manually.
 
 ## Installation
