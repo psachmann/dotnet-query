@@ -3,7 +3,7 @@
   "projectTitle": "Fetchling",
   "description": "TanStack Query-inspired async data fetching and state management for .NET, Blazor, and MVVM apps, built on Rx.NET.",
   "folders": ["docs", "samples"],
-  "excludeFiles": ["CLAUDE.md", "LICENSE.md", "contributing.md"],
+  "excludeFiles": ["AGENTS.md", "LICENSE.md", "contributing.md"],
   "rules": [
     "Set QueryExecutionMode.Ssr in AddFetchling for Blazor Server / SSR so IQueryClient is scoped per circuit; the default Csr registers it as a singleton.",
     "Query TData must be a reference type; wrap value types in a record or class.",

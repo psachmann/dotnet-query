@@ -14,3 +14,4 @@ docs/api/
 .vscode/
 .zed/
 .idea/
+.mcp.json
