@@ -1,22 +1,22 @@
 # Observability
 
-DotNet Query emits distributed traces, metrics, and structured log messages out of the box. It uses only BCL APIs — `System.Diagnostics.ActivitySource`, `System.Diagnostics.Metrics.Meter`, and `Microsoft.Extensions.Logging.ILogger` — so no OpenTelemetry package is required in the library itself. Consumers wire up collection on their side and the standard hooks are picked up automatically.
+Fetchling emits distributed traces, metrics, and structured log messages out of the box. It uses only BCL APIs — `System.Diagnostics.ActivitySource`, `System.Diagnostics.Metrics.Meter`, and `Microsoft.Extensions.Logging.ILogger` — so no OpenTelemetry package is required in the library itself. Consumers wire up collection on their side and the standard hooks are picked up automatically.
 
 ## How It Works
 
 All telemetry flows through a single public entry point:
 
 ```csharp
-// DotNetQuery.Core.Observability
+// Fetchling.Core.Observability
 public static class QueryTelemetry
 {
-    public const string SourceName = "DotNetQuery";
+    public const string SourceName = "Fetchling";
     public static readonly ActivitySource ActivitySource = new(SourceName);
     public static readonly Meter Meter = new(SourceName);
 }
 ```
 
-`QueryTelemetry.SourceName` (`"DotNetQuery"`) is the name you use when subscribing to traces or metrics in your app.
+`QueryTelemetry.SourceName` (`"Fetchling"`) is the name you use when subscribing to traces or metrics in your app.
 
 ## Enabling Logging
 
@@ -24,7 +24,7 @@ Pass a logger when creating the client. With DI the `ILoggerFactory` is resolved
 
 ```csharp
 // DI (recommended) — no extra configuration needed
-builder.Services.AddDotNetQuery();
+builder.Services.AddFetchling();
 ```
 
 Without DI, pass a logger to the factory:
@@ -45,7 +45,7 @@ dotnet add package OpenTelemetry.Extensions.Hosting
 dotnet add package OpenTelemetry.Exporter.Console  # or any other exporter
 ```
 
-Then subscribe to the `"DotNetQuery"` source in `Program.cs`:
+Then subscribe to the `"Fetchling"` source in `Program.cs`:
 
 ```csharp
 builder.Services.AddOpenTelemetry()
@@ -73,13 +73,13 @@ var options = new QueryOptions<int, User>
 };
 ```
 
-When `Name` is not set, DotNet Query falls back to the first part of the derived `QueryKey`
+When `Name` is not set, Fetchling falls back to the first part of the derived `QueryKey`
 (e.g. `"users"` for a key built as `QueryKey.From("users", id)`). Mutations without a `Name`
 fall back to `typeof(TArgs).Name`.
 
 ## Traces
 
-DotNet Query creates one activity span per operation:
+Fetchling creates one activity span per operation:
 
 | Span name | When |
 |---|---|
@@ -120,39 +120,39 @@ fetches — it is `1` when every page succeeded first try.
 
 ## Metrics
 
-All metrics use the `"DotNetQuery"` meter name. Attach a tag filter in your metrics pipeline if needed.
+All metrics use the `"Fetchling"` meter name. Attach a tag filter in your metrics pipeline if needed.
 
 | Instrument | Type | Unit | Description |
 |---|---|---|---|
-| `dotnetquery.query.duration` | Histogram | s | Duration of each query fetch operation |
-| `dotnetquery.query.active` | UpDownCounter | — | Number of query fetch operations currently in flight |
-| `dotnetquery.query.retries` | Counter | — | Retry attempts made by query fetches beyond the first |
-| `dotnetquery.cache.hits` | Counter | — | Cache lookups that found an existing entry |
-| `dotnetquery.cache.misses` | Counter | — | Cache lookups that created a new entry |
-| `dotnetquery.cache.entries` | UpDownCounter | — | Entries currently held in the query cache |
-| `dotnetquery.cache.evictions` | Counter | — | Entries automatically evicted after `CacheTime` elapsed |
-| `dotnetquery.mutation.duration` | Histogram | s | Duration of each mutation operation |
+| `fetchling.query.duration` | Histogram | s | Duration of each query fetch operation |
+| `fetchling.query.active` | UpDownCounter | — | Number of query fetch operations currently in flight |
+| `fetchling.query.retries` | Counter | — | Retry attempts made by query fetches beyond the first |
+| `fetchling.cache.hits` | Counter | — | Cache lookups that found an existing entry |
+| `fetchling.cache.misses` | Counter | — | Cache lookups that created a new entry |
+| `fetchling.cache.entries` | UpDownCounter | — | Entries currently held in the query cache |
+| `fetchling.cache.evictions` | Counter | — | Entries automatically evicted after `CacheTime` elapsed |
+| `fetchling.mutation.duration` | Histogram | s | Duration of each mutation operation |
 
 Duration histograms record **seconds**, following current OTel semantic conventions for
 `*.duration` instruments. Log messages report milliseconds for readability.
 
-`dotnetquery.cache.entries` is also decremented when a client (and its cache) is disposed, so
+`fetchling.cache.entries` is also decremented when a client (and its cache) is disposed, so
 scoped SSR clients do not leak their live-entry count into the process-wide gauge.
-| `dotnetquery.mutation.retries` | Counter | — | Retry attempts made by mutations beyond the first |
+| `fetchling.mutation.retries` | Counter | — | Retry attempts made by mutations beyond the first |
 
 ### Tags on metrics
 
 | Metric | Tags |
 |---|---|
-| `dotnetquery.query.duration` | `query.name`, `status` (`success` / `failure` / `cancelled`), `error.type` (on failure), `trigger` |
-| `dotnetquery.query.active` | `query.name` |
-| `dotnetquery.query.retries` | `query.name` |
-| `dotnetquery.cache.hits` | `query.name` |
-| `dotnetquery.cache.misses` | `query.name` |
-| `dotnetquery.cache.entries` | `query.name` |
-| `dotnetquery.cache.evictions` | `query.name` |
-| `dotnetquery.mutation.duration` | `mutation.name`, `status` (`success` / `failure` / `cancelled`), `error.type` (on failure) |
-| `dotnetquery.mutation.retries` | `mutation.name` |
+| `fetchling.query.duration` | `query.name`, `status` (`success` / `failure` / `cancelled`), `error.type` (on failure), `trigger` |
+| `fetchling.query.active` | `query.name` |
+| `fetchling.query.retries` | `query.name` |
+| `fetchling.cache.hits` | `query.name` |
+| `fetchling.cache.misses` | `query.name` |
+| `fetchling.cache.entries` | `query.name` |
+| `fetchling.cache.evictions` | `query.name` |
+| `fetchling.mutation.duration` | `mutation.name`, `status` (`success` / `failure` / `cancelled`), `error.type` (on failure) |
+| `fetchling.mutation.retries` | `mutation.name` |
 
 ### Cardinality
 
@@ -169,7 +169,7 @@ per-entity identifiers.
 
 ## Log Messages
 
-All log messages use the category `"DotNetQuery"` (the same string as `QueryTelemetry.SourceName`).
+All log messages use the category `"Fetchling"` (the same string as `QueryTelemetry.SourceName`).
 
 | Level | Message |
 |---|---|
@@ -191,14 +191,14 @@ Log messages are source-generated via `[LoggerMessage]`, so Debug-level calls co
 
 ## Filtering Log Output
 
-Because all messages share the `"DotNetQuery"` category, you can control verbosity with a single filter:
+Because all messages share the `"Fetchling"` category, you can control verbosity with a single filter:
 
 ```json
 {
   "Logging": {
     "LogLevel": {
       "Default": "Information",
-      "DotNetQuery": "Warning"
+      "Fetchling": "Warning"
     }
   }
 }

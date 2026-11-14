@@ -2,23 +2,69 @@
 
 > **3.0 is not released yet.** This guide tracks the breaking changes merged so far and grows until the release. The current stable version is 2.0.0.
 
-This guide covers what changes when you upgrade from DotNet Query 2.x (last stable release: 2.0.0) to 3.0.
+This guide covers what changes when you upgrade from DotNetQuery 2.x (last stable release: 2.0.0) to Fetchling 3.0. The library was renamed for 3.0, so start with [the rename](#dotnetquery-is-now-fetchling).
 
 ## At a Glance
 
 | Change | Affects you if… | What to do |
 |---|---|---|
+| [DotNetQuery is now Fetchling](#dotnetquery-is-now-fetchling) | you use the library at all | Swap the packages, then rename namespaces, `AddDotNetQuery`, and telemetry names |
 | [.NET 9 is no longer supported](#net-9-is-no-longer-supported) | your application targets `net9.0` | Move to .NET 10, or stay on 2.0.0 |
 | [New members on `IQueryClient`](#new-members-on-iqueryclient) | you implement `IQueryClient` yourself | Implement the new members |
 
 ## Breaking Changes
+
+### DotNetQuery is now Fetchling
+
+Every package, assembly, and namespace has been renamed, with `Fetchling` replacing `DotNetQuery`. Nothing else about the API changes with the rename — types and members keep their names and behaviour:
+
+| 2.x | 3.0 |
+|---|---|
+| `DotNetQuery.Core` | `Fetchling.Core` |
+| `DotNetQuery.Extensions.DependencyInjection` | `Fetchling.Extensions.DependencyInjection` |
+| `DotNetQuery.Blazor` | `Fetchling.Blazor` |
+| `DotNetQuery.Blazor.DevTools` | `Fetchling.Blazor.DevTools` |
+| `DotNetQuery.Mvvm` | `Fetchling.Mvvm` |
+
+The `DotNetQuery.*` packages stay on 2.x and get no 3.0 release, so updating them in place does nothing. You have to swap them for the new IDs. Until you rename the namespaces, the build fails with:
+
+```
+error CS0246: The type or namespace name 'DotNetQuery' could not be found (are you missing a using directive or an assembly reference?)
+```
+
+**Why:** the `DotNetQuery` prefix could not be reserved on NuGet, because another publisher has unrelated packages under it. Without a reserved prefix, nothing marks the official packages apart from look-alikes, so the library moved to a new name, which lets the official packages sit under a reserved `Fetchling.*` prefix.
+
+**How to migrate:**
+
+1. Replace each `DotNetQuery.*` `PackageReference` with its `Fetchling.*` counterpart from the table above. The package versions start at 3.0.0.
+2. Replace `DotNetQuery` with `Fetchling` in `using` directives, `_Imports.razor`, and fully qualified type names.
+3. Rename the DI registration call:
+
+   ```csharp
+   // Before
+   builder.Services.AddDotNetQuery(options => options.StaleTime = TimeSpan.FromMinutes(1));
+
+   // After
+   builder.Services.AddFetchling(options => options.StaleTime = TimeSpan.FromMinutes(1));
+   ```
+
+4. Update telemetry that names the library explicitly. Code that subscribes through `QueryTelemetry.SourceName` keeps working, but dashboards, alerts, and collector configuration that spell the names out need editing:
+
+   | 2.x | 3.0 |
+   |---|---|
+   | `ActivitySource` / `Meter` name `DotNetQuery` | `Fetchling` |
+   | metrics `dotnetquery.*` (e.g. `dotnetquery.query.duration`) | `fetchling.*` (e.g. `fetchling.query.duration`) |
+   | Prometheus series `dotnetquery_*` | `fetchling_*` |
+   | log categories `DotNetQuery.Core.*` | `Fetchling.Core.*` |
+
+5. If you reference the Blazor static assets directly, change `_content/DotNetQuery.Blazor/…` and `_content/DotNetQuery.Blazor.DevTools/…` to `_content/Fetchling.Blazor/…` and `_content/Fetchling.Blazor.DevTools/…`. The components load their own scripts, so most apps have nothing to change here.
 
 ### .NET 9 is no longer supported
 
 All packages now target `net10.0` only. 2.x shipped `net9.0` and `net10.0` assemblies side by side; 3.0 drops the `net9.0` one, so a project targeting `net9.0` fails at restore:
 
 ```
-error NU1202: Package DotNetQuery.Core 3.0.0 is not compatible with net9.0 (.NETCoreApp,Version=v9.0).
+error NU1202: Package Fetchling.Core 3.0.0 is not compatible with net9.0 (.NETCoreApp,Version=v9.0).
 ```
 
 **Why:** .NET 9 reaches end of support on 10 November 2026, and targeting .NET 10 alone lets the library use .NET 10 APIs without fallbacks.

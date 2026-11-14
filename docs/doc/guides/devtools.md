@@ -1,19 +1,19 @@
 # DevTools
 
-`<QueryDevTools>` is a Blazor component that renders a live view of the DotNetQuery cache directly inside your browser. It is shipped as a separate NuGet package so it is never pulled into production builds unless you explicitly reference it.
+`<QueryDevTools>` is a Blazor component that renders a live view of the Fetchling cache directly inside your browser. It is shipped as a separate NuGet package so it is never pulled into production builds unless you explicitly reference it.
 
 ## Installation
 
 Add the DevTools package to your Blazor project:
 
 ```bash
-dotnet add package DotNetQuery.Blazor.DevTools
+dotnet add package Fetchling.Blazor.DevTools
 ```
 
 Then add the namespace to your `_Imports.razor`:
 
 ```html
-@using DotNetQuery.Blazor.DevTools
+@using Fetchling.Blazor.DevTools
 ```
 
 ## Adding the Component
@@ -24,7 +24,7 @@ Place `<QueryDevTools>` in your `MainLayout.razor`. Use `IHostEnvironment` to li
 @* MainLayout.razor *@
 @inherits LayoutComponentBase
 
-@using DotNetQuery.Blazor.DevTools
+@using Fetchling.Blazor.DevTools
 @inject IHostEnvironment Env
 
 @if (Env.IsDevelopment())
@@ -47,7 +47,7 @@ That is the only change required. No configuration, no DI registration — the c
 
 When the panel is closed, a floating button appears in the bottom-right corner. Click it to open the panel.
 
-![DevTools toggle button in the bottom-right corner](../../images/dotnet-query-blazor-devtools-button.png)
+![DevTools toggle button in the bottom-right corner](../../images/fetchling-blazor-devtools-button.png)
 
 The panel header shows live badge counts for each status:
 
@@ -83,7 +83,7 @@ Click any row to open the detail panel on the right. It shows:
 | **Cache Time** | How long data stays in cache after all subscribers leave. |
 | **Data** | The cached data, pretty-printed as JSON. While a refetch is in flight or after a failure, the previous data is shown instead of going blank. |
 
-![DevTools panel showing the query list and detail view](../../images/dotnet-query-blazor-devtools-panel.png)
+![DevTools panel showing the query list and detail view](../../images/fetchling-blazor-devtools-panel.png)
 
 Two action buttons are available:
 
@@ -104,4 +104,4 @@ Drag the handle at the top edge of the panel to adjust its height.
 
 - `<QueryDevTools>` requires an interactive render mode (Blazor WASM or interactive Blazor Server). It has no effect under static SSR because `OnAfterRenderAsync` never runs in that mode.
 - The panel reads the cache through `IQueryClient.TryGetInspector`. If `IQueryClient` is registered with a custom implementation that does not implement `IQueryCacheInspector`, the component silently renders nothing. (In 2.0.0 this interface was internal; it is public from the upcoming 3.0.)
-- Not on Blazor? The same inspection API is public in `DotNetQuery.Core` from the upcoming 3.0. See [Building a Cache Inspector](cache-inspector.md).
+- Not on Blazor? The same inspection API is public in `Fetchling.Core` from the upcoming 3.0. See [Building a Cache Inspector](cache-inspector.md).

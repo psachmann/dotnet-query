@@ -1,6 +1,6 @@
 # Server-Side Rendering
 
-DotNet Query supports both Client-Side Rendering (CSR/WebAssembly) and Server-Side Rendering (SSR/Blazor Server) through `QueryExecutionMode`. The mode controls the DI lifetime of `IQueryClient`.
+Fetchling supports both Client-Side Rendering (CSR/WebAssembly) and Server-Side Rendering (SSR/Blazor Server) through `QueryExecutionMode`. The mode controls the DI lifetime of `IQueryClient`.
 
 ## Why Lifetime Matters
 
@@ -15,13 +15,13 @@ In a SSR app (Blazor Server or static SSR with interactivity), the server handle
 This is the default. You do not need to set anything explicitly:
 
 ```csharp
-builder.Services.AddDotNetQuery(); // Singleton by default
+builder.Services.AddFetchling(); // Singleton by default
 ```
 
 Or explicitly:
 
 ```csharp
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.ExecutionMode = QueryExecutionMode.Csr;
 });
@@ -30,7 +30,7 @@ builder.Services.AddDotNetQuery(options =>
 ### SSR (Blazor Server / Scoped) — Scoped
 
 ```csharp
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.ExecutionMode = QueryExecutionMode.Ssr;
 });
@@ -45,17 +45,17 @@ If your app uses Blazor's "Auto" render mode (starts with SSR, switches to WebAs
 - During the SSR prerender phase, the Scoped `IQueryClient` is used.
 - After the WebAssembly upgrade, the Singleton client (from the client-side DI container) is used.
 
-Both containers need `AddDotNetQuery` registered with their respective modes:
+Both containers need `AddFetchling` registered with their respective modes:
 
 ```csharp
 // Server project (Program.cs)
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.ExecutionMode = QueryExecutionMode.Ssr;
 });
 
 // Client project (Program.cs)
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.ExecutionMode = QueryExecutionMode.Csr;
 });

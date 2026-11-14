@@ -1,11 +1,11 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
-  "projectTitle": "DotNet Query",
+  "projectTitle": "Fetchling",
   "description": "TanStack Query-inspired async data fetching and state management for .NET, Blazor, and MVVM apps, built on Rx.NET.",
   "folders": ["docs", "samples"],
   "excludeFiles": ["CLAUDE.md", "LICENSE.md", "contributing.md"],
   "rules": [
-    "Set QueryExecutionMode.Ssr in AddDotNetQuery for Blazor Server / SSR so IQueryClient is scoped per circuit; the default Csr registers it as a singleton.",
+    "Set QueryExecutionMode.Ssr in AddFetchling for Blazor Server / SSR so IQueryClient is scoped per circuit; the default Csr registers it as a singleton.",
     "Query TData must be a reference type; wrap value types in a record or class.",
     "Dispose queries and view models when their owner is torn down: a live subscription pins the cache entry indefinitely.",
     "In MVVM, use ObserveOnUi() for the Success/Failure/Settled event streams; the bindable view model properties coalesce latest-wins and would drop events.",

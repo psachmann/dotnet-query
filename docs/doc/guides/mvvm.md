@@ -1,6 +1,6 @@
 # MVVM View Models
 
-DotNet Query ships an MVVM binding layer for XAML-based UI frameworks — MAUI, WPF, WinUI, UNO Platform, and Avalonia. Three view models wrap the corresponding Core type and expose its state as bindable `INotifyPropertyChanged` properties, marshaling every change notification onto the UI thread:
+Fetchling ships an MVVM binding layer for XAML-based UI frameworks — MAUI, WPF, WinUI, UNO Platform, and Avalonia. Three view models wrap the corresponding Core type and expose its state as bindable `INotifyPropertyChanged` properties, marshaling every change notification onto the UI thread:
 
 | View model | Wraps | Typical use |
 |---|---|---|
@@ -11,17 +11,17 @@ DotNet Query ships an MVVM binding layer for XAML-based UI frameworks — MAUI, 
 ## Installation
 
 ```bash
-dotnet add package DotNetQuery.Mvvm
+dotnet add package Fetchling.Mvvm
 ```
 
-The package depends only on `DotNetQuery.Core` — no MVVM toolkit and no platform frameworks.
+The package depends only on `Fetchling.Core` — no MVVM toolkit and no platform frameworks.
 
 ## Quick Start
 
 Register the query client as usual (a desktop or mobile app uses the default `Csr` execution mode — singleton):
 
 ```csharp
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.StaleTime = TimeSpan.FromMinutes(1);
 });
@@ -223,7 +223,7 @@ Both overloads share `ExecuteCommand`'s double-submit protection and return an `
 partial void OnNewItemTextChanged(string value) => AddItemCommand.RaiseCanExecuteChanged();
 ```
 
-**Call `ToCommand` once per command**, typically in the constructor — not per row in a list. Each call appends to the view model's internal "refresh these on every state change" bookkeeping, with no way to remove an entry later; calling it in a loop leaks. For a command that needs a different argument per row, build the command **once** on the page view model with the mapped overload above, and hand the same `ICommand` instance to every row — see the [Avalonia sample](https://github.com/psachmann/dotnet-query/tree/main/samples/DotNetQuery.Samples.Avalonia)'s `TodoDetailsViewModel`/`TodoItemViewModel` for the full pattern, including how the row exposes it in a `CommandParameter` binding.
+**Call `ToCommand` once per command**, typically in the constructor — not per row in a list. Each call appends to the view model's internal "refresh these on every state change" bookkeeping, with no way to remove an entry later; calling it in a loop leaks. For a command that needs a different argument per row, build the command **once** on the page view model with the mapped overload above, and hand the same `ICommand` instance to every row — see the [Avalonia sample](https://github.com/psachmann/dotnet-query/tree/main/samples/Fetchling.Samples.Avalonia)'s `TodoDetailsViewModel`/`TodoItemViewModel` for the full pattern, including how the row exposes it in a `CommandParameter` binding.
 
 ### Progress
 

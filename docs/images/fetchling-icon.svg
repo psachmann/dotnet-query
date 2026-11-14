@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Fetchling">
+  <title>Fetchling</title>
+  <rect width="128" height="128" rx="30" fill="#1E1B4B"/>
+  <path d="M93.4 47 A34 34 0 1 1 52.4 32" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round"/>
+  <path d="M61.8 28.6 L47.1 23.3 L53.9 42.1 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="57" cy="63" r="5.5" fill="#FFFFFF"/>
+  <circle cx="75" cy="63" r="5.5" fill="#FFFFFF"/>
+  <circle cx="78" cy="31" r="9" fill="#FBBF24"/>
+</svg>

@@ -1,0 +1,3 @@
+#nullable enable
+Fetchling.Extensions.DependencyInjection.ServiceCollectionExtensions
+static Fetchling.Extensions.DependencyInjection.ServiceCollectionExtensions.AddFetchling(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<Fetchling.Core.QueryClientOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

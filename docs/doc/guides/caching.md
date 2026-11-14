@@ -1,6 +1,6 @@
 # Caching
 
-The cache is one of the most powerful parts of DotNet Query. Understanding how it works helps you tune your app's data freshness and memory usage.
+The cache is one of the most powerful parts of Fetchling. Understanding how it works helps you tune your app's data freshness and memory usage.
 
 ## How the Cache Works
 
@@ -31,7 +31,7 @@ Setting a longer stale time is useful for data that changes infrequently:
 
 ```csharp
 // Global: all queries use 1 minute stale time
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.StaleTime = TimeSpan.FromMinutes(1);
 });

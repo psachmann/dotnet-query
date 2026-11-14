@@ -90,11 +90,11 @@ before your PR trips it:
   to public API" code fix, or run:
 
   ```bash
-  dotnet format analyzers DotNetQuery.slnx --diagnostics RS0016 --severity warn
+  dotnet format analyzers Fetchling.slnx --diagnostics RS0016 --severity warn
   ```
 
   This can't touch `.razor` files — `<Suspense>`-style component members go into
-  `src/DotNetQuery.Blazor/PublicAPI.Unshipped.txt` by hand, using the exact line the `RS0016` message
+  `src/Fetchling.Blazor/PublicAPI.Unshipped.txt` by hand, using the exact line the `RS0016` message
   gives you.
 
 - **Package validation** — `dotnet pack` diffs each assembly against the last stable release and fails
@@ -192,4 +192,4 @@ Found a bug? Have a question? Please [open an issue](https://github.com/psachman
 
 ## License
 
-By contributing to DotNet Query, you agree that your contributions will be licensed under the [MIT License](https://github.com/psachmann/dotnet-query/blob/main/LICENSE.md).
+By contributing to Fetchling, you agree that your contributions will be licensed under the [MIT License](https://github.com/psachmann/dotnet-query/blob/main/LICENSE.md).

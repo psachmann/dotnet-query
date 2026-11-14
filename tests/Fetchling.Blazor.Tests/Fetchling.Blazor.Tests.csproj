@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="bunit" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="TUnit.Mocks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Fetchling.Blazor\Fetchling.Blazor.csproj" />
+    <ProjectReference Include="..\..\src\Fetchling.Blazor.DevTools\Fetchling.Blazor.DevTools.csproj" />
+  </ItemGroup>
+</Project>

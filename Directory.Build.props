@@ -17,7 +17,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <PackageIcon>dotnet-query-icon.128x128.png</PackageIcon>
+    <PackageIcon>fetchling-icon.png</PackageIcon>
     <Authors>Patrick Sachmann</Authors>
     <Company>Patrick Sachmann</Company>
     <Copyright>Copyright (c) 2026 Patrick Sachmann</Copyright>
@@ -41,7 +41,7 @@
   </Target>
 
   <ItemGroup>
-    <None Include="$(MSBuildThisFileDirectory)docs/images/dotnet-query-icon.128x128.png" Pack="true" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)docs/images/fetchling-icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,6 @@
 # Introduction
 
-Welcome to **DotNet Query** — a library that takes the hard parts out of async data management in .NET and Blazor.
+Welcome to **Fetchling** — a library that takes the hard parts out of async data management in .NET and Blazor.
 
 ## The Problem
 
@@ -32,17 +32,17 @@ public async Task LoadUserAsync(int id)
 
 And that is just for one endpoint. When you add caching, background refresh, retry logic, cache invalidation after form submissions, and sharing cached data between components — the complexity explodes fast.
 
-DotNet Query handles all of that for you so you can focus on what your app actually does.
+Fetchling handles all of that for you so you can focus on what your app actually does.
 
 ## Inspiration
 
-DotNet Query is directly inspired by [TanStack Query](https://tanstack.com/query) (formerly React Query) — one of the most popular data-fetching libraries in the JavaScript ecosystem. The same mental model translates naturally to .NET, powered by [Rx.NET](https://github.com/dotnet/reactive) observables instead of React's render cycle.
+Fetchling is directly inspired by [TanStack Query](https://tanstack.com/query) (formerly React Query) — one of the most popular data-fetching libraries in the JavaScript ecosystem. The same mental model translates naturally to .NET, powered by [Rx.NET](https://github.com/dotnet/reactive) observables instead of React's render cycle.
 
 If you have used TanStack Query before, many concepts will feel familiar. If you have not, no worries — this documentation covers everything from scratch.
 
 ## Core Concepts
 
-There are a handful of concepts that underpin everything in DotNet Query. Once you understand these, the rest falls into place quickly.
+There are a handful of concepts that underpin everything in Fetchling. Once you understand these, the rest falls into place quickly.
 
 ### Queries
 
@@ -50,7 +50,7 @@ A **query** is a declarative description of an async read operation. You define:
 - a **key** that uniquely identifies the cached result,
 - a **fetcher** that knows how to actually fetch the data.
 
-DotNet Query takes care of everything else: when to fetch, when to cache, when to refetch in the background, and what state to expose while all of that is happening.
+Fetchling takes care of everything else: when to fetch, when to cache, when to refetch in the background, and what state to expose while all of that is happening.
 
 Queries expose their current state as an `IObservable<QueryState<TData>>` stream. The state is always one of four values:
 
@@ -98,7 +98,7 @@ These two settings are easy to confuse, but they control different things:
 
 ### Reactive State
 
-DotNet Query is built on Rx.NET. Every query and mutation exposes `IObservable` streams:
+Fetchling is built on Rx.NET. Every query and mutation exposes `IObservable` streams:
 
 ```csharp
 query.State.Subscribe(state => { /* every transition */ });
@@ -109,9 +109,9 @@ query.Settled.Subscribe(state => { /* after any fetch completes */ });
 
 This means you can compose, filter, debounce, and combine query streams just like any other observable — no special APIs required.
 
-## When to Use DotNet Query
+## When to Use Fetchling
 
-DotNet Query is a great fit when your app:
+Fetchling is a great fit when your app:
 - fetches data from APIs or other async sources,
 - needs to share and cache data across multiple components or services,
 - benefits from background refresh or automatic retry,
@@ -121,4 +121,4 @@ It is less useful for purely synchronous data or simple in-process state that ne
 
 ## What is Not Included
 
-DotNet Query does not prescribe how you structure your services, how you authenticate, or how you serialize data. It slots in alongside your existing `HttpClient`, `IRepository`, or whatever data access pattern you prefer.
+Fetchling does not prescribe how you structure your services, how you authenticate, or how you serialize data. It slots in alongside your existing `HttpClient`, `IRepository`, or whatever data access pattern you prefer.

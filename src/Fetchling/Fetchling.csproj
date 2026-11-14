@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Metapackage: no code of its own, just the usual starting set (Core + DI registration), so
+    `dotnet add package Fetchling` gives a working setup. It also holds the root package ID
+    next to the reserved Fetchling.* prefix.
+  -->
+  <PropertyGroup>
+    <Description>Fetchling — TanStack Query-inspired async data fetching and caching for .NET. Metapackage referencing Fetchling.Core and Fetchling.Extensions.DependencyInjection.</Description>
+    <!-- No public surface to track: the project compiles no code. -->
+    <TrackPublicApi>false</TrackPublicApi>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeSymbols>false</IncludeSymbols>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- NU5128: a dependencies-only package has no lib/ folder by design. -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fetchling.Core\Fetchling.Core.csproj" />
+    <ProjectReference Include="..\Fetchling.Extensions.DependencyInjection\Fetchling.Extensions.DependencyInjection.csproj" />
+  </ItemGroup>
+</Project>

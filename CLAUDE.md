@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DotNet Query is a [TanStack Query](https://tanstack.com/query)-inspired async data fetching and state management library for .NET and Blazor. It provides automatic caching, background refetching, stale-while-revalidate semantics, and reactive state — built on [Rx.NET](https://github.com/dotnet/reactive) observables.
+Fetchling is a [TanStack Query](https://tanstack.com/query)-inspired async data fetching and state management library for .NET and Blazor. It provides automatic caching, background refetching, stale-while-revalidate semantics, and reactive state — built on [Rx.NET](https://github.com/dotnet/reactive) observables.
 
 ## Commands
 
@@ -19,10 +19,10 @@ dotnet build --configuration Release
 dotnet test --configuration Release
 
 # Run a single test project
-dotnet test tests/DotNetQuery.Core.Tests --configuration Release
+dotnet test tests/Fetchling.Core.Tests --configuration Release
 
 # Run a specific test class (TUnit tree-node filter: /assembly/namespace/class/test, wildcards allowed)
-dotnet test tests/DotNetQuery.Core.Tests --configuration Release -- --treenode-filter "/*/*/QueryCacheTests/*"
+dotnet test tests/Fetchling.Core.Tests --configuration Release -- --treenode-filter "/*/*/QueryCacheTests/*"
 
 # Check formatting
 dotnet csharpier check .
@@ -47,7 +47,10 @@ gate that works this way, extend that one target rather than adding a parallel o
 ### Package validation (breaking changes)
 
 `EnablePackageValidation` diffs each packed assembly against the last **stable** release, set by
-`PackageValidationBaselineVersion` (currently `2.0.0`). It runs on `dotnet pack`, not `dotnet build`, and it
+`PackageValidationBaselineVersion`. **There is currently no baseline:** the library was renamed from
+DotNetQuery to Fetchling for 3.0, so no stable `Fetchling.*` package exists yet to compare against (the 2.x
+`DotNetQuery.*` assemblies share no names with these). Set the baseline to `3.0.0` once it ships, and until
+then record every break in the migration guide by hand. It runs on `dotnet pack`, not `dotnet build`, and it
 compares the real assemblies against what consumers installed — so it catches breaks the API text files
 cannot, including ones that only manifest on one target framework.
 
@@ -65,17 +68,19 @@ dotnet pack -c Release -p:ApiCompatGenerateSuppressionFile=true
 
 ### Public API files (surface tracking)
 
-Every `src/` project except `DotNetQuery.Blazor.DevTools` carries a `PublicAPI.Shipped.txt` /
-`PublicAPI.Unshipped.txt` pair listing its entire public surface. Adding, removing, or changing a public
+Every `src/` project except `Fetchling.Blazor.DevTools` and the code-less `Fetchling` metapackage carries a
+`PublicAPI.Shipped.txt` / `PublicAPI.Unshipped.txt` pair listing its entire public surface. Adding, removing, or changing a public
 member fails the Release build (`RS0016` / `RS0017`) until the line is added to or removed from
 `PublicAPI.Unshipped.txt`. DevTools sets `<TrackPublicApi>false</TrackPublicApi>` — it ships a drop-in
 debugging component rather than an API consumers program against, so tracking it buys no compat guarantee
 worth the Razor churn.
 
-`PublicAPI.Shipped.txt` holds the `v2.0.0` surface — the same last stable release package validation
-compares against — so `PublicAPI.Unshipped.txt` is the full API delta of the upcoming release: additions,
-plus `*REMOVED*` lines for 2.0.0 members since dropped or changed. A PR's diff to `Unshipped` is exactly the
-API it changes.
+`PublicAPI.Shipped.txt` holds the `v2.0.0` surface — the last stable release — so `PublicAPI.Unshipped.txt`
+is the full API delta of the upcoming release: additions, plus `*REMOVED*` lines for 2.0.0 members since
+dropped or changed. A PR's diff to `Unshipped` is exactly the API it changes. The 2.0.0 surface is written
+under the Fetchling names: the DotNetQuery → Fetchling rename moved every symbol, and tracking it as a
+whole-surface remove-and-re-add would bury the real delta (the rename itself is documented in the
+migration guide).
 
 One exception to "Shipped is the 2.0.0 text": members whose only change since 2.0.0 is nullability
 annotation (`!`, `?`, or the oblivious `~` prefix — e.g. `TData` becoming `TData!` once `TData : class` was
@@ -92,15 +97,15 @@ To regenerate entries after an API change, either apply the IDE code fix ("Add t
 
 ```bash
 # repeat until the line count stops growing; the fixer applies one batch per pass
-dotnet format analyzers DotNetQuery.slnx --diagnostics RS0016 --severity warn
+dotnet format analyzers Fetchling.slnx --diagnostics RS0016 --severity warn
 ```
 
 `dotnet format` cannot fix `.razor` files, so `<Suspense>`-style component members must be added to
-`src/DotNetQuery.Blazor/PublicAPI.Unshipped.txt` by hand — the `RS0016` message text is the exact line to paste.
+`src/Fetchling.Blazor/PublicAPI.Unshipped.txt` by hand — the `RS0016` message text is the exact line to paste.
 
-Two rules are suppressed per-project, each with a comment in the `.csproj`: `RS0041` in `DotNetQuery.Blazor`
+Two rules are suppressed per-project, each with a comment in the `.csproj`: `RS0041` in `Fetchling.Blazor`
 (the Razor-generated `BuildRenderTree` overrides use oblivious reference types) and `RS0026` in
-`DotNetQuery.Mvvm` (`QueryViewModel` has two intentional constructor overloads with an optional dispatcher).
+`Fetchling.Mvvm` (`QueryViewModel` has two intentional constructor overloads with an optional dispatcher).
 
 ### Banned symbols (the `IScheduler` invariant)
 
@@ -122,11 +127,11 @@ Blazor WASM trims by default on release publish and MAUI/UNO consumers publish A
 construct here would otherwise surface as a runtime failure in a consumer's app rather than a build error in
 ours.
 
-`DotNetQuery.Blazor.DevTools` sets `<IsAotCompatible>false</IsAotCompatible>`. Its cache inspector
+`Fetchling.Blazor.DevTools` sets `<IsAotCompatible>false</IsAotCompatible>`. Its cache inspector
 reflection-serializes arbitrary consumer data (`QueryDevTools.SerializeData` takes `object?`), which trips
 `IL2026` / `IL3050` and which no source generation can make statically analyzable — the types belong to the
 consumer. Under trimming `JsonSerializer` emits silently-empty JSON rather than throwing into the existing
-`catch`, so claiming AOT compatibility there would be claiming something untrue. The other four projects are
+`catch`, so claiming AOT compatibility there would be claiming something untrue. The other projects are
 genuinely trim- and AOT-clean; keep them that way rather than suppressing a new `IL` diagnostic.
 
 ### No NuGet lock files (deliberate)
@@ -147,17 +152,18 @@ pinning the SDK exactly and keeping that pin in step with `dotnet-sdk_10` in `fl
 
 ## Architecture
 
-The solution has five projects under `src/` and four test projects under `tests/`:
+The solution has six projects under `src/` and four test projects under `tests/`:
 
 | Project | Purpose |
 |---|---|
-| `DotNetQuery.Core` | Core library: `IQueryClient`, `IQuery<TArgs,TData>`, `IInfiniteQuery<TArgs,TData,TPageParam>`, `IMutation<TArgs,TData>`, cache, observability |
-| `DotNetQuery.Extensions.DependencyInjection` | `AddDotNetQuery()` extension; lifetime is Singleton (CSR) or Scoped (SSR) |
-| `DotNetQuery.Blazor` | `<Suspense>`, `<Transition>`, `<InfiniteSuspense>`, `<InfiniteTransition>`, `<QueryRefreshMonitor>` Blazor components |
-| `DotNetQuery.Blazor.DevTools` | `<QueryDevTools>` live cache inspector component |
-| `DotNetQuery.Mvvm` | `QueryViewModel<TArgs,TData>` INPC wrapper with `IUiDispatcher` UI-thread marshaling, for MAUI/WPF/WinUI/UNO/Avalonia |
+| `Fetchling` | Metapackage: no code, depends on `Fetchling.Core` + `Fetchling.Extensions.DependencyInjection`; also holds the root package ID |
+| `Fetchling.Core` | Core library: `IQueryClient`, `IQuery<TArgs,TData>`, `IInfiniteQuery<TArgs,TData,TPageParam>`, `IMutation<TArgs,TData>`, cache, observability |
+| `Fetchling.Extensions.DependencyInjection` | `AddFetchling()` extension; lifetime is Singleton (CSR) or Scoped (SSR) |
+| `Fetchling.Blazor` | `<Suspense>`, `<Transition>`, `<InfiniteSuspense>`, `<InfiniteTransition>`, `<QueryRefreshMonitor>` Blazor components |
+| `Fetchling.Blazor.DevTools` | `<QueryDevTools>` live cache inspector component |
+| `Fetchling.Mvvm` | `QueryViewModel<TArgs,TData>` INPC wrapper with `IUiDispatcher` UI-thread marshaling, for MAUI/WPF/WinUI/UNO/Avalonia |
 
-### Core layer (`DotNetQuery.Core`)
+### Core layer (`Fetchling.Core`)
 
 **Public surface** — `IQueryClient`, `IQuery<TArgs,TData>`, `IInfiniteQuery<TArgs,TData,TPageParam>`, `IMutation<TArgs,TData>`, `IMutation<TArgs,TData,TProgress>`, all `*Options` records.
 
@@ -176,7 +182,7 @@ The solution has five projects under `src/` and four test projects under `tests/
 
 **`IRetryHandler`** — `DefaultRetryHandler` is a no-op pass-through (single attempt, no retry). Users supply their own implementation for actual retry logic.
 
-**`IQueryCacheInspector`** (public, `DotNetQuery.Core.Inspection`) — implemented by `QueryClient`; exposes `IObservable<IReadOnlyList<IQueryCacheEntry>> Entries` (snapshot on subscribe, re-emitted on add / evict / cancelled eviction / entry state change, emitted on whichever thread changed the cache). Consumers reach it through the `client.TryGetInspector(out var inspector)` extension (`QueryClientInspectionExtensions`, in `DotNetQuery.Core` for discoverability), which returns `false` for custom `IQueryClient` implementations — `QueryDevTools` uses exactly this, with no `InternalsVisibleTo`. `IQueryCacheEntry` is a read-only, live view (`Key`, `Name`, `Status`, `CurrentData`, `LastData`, `Error`, `LastUpdatedAt`, `ObserverCount`, `IsStale`, `CacheTime`) plus the safe actions `Refetch` / `Invalidate` / `Cancel`. It deliberately does **not** extend `IQuery` and has no `Dispose()` — the cache owns entry lifetimes — and exposes no `System.Reactive` types.
+**`IQueryCacheInspector`** (public, `Fetchling.Core.Inspection`) — implemented by `QueryClient`; exposes `IObservable<IReadOnlyList<IQueryCacheEntry>> Entries` (snapshot on subscribe, re-emitted on add / evict / cancelled eviction / entry state change, emitted on whichever thread changed the cache). Consumers reach it through the `client.TryGetInspector(out var inspector)` extension (`QueryClientInspectionExtensions`, in `Fetchling.Core` for discoverability), which returns `false` for custom `IQueryClient` implementations — `QueryDevTools` uses exactly this, with no `InternalsVisibleTo`. `IQueryCacheEntry` is a read-only, live view (`Key`, `Name`, `Status`, `CurrentData`, `LastData`, `Error`, `LastUpdatedAt`, `ObserverCount`, `IsStale`, `CacheTime`) plus the safe actions `Refetch` / `Invalidate` / `Cancel`. It deliberately does **not** extend `IQuery` and has no `Dispose()` — the cache owns entry lifetimes — and exposes no `System.Reactive` types.
 
 **`ICacheEntry`** — internal interface extending `IQueryCacheEntry` + `IDisposable` with the `StateChanged` / `Subscribed` / `Unsubscribed` signals `QueryCache` uses to publish snapshots and drive eviction. Implemented only by the cached entries themselves (`Query`, `InfiniteQuery`), which deliberately do not implement `IQuery` either, so a consumer can't cast an entry to it. The observers handed back to callers implement neither. Keep this split when adding a new query type: consumer-facing inspection on `IQueryCacheEntry` (a public API change — update `PublicAPI.Unshipped.txt`), cache lifecycle on `ICacheEntry`.
 
@@ -190,7 +196,7 @@ The solution has five projects under `src/` and four test projects under `tests/
 - `<QueryRefreshMonitor>` — JS interop component; registers `visibilitychange` and `online` event listeners via `QueryRefreshMonitor.js` and calls `QueryClient.Invalidate(_ => true)` on focus/reconnect.
 - `<QueryDevTools>` — live cache panel; subscribes to `IQueryCacheInspector.Entries` via `TryGetInspector`; uses `QueryDevTools.js` for drag-to-resize panel handles and theme persistence.
 
-### Mvvm layer (`DotNetQuery.Mvvm`)
+### Mvvm layer (`Fetchling.Mvvm`)
 
 Four view models — `QueryViewModel<TArgs,TData>`, `InfiniteQueryViewModel<TArgs,TData,TPageParam>`,
 `MutationViewModel<TArgs,TData>`, `MutationViewModel<TArgs,TData,TProgress>` — wrap the
@@ -252,12 +258,12 @@ All of them share the same mechanics, factored into internal helpers rather than
   CommunityToolkit clashes). `RelayCommand` is `internal` for the same reason;
   `IMutationCommand.RaiseCanExecuteChanged()` is deliberately *not* named
   `NotifyCanExecuteChanged()` either, so CommunityToolkit's `[NotifyCanExecuteChangedFor]` codegen
-  doesn't silently target it. Zero dependencies beyond `DotNetQuery.Core`.
+  doesn't silently target it. Zero dependencies beyond `Fetchling.Core`.
 
 ### DI registration
 
 ```csharp
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.ExecutionMode = QueryExecutionMode.Ssr; // Scoped for SSR; Csr (default) = Singleton
     options.StaleTime = TimeSpan.FromMinutes(1);

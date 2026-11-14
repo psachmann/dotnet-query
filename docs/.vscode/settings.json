@@ -1,0 +1,34 @@
+{
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/bin": true,
+    "**/obj": true
+  },
+  "cSpell.words": [
+    "avalonia",
+    "Avalonia",
+    "Blazor",
+    "bunit",
+    "csharpier",
+    "docfx",
+    "dotnet",
+    "github",
+    "Invokable",
+    "Linq",
+    "Mvvm",
+    "nullable",
+    "oidc",
+    "psachmann",
+    "Radzen",
+    "refetches",
+    "slnx",
+    "snupkg",
+    "softprops",
+    "tunit",
+    "typeparam"
+  ]
+}

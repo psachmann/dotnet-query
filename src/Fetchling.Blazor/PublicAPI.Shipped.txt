@@ -1,0 +1,65 @@
+#nullable enable
+Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>
+Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Content.get -> Microsoft.AspNetCore.Components.RenderFragment<Fetchling.Core.InfiniteQueryState<TData!, TPageParam>!>!
+Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Content.set -> void
+Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Dispose() -> void
+Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Failure.get -> Microsoft.AspNetCore.Components.RenderFragment<System.Exception!>?
+Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Failure.set -> void
+Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.InfiniteSuspense() -> void
+Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Loading.get -> Microsoft.AspNetCore.Components.RenderFragment?
+Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Loading.set -> void
+Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Query.get -> Fetchling.Core.IInfiniteQuery<TArgs, TData!, TPageParam>!
+Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.Query.set -> void
+Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>
+Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Content.get -> Microsoft.AspNetCore.Components.RenderFragment<Fetchling.Core.InfiniteQueryState<TData!, TPageParam>!>!
+Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Content.set -> void
+Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Dispose() -> void
+Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Failure.get -> Microsoft.AspNetCore.Components.RenderFragment<System.Exception!>?
+Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Failure.set -> void
+Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.InfiniteTransition() -> void
+Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Loading.get -> Microsoft.AspNetCore.Components.RenderFragment?
+Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Loading.set -> void
+Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Query.get -> Fetchling.Core.IInfiniteQuery<TArgs, TData!, TPageParam>!
+Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.Query.set -> void
+Fetchling.Blazor.QueryRefreshMonitor
+Fetchling.Blazor.QueryRefreshMonitor.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Fetchling.Blazor.QueryRefreshMonitor.OnFocus() -> void
+Fetchling.Blazor.QueryRefreshMonitor.OnReconnect() -> void
+Fetchling.Blazor.QueryRefreshMonitor.QueryRefreshMonitor() -> void
+Fetchling.Blazor.QueryRefreshMonitor.RefetchOnFocus.get -> bool
+Fetchling.Blazor.QueryRefreshMonitor.RefetchOnFocus.set -> void
+Fetchling.Blazor.QueryRefreshMonitor.RefetchOnReconnect.get -> bool
+Fetchling.Blazor.QueryRefreshMonitor.RefetchOnReconnect.set -> void
+Fetchling.Blazor.Suspense<TArgs, TData>
+Fetchling.Blazor.Suspense<TArgs, TData>.Content.get -> Microsoft.AspNetCore.Components.RenderFragment<TData!>!
+Fetchling.Blazor.Suspense<TArgs, TData>.Content.set -> void
+Fetchling.Blazor.Suspense<TArgs, TData>.Dispose() -> void
+Fetchling.Blazor.Suspense<TArgs, TData>.Failure.get -> Microsoft.AspNetCore.Components.RenderFragment<System.Exception!>?
+Fetchling.Blazor.Suspense<TArgs, TData>.Failure.set -> void
+Fetchling.Blazor.Suspense<TArgs, TData>.Loading.get -> Microsoft.AspNetCore.Components.RenderFragment?
+Fetchling.Blazor.Suspense<TArgs, TData>.Loading.set -> void
+Fetchling.Blazor.Suspense<TArgs, TData>.Query.get -> Fetchling.Core.IQuery<TArgs, TData!>!
+Fetchling.Blazor.Suspense<TArgs, TData>.Query.set -> void
+Fetchling.Blazor.Suspense<TArgs, TData>.Suspense() -> void
+Fetchling.Blazor.Transition<TArgs, TData>
+Fetchling.Blazor.Transition<TArgs, TData>.Content.get -> Microsoft.AspNetCore.Components.RenderFragment<TData!>!
+Fetchling.Blazor.Transition<TArgs, TData>.Content.set -> void
+Fetchling.Blazor.Transition<TArgs, TData>.Dispose() -> void
+Fetchling.Blazor.Transition<TArgs, TData>.Failure.get -> Microsoft.AspNetCore.Components.RenderFragment<System.Exception!>?
+Fetchling.Blazor.Transition<TArgs, TData>.Failure.set -> void
+Fetchling.Blazor.Transition<TArgs, TData>.Loading.get -> Microsoft.AspNetCore.Components.RenderFragment?
+Fetchling.Blazor.Transition<TArgs, TData>.Loading.set -> void
+Fetchling.Blazor.Transition<TArgs, TData>.Query.get -> Fetchling.Core.IQuery<TArgs, TData!>!
+Fetchling.Blazor.Transition<TArgs, TData>.Query.set -> void
+Fetchling.Blazor.Transition<TArgs, TData>.Transition() -> void
+Fetchling.Blazor._Imports
+Fetchling.Blazor._Imports.Execute() -> void
+Fetchling.Blazor._Imports._Imports() -> void
+override Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.OnParametersSet() -> void
+override Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.OnParametersSet() -> void
+override Fetchling.Blazor.Suspense<TArgs, TData>.OnParametersSet() -> void
+override Fetchling.Blazor.Transition<TArgs, TData>.OnParametersSet() -> void
+~override Fetchling.Blazor.InfiniteSuspense<TArgs, TData, TPageParam>.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder __builder) -> void
+~override Fetchling.Blazor.InfiniteTransition<TArgs, TData, TPageParam>.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder __builder) -> void
+~override Fetchling.Blazor.Suspense<TArgs, TData>.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder __builder) -> void
+~override Fetchling.Blazor.Transition<TArgs, TData>.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder __builder) -> void

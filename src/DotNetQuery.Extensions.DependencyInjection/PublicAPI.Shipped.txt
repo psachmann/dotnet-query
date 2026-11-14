@@ -1,3 +1,0 @@
-#nullable enable
-DotNetQuery.Extensions.DependencyInjection.ServiceCollectionExtensions
-static DotNetQuery.Extensions.DependencyInjection.ServiceCollectionExtensions.AddDotNetQuery(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<DotNetQuery.Core.QueryClientOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

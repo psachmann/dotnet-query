@@ -1,10 +1,10 @@
 # Retry Handling
 
-DotNet Query does not retry failed fetches or mutations on its own. Out of the box it makes a single attempt and fails fast; you add retry logic — exponential backoff or any other policy — by implementing `IRetryHandler`.
+Fetchling does not retry failed fetches or mutations on its own. Out of the box it makes a single attempt and fails fast; you add retry logic — exponential backoff or any other policy — by implementing `IRetryHandler`.
 
 ## Default Behavior
 
-By default, DotNet Query makes **one attempt** and does not retry. If the fetch or mutation throws, the exception is propagated immediately and the query transitions to `Failure` (or the mutation to `Failure`).
+By default, Fetchling makes **one attempt** and does not retry. If the fetch or mutation throws, the exception is propagated immediately and the query transitions to `Failure` (or the mutation to `Failure`).
 
 To add retry logic, configure a custom `IRetryHandler` — either globally or per query/mutation.
 
@@ -13,7 +13,7 @@ To add retry logic, configure a custom `IRetryHandler` — either globally or pe
 You can replace the default handler globally when setting up the client:
 
 ```csharp
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.RetryHandler = new MyRetryHandler();
 });
@@ -119,7 +119,7 @@ var pipeline = new ResiliencePipelineBuilder()
     .AddTimeout(TimeSpan.FromSeconds(10))
     .Build();
 
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.RetryHandler = new PollyRetryHandler(pipeline);
 });

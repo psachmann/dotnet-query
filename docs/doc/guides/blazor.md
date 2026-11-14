@@ -1,19 +1,19 @@
 # Blazor Components
 
-DotNet Query ships two Razor components that make it easy to render query state declaratively in Blazor: `<Suspense>` and `<Transition>`. Both components handle subscriptions and re-rendering automatically — you just describe what to show in each state.
+Fetchling ships two Razor components that make it easy to render query state declaratively in Blazor: `<Suspense>` and `<Transition>`. Both components handle subscriptions and re-rendering automatically — you just describe what to show in each state.
 
 ## Installation
 
 Make sure the Blazor package is installed:
 
 ```bash
-dotnet add package DotNetQuery.Blazor
+dotnet add package Fetchling.Blazor
 ```
 
 Then add the namespace to your `_Imports.razor`:
 
 ```html
-@using DotNetQuery.Blazor
+@using Fetchling.Blazor
 ```
 
 ## Suspense
@@ -209,7 +209,7 @@ To disable one trigger, pass `false` for that parameter:
 Install the package:
 
 ```bash
-dotnet add package DotNetQuery.Blazor.DevTools
+dotnet add package Fetchling.Blazor.DevTools
 ```
 
 Add it in `MainLayout.razor` and use `IHostEnvironment` to limit it to development:
@@ -218,7 +218,7 @@ Add it in `MainLayout.razor` and use `IHostEnvironment` to limit it to developme
 @* MainLayout.razor *@
 @inherits LayoutComponentBase
 
-@using DotNetQuery.Blazor.DevTools
+@using Fetchling.Blazor.DevTools
 @inject IHostEnvironment Env
 
 @if (Env.IsDevelopment())

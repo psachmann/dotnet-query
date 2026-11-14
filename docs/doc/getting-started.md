@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you through installing DotNet Query and writing your first query and mutation. By the end you will have a working setup and a solid foundation to build on.
+This guide walks you through installing Fetchling and writing your first query and mutation. By the end you will have a working setup and a solid foundation to build on.
 
 ## Prerequisites
 
@@ -12,36 +12,39 @@ This guide walks you through installing DotNet Query and writing your first quer
 Install the packages you need from NuGet:
 
 ```bash
+# Core + DI integration in one package — the usual starting point
+dotnet add package Fetchling
+
 # Core library — always required
-dotnet add package DotNetQuery.Core
+dotnet add package Fetchling.Core
 
 # DI integration — if you use Microsoft.Extensions.DependencyInjection
-dotnet add package DotNetQuery.Extensions.DependencyInjection
+dotnet add package Fetchling.Extensions.DependencyInjection
 
 # Blazor components — if you use Blazor
-dotnet add package DotNetQuery.Blazor
+dotnet add package Fetchling.Blazor
 
 # Blazor DevTools — live cache inspector for development
-dotnet add package DotNetQuery.Blazor.DevTools
+dotnet add package Fetchling.Blazor.DevTools
 
 # MVVM view models — if you use MAUI, WPF, WinUI, UNO Platform, or Avalonia
-dotnet add package DotNetQuery.Mvvm
+dotnet add package Fetchling.Mvvm
 ```
 
 ## Setting Up the Client
 
 ### With Dependency Injection (recommended)
 
-In your `Program.cs` (or wherever you configure services), call `AddDotNetQuery`:
+In your `Program.cs` (or wherever you configure services), call `AddFetchling`:
 
 ```csharp
-builder.Services.AddDotNetQuery();
+builder.Services.AddFetchling();
 ```
 
 That is the minimal setup. You can also configure the global defaults:
 
 ```csharp
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.StaleTime       = TimeSpan.FromMinutes(1);   // data stays fresh for 1 minute
     options.CacheTime       = TimeSpan.FromMinutes(10);  // cache entries live 10 minutes after last subscriber
@@ -243,4 +246,4 @@ See the [Blazor Components guide](guides/blazor.md) for more details, including 
 - [Caching guide](guides/caching.md) — understand stale time, cache time, and deduplication.
 - [Blazor Components guide](guides/blazor.md) — `<Suspense>` and `<Transition>` in detail.
 - [Observability guide](guides/observability.md) — distributed tracing, metrics, and structured logging with OpenTelemetry.
-- [Blazor sample](https://github.com/psachmann/dotnet-query/tree/main/samples/DotNetQuery.Samples.Blazor) and [Avalonia sample](https://github.com/psachmann/dotnet-query/tree/main/samples/DotNetQuery.Samples.Avalonia) — complete, runnable apps built on the library.
+- [Blazor sample](https://github.com/psachmann/dotnet-query/tree/main/samples/Fetchling.Samples.Blazor) and [Avalonia sample](https://github.com/psachmann/dotnet-query/tree/main/samples/Fetchling.Samples.Avalonia) — complete, runnable apps built on the library.

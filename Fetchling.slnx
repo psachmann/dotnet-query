@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/Fetchling.Samples.Avalonia/Fetchling.Samples.Avalonia.csproj" />
+    <Project Path="samples/Fetchling.Samples.Blazor/Fetchling.Samples.Blazor.csproj" />
+    <Project Path="samples/Fetchling.Samples.Shared/Fetchling.Samples.Shared.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Fetchling/Fetchling.csproj" />
+    <Project Path="src/Fetchling.Blazor.DevTools/Fetchling.Blazor.DevTools.csproj" />
+    <Project Path="src/Fetchling.Blazor/Fetchling.Blazor.csproj" />
+    <Project Path="src/Fetchling.Core/Fetchling.Core.csproj" />
+    <Project Path="src/Fetchling.Extensions.DependencyInjection/Fetchling.Extensions.DependencyInjection.csproj" />
+    <Project Path="src/Fetchling.Mvvm/Fetchling.Mvvm.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Fetchling.Blazor.Tests/Fetchling.Blazor.Tests.csproj" />
+    <Project Path="tests/Fetchling.Core.Tests/Fetchling.Core.Tests.csproj" />
+    <Project Path="tests/Fetchling.Extensions.DependencyInjection.Tests/Fetchling.Extensions.DependencyInjection.Tests.csproj" />
+    <Project Path="tests/Fetchling.Mvvm.Tests/Fetchling.Mvvm.Tests.csproj" />
+  </Folder>
+</Solution>

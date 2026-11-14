@@ -1,19 +1,20 @@
-# DotNet Query
+# Fetchling
 
 > A TanStack Query-inspired async data fetching and state management library for .NET and Blazor.
 
-DotNet Query brings TanStack Query's battle-tested patterns to the .NET ecosystem: predictable loading/error/success states, automatic caching, stale-while-revalidate, background refetching, and mutations with lifecycle callbacks — all built on Rx.NET observables.
+Fetchling brings TanStack Query's battle-tested patterns to the .NET ecosystem: predictable loading/error/success states, automatic caching, stale-while-revalidate, background refetching, and mutations with lifecycle callbacks — all built on Rx.NET observables.
 
 NuGet packages:
-- `DotNetQuery.Core` — always required
-- `DotNetQuery.Extensions.DependencyInjection` — `AddDotNetQuery()` for Microsoft DI
-- `DotNetQuery.Blazor` — `<Suspense>`, `<Transition>`, `<QueryRefreshMonitor>` Razor components
-- `DotNetQuery.Blazor.DevTools` — `<QueryDevTools>` live cache inspector (development only)
-- `DotNetQuery.Mvvm` — `QueryViewModel`/`InfiniteQueryViewModel`/`MutationViewModel` INotifyPropertyChanged bindings for MAUI, WPF, WinUI, UNO, and Avalonia
+- `Fetchling` — metapackage pulling in `Fetchling.Core` + `Fetchling.Extensions.DependencyInjection` (the upcoming 3.0)
+- `Fetchling.Core` — always required
+- `Fetchling.Extensions.DependencyInjection` — `AddFetchling()` for Microsoft DI
+- `Fetchling.Blazor` — `<Suspense>`, `<Transition>`, `<QueryRefreshMonitor>` Razor components
+- `Fetchling.Blazor.DevTools` — `<QueryDevTools>` live cache inspector (development only)
+- `Fetchling.Mvvm` — `QueryViewModel`/`InfiniteQueryViewModel`/`MutationViewModel` INotifyPropertyChanged bindings for MAUI, WPF, WinUI, UNO, and Avalonia
 
 Target framework: net10.0 (the upcoming 3.0 drops net9.0; the current stable release, 2.0.0, still targets net9.0 and net10.0). All code is in C# with `nullable enable`.
 
-Upgrading from 1.x? The migration guide at https://psachmann.github.io/dotnet-query/doc/migrating-to-v2.html lists every breaking change: query `TData` constrained to reference types, new `IQueryClient`/`IMutation` members, `AddDotNetQuery` using `TryAdd`, automatic cache eviction, and telemetry unit/tag changes.
+Upgrading from 1.x? The migration guide at https://psachmann.github.io/dotnet-query/doc/migrating-to-v2.html lists every breaking change: query `TData` constrained to reference types, new `IQueryClient`/`IMutation` members, `AddFetchling` using `TryAdd`, automatic cache eviction, and telemetry unit/tag changes.
 
 These docs are also indexed on Context7 under the library ID `/psachmann/dotnet-query`; use `/psachmann/dotnet-query/v2.0.0` for the current stable release, since the unversioned ID tracks `main` and the upcoming 3.0.
 
@@ -503,7 +504,7 @@ public sealed class PollyRetryHandler(ResiliencePipeline pipeline) : IRetryHandl
 
 ```csharp
 // Program.cs
-builder.Services.AddDotNetQuery(options =>
+builder.Services.AddFetchling(options =>
 {
     options.StaleTime       = TimeSpan.FromMinutes(1);
     options.CacheTime       = TimeSpan.FromMinutes(10);
@@ -521,10 +522,10 @@ builder.Services.AddDotNetQuery(options =>
 For Blazor Auto render mode, register both:
 ```csharp
 // Server project
-builder.Services.AddDotNetQuery(o => o.ExecutionMode = QueryExecutionMode.Ssr);
+builder.Services.AddFetchling(o => o.ExecutionMode = QueryExecutionMode.Ssr);
 
 // Client project (WebAssembly)
-builder.Services.AddDotNetQuery(o => o.ExecutionMode = QueryExecutionMode.Csr);
+builder.Services.AddFetchling(o => o.ExecutionMode = QueryExecutionMode.Csr);
 ```
 
 An optional `IScheduler` (from Rx.NET) can be registered in DI for testing — inject `TestScheduler` to control virtual time without real waits.
@@ -535,7 +536,7 @@ An optional `IScheduler` (from Rx.NET) can be registered in DI for testing — i
 
 Add to `_Imports.razor`:
 ```razor
-@using DotNetQuery.Blazor
+@using Fetchling.Blazor
 ```
 
 ### `<Suspense>`
@@ -648,11 +649,11 @@ Requires an interactive render mode (WASM or interactive Blazor Server). No-op u
 
 ### `<QueryDevTools>`
 
-Live cache inspector panel (separate package `DotNetQuery.Blazor.DevTools`). Shows every cache entry with its key, status, observer count, and data. Supports filtering, invalidation, and drag-to-resize.
+Live cache inspector panel (separate package `Fetchling.Blazor.DevTools`). Shows every cache entry with its key, status, observer count, and data. Supports filtering, invalidation, and drag-to-resize.
 
 ```razor
 @* MainLayout.razor *@
-@using DotNetQuery.Blazor.DevTools
+@using Fetchling.Blazor.DevTools
 @inject IHostEnvironment Env
 
 @if (Env.IsDevelopment())
@@ -663,15 +664,15 @@ Live cache inspector panel (separate package `DotNetQuery.Blazor.DevTools`). Sho
 
 ### Cache Inspection (custom inspectors, upcoming 3.0)
 
-For non-Blazor UIs, `DotNetQuery.Core` exposes the cache that `<QueryDevTools>` reads (public from the upcoming 3.0; internal in 2.0.0):
+For non-Blazor UIs, `Fetchling.Core` exposes the cache that `<QueryDevTools>` reads (public from the upcoming 3.0; internal in 2.0.0):
 
 ```csharp
-using DotNetQuery.Core.Inspection;
+using Fetchling.Core.Inspection;
 
 if (client.TryGetInspector(out var inspector))   // false for custom IQueryClient implementations / mocks
 {
     inspector.Entries                             // IObservable<IReadOnlyList<IQueryCacheEntry>>
-        .ObserveOnUi()                            // DotNetQuery.Mvvm; emissions arrive on arbitrary threads
+        .ObserveOnUi()                            // Fetchling.Mvvm; emissions arrive on arbitrary threads
         .Subscribe(entries => { /* entry.Key, Name, Status, CurrentData, LastData, Error,
                                    LastUpdatedAt, ObserverCount, IsStale, CacheTime */ });
 }
@@ -686,9 +687,9 @@ if (client.TryGetInspector(out var inspector))   // false for custom IQueryClien
 
 ---
 
-## MVVM View Models (DotNetQuery.Mvvm)
+## MVVM View Models (Fetchling.Mvvm)
 
-`QueryViewModel<TArgs, TData>` wraps an `IQuery<TArgs, TData>` for XAML-based MVVM frameworks (MAUI, WPF, WinUI, UNO, Avalonia). It implements `INotifyPropertyChanged`, marshals all notifications onto the UI thread, and holds a live `State` subscription for its lifetime (which is what retains the cache entry and triggers deferred stale fetches). Zero dependencies beyond `DotNetQuery.Core` — no MVVM toolkit, no platform references.
+`QueryViewModel<TArgs, TData>` wraps an `IQuery<TArgs, TData>` for XAML-based MVVM frameworks (MAUI, WPF, WinUI, UNO, Avalonia). It implements `INotifyPropertyChanged`, marshals all notifications onto the UI thread, and holds a live `State` subscription for its lifetime (which is what retains the cache entry and triggers deferred stale fetches). Zero dependencies beyond `Fetchling.Core` — no MVVM toolkit, no platform references.
 
 ```csharp
 public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable  where TData : class
@@ -1050,7 +1051,7 @@ All telemetry uses BCL APIs only (`ActivitySource`, `Meter`, `ILogger`). No Open
 ```csharp
 // Subscribe in your app project:
 builder.Services.AddOpenTelemetry()
-    .WithTracing(b => b.AddSource(QueryTelemetry.SourceName))    // "DotNetQuery"
+    .WithTracing(b => b.AddSource(QueryTelemetry.SourceName))    // "Fetchling"
     .WithMetrics(b => b.AddMeter(QueryTelemetry.SourceName));
 ```
 
@@ -1061,20 +1062,20 @@ Activity spans:
 | `query.fetch` | Every query fetch | `query.key`, `query.name`, `trigger`, `attempts`, `direction` + `query.pages` (infinite only), `otel.status_code`, `error.type` (on failure) |
 | `mutation.execute` | Every mutation execution | `mutation.name`, `attempts`, `otel.status_code`, `error.type` (on failure) |
 
-Metrics (meter name: `"DotNetQuery"`; duration histograms record seconds):
+Metrics (meter name: `"Fetchling"`; duration histograms record seconds):
 
 | Instrument | Type | Unit | Tags |
 |---|---|---|---|
-| `dotnetquery.query.duration` | Histogram | s | `query.name`, `status`, `trigger` |
-| `dotnetquery.query.active` | UpDownCounter | — | `query.name` |
-| `dotnetquery.cache.hits` | Counter | — | `query.name` |
-| `dotnetquery.cache.misses` | Counter | — | `query.name` |
-| `dotnetquery.mutation.duration` | Histogram | s | `mutation.name`, `status` |
+| `fetchling.query.duration` | Histogram | s | `query.name`, `status`, `trigger` |
+| `fetchling.query.active` | UpDownCounter | — | `query.name` |
+| `fetchling.cache.hits` | Counter | — | `query.name` |
+| `fetchling.cache.misses` | Counter | — | `query.name` |
+| `fetchling.mutation.duration` | Histogram | s | `mutation.name`, `status` |
 
-Log category: `"DotNetQuery"`. Control verbosity:
+Log category: `"Fetchling"`. Control verbosity:
 
 ```json
-{ "Logging": { "LogLevel": { "DotNetQuery": "Warning" } } }
+{ "Logging": { "LogLevel": { "Fetchling": "Warning" } } }
 ```
 
 ---
@@ -1100,4 +1101,4 @@ Log category: `"DotNetQuery"`. Control verbosity:
 - `Mutation<TArgs, TData>` uses the same `.Switch()` pattern — a new `Execute()` cancels the previous execution.
 - When `Invalidate()` is called with no active subscribers, `_isStale = true` is set. The fetch is deferred and triggered by the first subscriber that joins.
 - `IScheduler` is injected everywhere time is used (stale-time, cache eviction, refetch intervals). Production uses `DefaultScheduler.Instance` (real clock). Tests inject `TestScheduler` from `Microsoft.Reactive.Testing` for deterministic time control.
-- `QueryClient` implements the public `IQueryCacheInspector` (namespace `DotNetQuery.Core.Inspection`, from the upcoming 3.0; internal in 2.0.0), reached via `client.TryGetInspector(out var inspector)`. See "Cache Inspection" above.
+- `QueryClient` implements the public `IQueryCacheInspector` (namespace `Fetchling.Core.Inspection`, from the upcoming 3.0; internal in 2.0.0), reached via `client.TryGetInspector(out var inspector)`. See "Cache Inspection" above.

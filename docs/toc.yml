@@ -3,6 +3,6 @@
 - name: API
   href: api/
 - name: Nuget
-  href: https://www.nuget.org/packages?q=dotnetquery+psachmann
+  href: https://www.nuget.org/packages?q=fetchling+psachmann
 - name: GitHub
   href: https://github.com/psachmann/dotnet-query

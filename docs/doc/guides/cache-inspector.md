@@ -2,13 +2,13 @@
 
 > **Not released yet.** The public inspection API ships in the upcoming 3.0. In the current stable release, 2.0.0, it is internal and only `<QueryDevTools>` can use it.
 
-`<QueryDevTools>` covers Blazor. For any other UI stack (Avalonia, MAUI, WPF, WinUI, UNO, or a console dump in a test harness), `DotNetQuery.Core` exposes the same live view of the cache that DevTools is built on, so you can build your own inspector.
+`<QueryDevTools>` covers Blazor. For any other UI stack (Avalonia, MAUI, WPF, WinUI, UNO, or a console dump in a test harness), `Fetchling.Core` exposes the same live view of the cache that DevTools is built on, so you can build your own inspector.
 
 ## Getting the inspector
 
 ```csharp
-using DotNetQuery.Core;
-using DotNetQuery.Core.Inspection;
+using Fetchling.Core;
+using Fetchling.Core.Inspection;
 
 if (!queryClient.TryGetInspector(out var inspector))
 {
@@ -16,7 +16,7 @@ if (!queryClient.TryGetInspector(out var inspector))
 }
 ```
 
-Clients created by `QueryClientFactory.Create` or `AddDotNetQuery()` always support inspection. A custom `IQueryClient` supports it only if it also implements `IQueryCacheInspector`.
+Clients created by `QueryClientFactory.Create` or `AddFetchling()` always support inspection. A custom `IQueryClient` supports it only if it also implements `IQueryCacheInspector`.
 
 ## Observing the cache
 
@@ -57,7 +57,7 @@ There is deliberately no `Dispose()`: the cache owns its entries' lifetimes.
 `Entries` emits on **whichever thread changed the cache**. That is usually a thread-pool thread finishing a fetch, or the scheduler's timer thread for evictions. Marshal onto the UI thread before touching UI state:
 
 - **Blazor**: `InvokeAsync(StateHasChanged)`.
-- **`DotNetQuery.Mvvm`**: `ObserveOnUi()`. It posts every emission, so nothing is dropped. Call it on the UI thread, or pass an `IUiDispatcher` explicitly.
+- **`Fetchling.Mvvm`**: `ObserveOnUi()`. It posts every emission, so nothing is dropped. Call it on the UI thread, or pass an `IUiDispatcher` explicitly.
 
 ## Example: an MVVM inspector
 
@@ -66,9 +66,9 @@ A minimal inspector view model for Avalonia, MAUI, WPF, WinUI or UNO. It copies 
 ```csharp
 using System.Collections.ObjectModel;
 using System.Reactive.Linq;
-using DotNetQuery.Core;
-using DotNetQuery.Core.Inspection;
-using DotNetQuery.Mvvm;
+using Fetchling.Core;
+using Fetchling.Core.Inspection;
+using Fetchling.Mvvm;
 
 public sealed record CacheRow(QueryKey Key, string Name, QueryStatus Status, int Observers, DateTimeOffset? UpdatedAt, bool IsStale);
 
