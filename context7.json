@@ -17,6 +17,9 @@
   ],
   "previousVersions": [
     {
+      "tag": "v3.0.0"
+    },
+    {
       "tag": "v2.0.0"
     }
   ]

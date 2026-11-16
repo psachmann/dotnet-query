@@ -1,7 +1,5 @@
 # Streamed Queries
 
-> **Not released yet.** Streamed queries ship in the upcoming 3.0. The current stable release, 2.0.0, does not have them.
-
 A streamed query is for a response that arrives in pieces and should be shown as it grows — a server-streaming gRPC call, LLM token output, a log tail. The fetcher returns an `IAsyncEnumerable` of chunks, and a reducer folds each chunk into the data as it arrives.
 
 A streamed query is a regular `IQuery<TArgs, TData>`. Caching, deduplication, stale time, cancellation, retries, `<Suspense>`, `<Transition>` and `QueryViewModel` all work as they do for any query. The only addition is the `IsStreaming` flag on its state.

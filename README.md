@@ -29,14 +29,16 @@ Fetchling brings the battle-tested data-fetching patterns of TanStack Query to t
 
 - **Queries** — fetch async data with automatic caching, background refetching, and stale-while-revalidate semantics
 - **Infinite queries** — paginated and "load more" data fetching with `<InfiniteSuspense>` / `<InfiniteTransition>`
-- **Mutations** — execute data-modifying operations with lifecycle callbacks and automatic cache invalidation on success
+- **Streamed queries** — fold an `IAsyncEnumerable` (gRPC streams, LLM tokens, SignalR or server-sent events) into data that renders as it grows
+- **Mutations** — execute data-modifying operations with lifecycle callbacks, progress reporting, and automatic cache invalidation on success
+- **Live data** — keep the cache current from server pushes: invalidate on an event, or write the pushed data straight in with `IQueryClient.SetData`
 - **Reactive state** — built on [Rx.NET](https://github.com/dotnet/reactive), every query and mutation exposes `IObservable` streams for composable async pipelines
 - **Smart caching** — configurable stale time and cache time control when data is re-fetched and when it is evicted
 - **Query deduplication** — identical keys share a single cached query instance; no redundant requests
 - **Retry logic** — one attempt by default, fail-fast; plug in exponential backoff or any other policy via `IRetryHandler`
 - **Observability** — OTel-compatible distributed tracing (`ActivitySource`), metrics (`Meter`), and structured logging (`ILogger`) using only BCL APIs; no OpenTelemetry package required in the library
 - **Blazor components** — `<Suspense>` and `<Transition>` components for declarative query rendering
-- **DevTools** — `<QueryDevTools>` live cache inspector component for development
+- **DevTools** — `<QueryDevTools>` live cache inspector component for development, and a public inspection API for building your own
 - **MVVM view models** — `QueryViewModel<TArgs, TData>` with bindable `INotifyPropertyChanged` properties and UI-thread marshaling for MAUI, WPF, WinUI, UNO Platform, and Avalonia
 - **CSR / SSR support** — `QueryExecutionMode` controls Singleton (WebAssembly) vs Scoped (Server-Side Rendering) DI lifetime
 - **DI integration** — first-class support for `Microsoft.Extensions.DependencyInjection`
@@ -70,6 +72,7 @@ Full guides, examples, and API reference are available **[here](https://psachman
 - [Introduction](https://psachmann.github.io/fetchling/doc/introduction.html) — core concepts and motivation
 - [Getting Started](https://psachmann.github.io/fetchling/doc/getting-started.html) — install and write your first query
 - [Guides](https://psachmann.github.io/fetchling/doc/guides/queries.html) — queries, mutations, caching, Blazor, retries, and SSR
+- [Migrating to v3](https://psachmann.github.io/fetchling/doc/migrating-to-v3.html) — breaking changes and upgrade steps for 3.0
 - [Migrating to v2](https://psachmann.github.io/fetchling/doc/migrating-to-v2.html) — breaking changes and upgrade steps for 2.0
 - [API Reference](https://psachmann.github.io/fetchling/api/Fetchling.Core.html) — full generated API docs
 - [Blazor sample](https://github.com/psachmann/fetchling/tree/main/samples/Fetchling.Samples.Blazor) and [Avalonia sample](https://github.com/psachmann/fetchling/tree/main/samples/Fetchling.Samples.Avalonia) — complete, runnable apps built on the library

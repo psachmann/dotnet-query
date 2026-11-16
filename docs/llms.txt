@@ -5,18 +5,20 @@
 Fetchling brings TanStack Query's battle-tested patterns to the .NET ecosystem: predictable loading/error/success states, automatic caching, stale-while-revalidate, background refetching, and mutations with lifecycle callbacks — all built on Rx.NET observables.
 
 NuGet packages:
-- `Fetchling` — metapackage pulling in `Fetchling.Core` + `Fetchling.Extensions.DependencyInjection` (the upcoming 3.0)
+- `Fetchling` — metapackage pulling in `Fetchling.Core` + `Fetchling.Extensions.DependencyInjection`
 - `Fetchling.Core` — always required
 - `Fetchling.Extensions.DependencyInjection` — `AddFetchling()` for Microsoft DI
 - `Fetchling.Blazor` — `<Suspense>`, `<Transition>`, `<QueryRefreshMonitor>` Razor components
 - `Fetchling.Blazor.DevTools` — `<QueryDevTools>` live cache inspector (development only)
 - `Fetchling.Mvvm` — `QueryViewModel`/`InfiniteQueryViewModel`/`MutationViewModel` INotifyPropertyChanged bindings for MAUI, WPF, WinUI, UNO, and Avalonia
 
-Target frameworks: net10.0 and net11.0 (the upcoming 3.0 drops net9.0; the current stable release, 2.0.0, still targets net9.0 and net10.0). All code is in C# with `nullable enable`.
+Target frameworks: net10.0 and net11.0. All code is in C# with `nullable enable`.
 
-Upgrading from 1.x? The migration guide at https://psachmann.github.io/fetchling/doc/migrating-to-v2.html lists every breaking change: query `TData` constrained to reference types, new `IQueryClient`/`IMutation` members, `AddFetchling` using `TryAdd`, automatic cache eviction, and telemetry unit/tag changes.
+Upgrading from 2.x (DotNetQuery)? The migration guide at https://psachmann.github.io/fetchling/doc/migrating-to-v3.html lists every breaking change: the library was renamed (`DotNetQuery.*` packages and namespaces become `Fetchling.*`, `AddDotNetQuery` becomes `AddFetchling`, telemetry names change from `DotNetQuery`/`dotnetquery.*` to `Fetchling`/`fetchling.*`); `net9.0` is dropped (2.0.0 is the last release for .NET 9); `IQueryClient` gained members (`CreateMutation<TArgs, TData, TProgress>`, `CreateStreamedQuery`, three `SetData` overloads, `InvalidateStale`); and `Invalidate` (including a mutation's `InvalidateKeys`) now marks data stale regardless of `StaleTime`, with `InvalidateStale` keeping the old behaviour.
 
-These docs are also indexed on Context7 under the library ID `/psachmann/fetchling`; use `/psachmann/fetchling/v2.0.0` for the current stable release, since the unversioned ID tracks `main` and the upcoming 3.0.
+Upgrading from 1.x? The migration guide at https://psachmann.github.io/fetchling/doc/migrating-to-v2.html lists every breaking change: query `TData` constrained to reference types, new `IQueryClient`/`IMutation` members, `AddDotNetQuery` using `TryAdd`, automatic cache eviction, and telemetry unit/tag changes.
+
+These docs are also indexed on Context7 under the library ID `/psachmann/fetchling`; use `/psachmann/fetchling/v3.0.0` for the current stable release, since the unversioned ID tracks `main`.
 
 ---
 
@@ -56,6 +58,7 @@ record QueryState<TData>
     bool IsFetching { get; }
     bool IsSuccess  { get; }
     bool IsFailure  { get; }
+    bool IsStreaming { get; } // streamed query only: Success with the data folded so far, more chunks to come
     bool HasData    { get; }  // CurrentData is not null
     bool HasError   { get; }  // Error is not null
 }
@@ -85,6 +88,8 @@ record MutationState<TData>
 }
 ```
 
+A mutation that reports progress (see "Progress-reporting mutations" below) has `record MutationState<TData, TProgress>`: the same members plus `TProgress? Progress`, the latest value the mutator reported.
+
 Like `QueryState`, mutation state replays its current value to new subscribers, so a subscriber joining mid-run sees `Running` immediately. `Success` and `Failure` are terminal until the next `Execute`; only `Cancel()` returns a mutation to `Idle`.
 
 ---
@@ -103,12 +108,34 @@ public interface IQueryClient : IDisposable
     IInfiniteQuery<TArgs, TData, TPageParam> CreateInfiniteQuery<TArgs, TData, TPageParam>(
         InfiniteQueryOptions<TArgs, TData, TPageParam> options);
 
+    // Gets or creates a streamed query: the fetcher yields chunks folded into the data as they arrive.
+    IQuery<TArgs, TData> CreateStreamedQuery<TArgs, TData, TChunk>(StreamedQueryOptions<TArgs, TData, TChunk> options);
+
     // Creates a mutation. InvalidateKeys are wired automatically on success.
     IMutation<TArgs, TData> CreateMutation<TArgs, TData>(MutationOptions<TArgs, TData> options);
 
-    // Marks all matching cache entries as stale and triggers a refetch if they have subscribers.
+    // Creates a mutation whose mutator reports progress through an IProgress<TProgress>.
+    IMutation<TArgs, TData, TProgress> CreateMutation<TArgs, TData, TProgress>(MutationOptions<TArgs, TData, TProgress> options);
+
+    // Marks entries stale REGARDLESS of StaleTime; refetches those with an active subscriber, the rest
+    // fetch on their next subscriber. The QueryKey overload matches the key EXACTLY (not a prefix).
+    // A fetch in flight is not restarted: it finishes, then one more fetch follows.
     void Invalidate(QueryKey key);
     void Invalidate(Func<QueryKey, bool> predicate);
+
+    // Like Invalidate(predicate), but skips entries still within their StaleTime. For "refresh if needed"
+    // sweeps (window focus, reconnect — what <QueryRefreshMonitor> calls).
+    void InvalidateStale(Func<QueryKey, bool> predicate);
+
+    // Writes data into the cached query with EXACTLY this key as a fresh Success, cancelling a fetch in flight.
+    // For server-pushed data (SignalR, SSE). Returns false if the key isn't cached or a stream is running;
+    // throws InvalidOperationException if the entry holds another TData or is an infinite query.
+    bool SetData<TData>(QueryKey key, TData data) where TData : class;
+    // Updater runs only when the entry has data (CurrentData ?? LastData); false otherwise.
+    bool SetData<TData>(QueryKey key, Func<TData, TData> updater) where TData : class;
+    // Patches every matching entry of this TData; skips other types, infinite queries, entries without data,
+    // running streams. Returns the number written.
+    int SetData<TData>(Func<QueryKey, bool> predicate, Func<TData, TData> updater) where TData : class;
 }
 ```
 
@@ -172,8 +199,8 @@ public interface IQuery<TArgs, TData> : IQuery, IDisposable
     // Trigger an immediate fetch, bypassing stale-time checks
     void Refetch();
 
-    // Mark data as stale; fetch immediately if subscribers exist, else defer until first subscriber
-    // No-op if data was fetched within the StaleTime window — use Refetch() to force
+    // Mark data as stale, regardless of StaleTime; fetch immediately if subscribers exist, else defer until
+    // the first subscriber. Doesn't restart a fetch in flight (it finishes, then one more follows) — Refetch() does.
     void Invalidate();
 
     // Cancel the current in-flight fetch; returns query to Idle; LastData is preserved
@@ -216,9 +243,10 @@ new QueryOptions<int, UserDto>
                                                  └→ Failure
 ```
 
-`Invalidate()` respects `StaleTime` (no-op within window). `Refetch()` always fetches.
+`Invalidate()` marks data stale even within `StaleTime`, but never restarts a fetch in flight. `Refetch()` always fetches and restarts one.
+`StaleTime` governs opportunistic refreshes: a new subscriber, `RefetchInterval` ticks, and `IQueryClient.InvalidateStale` skip fresh data.
 When invalidated with no active subscribers, fetch is deferred until the first subscriber joins.
-A new `SetArgs` while a fetch is in progress cancels the in-flight fetch (`.Switch()` semantics).
+`SetArgs` switches the observer to the new key's cache entry; the previous entry keeps its own fetch.
 
 ---
 
@@ -374,6 +402,44 @@ public sealed class ItemService(IQueryClient client, IApi api) : IDisposable
 
 ---
 
+## Streamed Queries
+
+`IQueryClient.CreateStreamedQuery` returns a regular `IQuery<TArgs, TData>` whose fetcher yields chunks (`IAsyncEnumerable<TChunk>`), folded into the data by a reducer as they arrive. For server-streaming gRPC, LLM token output, log tails, SignalR `StreamAsync` or server-sent events. Caching, deduplication (one running stream per key), cancellation, retries, `<Suspense>`/`<Transition>` and `QueryViewModel` work unchanged.
+
+```csharp
+IQuery<string, string> answer = queryClient.CreateStreamedQuery(
+    new StreamedQueryOptions<string, string, string>   // <TArgs, TData, TChunk>
+    {
+        // Required
+        KeyFactory   = prompt => QueryKey.From("answer", prompt),
+        Fetcher      = (prompt, ct) => llm.StreamTokensAsync(prompt, ct),  // IAsyncEnumerable<string>
+        InitialValue = "",                                  // fold seed for every fetch
+        Reducer      = (text, token) => text + token,       // must NOT mutate its input (each state is a snapshot)
+
+        // Optional
+        RefetchMode     = StreamRefetchMode.Reset,  // Reset: drop old data, show new chunks; Replace: keep old until done
+        StaleTime       = null,                     // null = global
+        CacheTime       = null,                     // null = global
+        RefetchInterval = null,                     // does NOT fall back to the global RefetchInterval
+        RetryHandler    = null,                     // each attempt restarts the fold from InitialValue
+        CancelWhenUnobservedAfter = null,           // null: stream runs until eviction; Zero: stop when the last
+                                                    // observer leaves; positive: stop after that grace period.
+                                                    // A stopped stream goes Idle and the next observer reopens it.
+        Name            = null,
+        IsEnabled       = true,
+        DataComparer    = null,                     // compares completed data only
+    });
+```
+
+State while streaming: `Fetching` until the first chunk, then `Success` with `IsStreaming = true` (`CurrentData` = data folded so far) per chunk, then `Success` with `IsStreaming = false` when the stream completes. Failure or cancel keeps the partial data in `LastData`. `State` emits per chunk; `Success` and `Settled` emit once per completed stream.
+
+- `Invalidate()` does not restart a running stream (it only marks it stale); `Refetch()` does.
+- A **never-ending** stream (ticker, SignalR/SSE subscription) never settles: `Success`/`Settled` never emit, it never becomes fresh, and `PrefetchAsync` on it only returns when its token is cancelled. Render from `State` or the components, bound the data in the reducer (e.g. keep the last N items), and set `CancelWhenUnobservedAfter` so the connection closes when nobody watches.
+- To survive dropped connections without resetting the data, reconnect inside the `IAsyncEnumerable` instead of relying on `RetryHandler` (which restarts from `InitialValue`).
+- A raw `Stream` download is not a streamed query; model it as a mutation.
+
+---
+
 ## IMutation<TArgs, TData>
 
 ```csharp
@@ -415,7 +481,32 @@ new MutationOptions<CreateUserRequest, UserDto>
 }
 ```
 
-`InvalidateKeys` fires immediately when the mutator's `Task` resolves. For eventually-consistent backends (read replicas, CQRS), use `OnSuccess` and call `queryClient.Invalidate(...)` manually to control timing.
+`InvalidateKeys` fires immediately when the mutator's `Task` resolves, and refetches the named queries regardless of their `StaleTime`. Keys match **exactly**: `[QueryKey.From("users")]` does not reach `QueryKey.From("users", 42)`. When the key depends on the args, or you need a predicate, call `queryClient.Invalidate(...)` from `OnSuccess`. Do the same for eventually-consistent backends (read replicas, CQRS), to control timing.
+
+### Progress-reporting mutations
+
+Pass a third type argument for progress. The mutator receives an `IProgress<TProgress>`, and every state carries the latest value as `Progress`:
+
+```csharp
+IMutation<UploadRequest, DocumentDto, long> upload = queryClient.CreateMutation(
+    new MutationOptions<UploadRequest, DocumentDto, long>
+    {
+        Mutator = async (request, progress, ct) =>
+        {
+            long sent = 0;
+            await foreach (var chunk in request.File.ReadChunksAsync(ct))
+            {
+                await uploadClient.SendAsync(chunk, ct);
+                progress.Report(sent += chunk.Length);
+            }
+            return await uploadClient.CompleteAsync(ct);
+        },
+    });
+
+upload.State.Subscribe(state => ShowProgress(state.Progress));  // MutationState<DocumentDto, long>
+```
+
+`Progress` is `default` until the first report, resets at the start of a retry, keeps the last value after success/failure, and clears on `Cancel()`. Reports after the attempt is over are ignored. Use the `IProgress<T>` the library passes in, not `System.Progress<T>` (which posts to the `SynchronizationContext` and can report after settling). Reports are not throttled; sample `State` if needed. All other options, callbacks and `Cancel()` behave as for `IMutation<TArgs, TData>`.
 
 ---
 
@@ -423,9 +514,10 @@ new MutationOptions<CreateUserRequest, UserDto>
 
 The cache is owned by `IQueryClient` and keyed by `QueryKey`. All queries that produce the same key share one cache entry — only one fetch ever runs at a time for a given key (deduplication).
 
-**StaleTime** — how long fetched data is considered "fresh". Within this window `Invalidate()` is a no-op.
+**StaleTime** — how long fetched data is considered "fresh". Within this window a new subscriber, a `RefetchInterval` tick and `IQueryClient.InvalidateStale` (what `<QueryRefreshMonitor>` calls) don't refetch.
 - Default: `TimeSpan.Zero` (stale immediately after fetching)
-- `Refetch()` always bypasses stale time
+- `Invalidate()` (and a mutation's `InvalidateKeys`) ignores stale time: an invalidation says the data changed
+- `Refetch()` always fetches
 
 **CacheTime** — how long data is kept in memory after the last subscriber unsubscribes.
 - Default: 5 minutes
@@ -436,9 +528,10 @@ The cache is owned by `IQueryClient` and keyed by `QueryKey`. All queries that p
 
 Invalidation via `IQueryClient`:
 ```csharp
-client.Invalidate(QueryKey.From("users", 42));           // exact key match
-client.Invalidate(key => key.ToString().StartsWith("users")); // predicate
-client.Invalidate(_ => true);                            // everything
+client.Invalidate(QueryKey.From("users", 42));           // exact key match (not a prefix)
+client.Invalidate(key => key.Parts is ["users", ..]);    // predicate: every key starting with "users"
+client.Invalidate(_ => true);                            // everything, however fresh
+client.InvalidateStale(_ => true);                       // everything older than its StaleTime
 ```
 
 ---
@@ -636,7 +729,7 @@ Both components require three type parameters inferred from the `Query` paramete
 
 ### `<QueryRefreshMonitor>`
 
-Side-effect component. Registers browser `visibilitychange` and `online` events. When the tab regains focus or network reconnects, calls `queryClient.Invalidate(_ => true)`. Respects `StaleTime` — fresh data is never re-fetched.
+Side-effect component. Registers browser `visibilitychange` and `online` events. When the tab regains focus or network reconnects, calls `queryClient.InvalidateStale(_ => true)`. Respects `StaleTime` — fresh data is never re-fetched.
 
 ```razor
 @* MainLayout.razor — place once near the root *@
@@ -662,9 +755,9 @@ Live cache inspector panel (separate package `Fetchling.Blazor.DevTools`). Shows
 }
 ```
 
-### Cache Inspection (custom inspectors, upcoming 3.0)
+### Cache Inspection (custom inspectors)
 
-For non-Blazor UIs, `Fetchling.Core` exposes the cache that `<QueryDevTools>` reads (public from the upcoming 3.0; internal in 2.0.0):
+For non-Blazor UIs, `Fetchling.Core` exposes the cache that `<QueryDevTools>` reads:
 
 ```csharp
 using Fetchling.Core.Inspection;
@@ -715,6 +808,7 @@ public class QueryViewModel<TArgs, TData> : BindableBase, IDisposable  where TDa
     bool IsSuccess  { get; }
     bool IsFailure  { get; }
     bool IsLoading  { get; }  // FIRST load only: fetching with no data to show (full-page spinner)
+    bool IsStreaming { get; } // streamed query: chunks still arriving (Data grows); RefetchCommand disabled until done
     bool HasData    { get; }
     bool HasError   { get; }
 
@@ -869,6 +963,8 @@ public ICommand ToggleCommand { get; } = ToggleItem.ToCommand<TodoItem>(item => 
 public ICommand AddItemCommand { get; } = AddItem.ToCommand(() => new AddItemArgs(NewItemText));
 ```
 
+`MutationViewModel<TArgs, TData, TProgress>` wraps a progress-reporting `IMutation<TArgs, TData, TProgress>` with the same members, plus a bindable `TProgress? Progress` and `CurrentState` of type `MutationState<TData, TProgress>`. Its constructors mirror the ones above (`(IMutation<TArgs, TData, TProgress>, IUiDispatcher?)` wraps; `(IQueryClient, MutationOptions<TArgs, TData, TProgress>, IUiDispatcher?)` creates and owns). Progress bursts coalesce to one UI update per dispatcher hop, so no throttling is needed.
+
 ### StateChanged
 
 All three view models raise `event EventHandler? StateChanged`, on the UI thread, after every `PropertyChanged` for an applied state. Use it for page-specific work that runs once per state change -- most commonly syncing an `ObservableCollection` via `SyncFrom` (below) -- instead of a second raw subscription to the wrapped query/mutation's `State`.
@@ -877,12 +973,20 @@ All three view models raise `event EventHandler? StateChanged`, on the UI thread
 
 ```csharp
 public static QueryViewModel<TArgs, TData> ToViewModel<TArgs, TData>(
-    this IQuery<TArgs, TData> query, IUiDispatcher? dispatcher = null) where TData : class;
+    this IQuery<TArgs, TData> query,
+    CompositeDisposable? disposeWith = null, IUiDispatcher? dispatcher = null) where TData : class;
 public static InfiniteQueryViewModel<TArgs, TData, TPageParam> ToViewModel<TArgs, TData, TPageParam>(
-    this IInfiniteQuery<TArgs, TData, TPageParam> query, IUiDispatcher? dispatcher = null) where TData : class;
+    this IInfiniteQuery<TArgs, TData, TPageParam> query,
+    CompositeDisposable? disposeWith = null, IUiDispatcher? dispatcher = null) where TData : class;
 public static MutationViewModel<TArgs, TData> ToViewModel<TArgs, TData>(
-    this IMutation<TArgs, TData> mutation, IUiDispatcher? dispatcher = null);
+    this IMutation<TArgs, TData> mutation,
+    CompositeDisposable? disposeWith = null, IUiDispatcher? dispatcher = null);
+public static MutationViewModel<TArgs, TData, TProgress> ToViewModel<TArgs, TData, TProgress>(
+    this IMutation<TArgs, TData, TProgress> mutation,
+    CompositeDisposable? disposeWith = null, IUiDispatcher? dispatcher = null);
 ```
+
+`disposeWith` adds the view model to that `CompositeDisposable`, so a page view model disposes all its view models in one call (if the container is already disposed, the view model is disposed immediately). The dispatcher comes second: to pass only a dispatcher, name it, as in `ToViewModel(dispatcher: myDispatcher)`.
 
 `ToViewModel()` is sugar for the wrapping constructor: it always wraps and never takes ownership, on all three view models -- Dispose() releases only the subscription. The client+options constructor is the other option, and DOES take ownership (Dispose() disposes what it created). Wrap an existing query/mutation from a shared service (the service/facade pattern); create-and-own for a view model whose IQueryClient came straight from DI.
 
@@ -947,8 +1051,10 @@ public sealed class UserService(IQueryClient queryClient, HttpClient http) : IDi
     public readonly IMutation<UpdateUserRequest, UserDto> UpdateUser =
         queryClient.CreateMutation(new MutationOptions<UpdateUserRequest, UserDto>
         {
-            Mutator        = (req, ct) => http.PutAsJsonAsync<UserDto>($"/api/users/{req.Id}", req, ct),
-            InvalidateKeys = [QueryKey.From("users")],
+            Mutator   = (req, ct) => http.PutAsJsonAsync<UserDto>($"/api/users/{req.Id}", req, ct),
+            // The key depends on the args, so invalidate from OnSuccess. InvalidateKeys = [QueryKey.From("users")]
+            // would invalidate nothing: keys match exactly, and the query's keys are ["users", id].
+            OnSuccess = (req, _) => queryClient.Invalidate(QueryKey.From("users", req.Id)),
         });
 
     public void Dispose()
@@ -1042,6 +1148,30 @@ query.SetArgs(selectedUserId);
 IObservable<string> userName = query.Select(user => user.Name);
 ```
 
+### Live Data (SignalR / server-sent events)
+
+Three ways server pushes reach the cache (full guide: https://psachmann.github.io/fetchling/doc/guides/live-data.html):
+
+```csharp
+// 1. The stream is the data: a streamed query over HubConnection.StreamAsync / an SSE IAsyncEnumerable
+//    (see "Streamed Queries"; bound the reducer and set CancelWhenUnobservedAfter).
+
+// 2. The event signals a change: invalidate; observed queries refetch.
+hub.On<int>("TodoUpdated", id => queryClient.Invalidate(QueryKey.From("todos", id)));
+hub.Reconnected += _ => { queryClient.Invalidate(key => key.Parts is ["todos", ..]); return Task.CompletedTask; };
+
+// 3. The event carries the data: write it in, no refetch.
+hub.On<TodoDto>("TodoUpdated", todo =>
+{
+    queryClient.SetData(QueryKey.From("todos", todo.Id), todo);
+    queryClient.SetData<ImmutableList<TodoDto>>(
+        key => key.Parts is ["todos", "list", ..],
+        list => list.Select(t => t.Id == todo.Id ? todo : t).ToImmutableList());
+});
+```
+
+Handlers run on background threads; `Invalidate` and `SetData` are thread-safe, and the Blazor components and view models marshal to the UI themselves. Register handlers once per connection: at startup for a singleton (CSR) client; per circuit, in a scoped service, for `QueryExecutionMode.Ssr`, where the client is scoped.
+
 ---
 
 ## Observability
@@ -1097,8 +1227,9 @@ Log category: `"Fetchling"`. Control verbosity:
 - `IQueryClient` is `QueryClient` internally, which owns a `QueryCache`.
 - `QueryCache` is a `ConcurrentDictionary<QueryKey, ICacheEntry>` with timer-based eviction via `Observable.Timer`.
 - `CreateQuery` returns a `QueryObserver<TArgs, TData>` — a key-switching proxy. Each `SetArgs` call creates or retrieves a `Query<TArgs, TData>` from the cache and switches `_activeQuery` to it.
-- `Query<TArgs, TData>` is the actual cache entry. It uses a `BehaviorSubject<QueryState<TData>>` for state and `Observable.FromAsync(...).Switch()` so that a new invalidation cancels the previous in-flight fetch.
+- `Query<TArgs, TData>` is the actual cache entry. It uses a `BehaviorSubject<QueryState<TData>>` for state and `Observable.FromAsync(...).Switch()`, so a `Refetch()` cancels the previous in-flight fetch. An invalidation never does: with a fetch in flight it only marks the entry stale, and one more fetch follows once it settles. Only the fetch that currently owns the entry may publish, so a superseded fetch can't overwrite newer data.
+- Streamed queries are not a separate entry type: `Query` folds the stream when its options carry one, publishing chunks as `Success` + `IsStreaming`.
 - `Mutation<TArgs, TData>` uses the same `.Switch()` pattern — a new `Execute()` cancels the previous execution.
-- When `Invalidate()` is called with no active subscribers, `_isStale = true` is set. The fetch is deferred and triggered by the first subscriber that joins.
+- When `Invalidate()` is called with no active subscribers, `_isStale = true` is set. The fetch is deferred and triggered by the first subscriber that joins. `Invalidate()` ignores `StaleTime`; `InvalidateStale`, new subscribers and `RefetchInterval` ticks respect it.
 - `IScheduler` is injected everywhere time is used (stale-time, cache eviction, refetch intervals). Production uses `DefaultScheduler.Instance` (real clock). Tests inject `TestScheduler` from `Microsoft.Reactive.Testing` for deterministic time control.
-- `QueryClient` implements the public `IQueryCacheInspector` (namespace `Fetchling.Core.Inspection`, from the upcoming 3.0; internal in 2.0.0), reached via `client.TryGetInspector(out var inspector)`. See "Cache Inspection" above.
+- `QueryClient` implements the public `IQueryCacheInspector` (namespace `Fetchling.Core.Inspection`), reached via `client.TryGetInspector(out var inspector)`. See "Cache Inspection" above.
