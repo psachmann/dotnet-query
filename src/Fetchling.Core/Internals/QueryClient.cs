@@ -67,6 +67,62 @@ internal sealed class QueryClient : IQueryClient, IQueryCacheInspector
 
     public void Invalidate(Func<QueryKey, bool> predicate) => _cache.Invalidate(predicate);
 
+    public bool SetData<TData>(QueryKey key, TData data)
+        where TData : class
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(data);
+
+        return GetWritable<TData>(key)?.TryWrite(_ => data) ?? false;
+    }
+
+    public bool SetData<TData>(QueryKey key, Func<TData, TData> updater)
+        where TData : class
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(updater);
+
+        return GetWritable<TData>(key)?.TryWrite(current => current is null ? null : updater(current)) ?? false;
+    }
+
+    public int SetData<TData>(Func<QueryKey, bool> predicate, Func<TData, TData> updater)
+        where TData : class
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+        ArgumentNullException.ThrowIfNull(updater);
+
+        var written = 0;
+
+        foreach (var entry in _cache.Match(predicate))
+        {
+            if (
+                entry is IWritableEntry<TData> writable
+                && writable.TryWrite(current => current is null ? null : updater(current))
+            )
+            {
+                written++;
+            }
+        }
+
+        return written;
+    }
+
+    private IWritableEntry<TData>? GetWritable<TData>(QueryKey key)
+        where TData : class
+    {
+        if (!_cache.TryGet(key, out var entry))
+        {
+            return null;
+        }
+
+        return entry as IWritableEntry<TData>
+            ?? throw new InvalidOperationException(
+                $"QueryKey '{key}' is held by a query with a different shape ({entry.GetType().Name}), so its "
+                    + $"data cannot be written as {typeof(TData).Name}. Use the data type the query was created "
+                    + "with; an infinite query's pages cannot be written this way."
+            );
+    }
+
     public void Dispose() => _cache.Dispose();
 
     private void InvalidateOnSuccess<TArgs, TData, TProgress, TState>(

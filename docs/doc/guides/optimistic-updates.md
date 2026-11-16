@@ -22,6 +22,8 @@ query.SetData(optimisticValue);
 
 It also stamps the entry as fresh so stale-time is respected and an immediate re-fetch is not triggered. All subscribers — across all components — see the new value instantly.
 
+> To write data a server *pushed* (over SignalR or server-sent events) there is no need for a query observer: `IQueryClient.SetData(key, data)` writes by key and also cancels a fetch in flight, so its older result can't overwrite the push. See [Live Data](live-data.md#an-event-carries-the-data).
+
 ### `OnMutate` on `MutationOptions`
 
 `OnMutate` is called synchronously with the mutation args immediately before the mutator runs. This is where you snapshot the current state and apply the optimistic update:

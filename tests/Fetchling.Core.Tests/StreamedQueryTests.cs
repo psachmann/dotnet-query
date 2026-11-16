@@ -454,6 +454,188 @@ public class StreamedQueryTests
         await Assert.That(activity.GetTagItem(QueryTelemetryTags.TagChunks)).IsEqualTo(3);
     }
 
+    [Test]
+    public async Task LiveStream_ThatNeverEnds_NeverSettles_AndStaysStale()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream);
+        var successes = 0;
+        var settled = 0;
+        using var successSub = query.Success.Subscribe(_ => successes++);
+        using var settledSub = query.Settled.Subscribe(_ => settled++);
+
+        using var active = Activate(query);
+        await stream.WaitForOpen(1);
+        stream.Write("a");
+        stream.Write("b");
+        await WaitFor(query, s => s.CurrentData == "ab");
+        _scheduler.AdvanceBy(TimeSpan.FromHours(1).Ticks);
+
+        var entry = await SingleEntry();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(query.CurrentState.IsStreaming).IsTrue();
+        await Assert.That(successes).IsEqualTo(0);
+        await Assert.That(settled).IsEqualTo(0);
+        await Assert.That(entry.IsStale).IsTrue();
+        await Assert.That(entry.LastUpdatedAt).IsNull();
+    }
+
+    [Test]
+    public async Task LiveStream_PrefetchWaitsUntilItsTokenIsCancelled()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream);
+        using var active = Activate(query);
+        await stream.WaitForOpen(1);
+        stream.Write("a");
+        await WaitFor(query, s => s.IsStreaming);
+
+        using var cts = new CancellationTokenSource();
+        var prefetch = query.PrefetchAsync("q", cts.Token);
+        await Task.Yield();
+        var completedEarly = prefetch.IsCompleted;
+
+        await cts.CancelAsync();
+        await prefetch;
+
+        await Assert.That(completedEarly).IsFalse();
+    }
+
+    [Test]
+    public async Task LiveStream_KeepsRunningAfterLastObserverLeaves_UntilEvictedAfterCacheTime()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream);
+        // A recorder, not WaitFor: WaitFor's own subscription may leave only after the clock has advanced,
+        // starting the eviction countdown late.
+        var recorder = new StateRecorder(query.State);
+        var active = Activate(query);
+        await stream.WaitForOpen(1);
+        stream.Write("a");
+        await recorder.WaitFor(s => s.IsStreaming);
+
+        recorder.Dispose();
+        active.Dispose();
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(5).Ticks - 1);
+        var openBeforeEviction = !stream.Token(1).IsCancellationRequested;
+        _scheduler.AdvanceBy(1);
+
+        using var _ = Assert.Multiple();
+        await Assert.That(openBeforeEviction).IsTrue();
+        await Assert.That(stream.Token(1).IsCancellationRequested).IsTrue();
+    }
+
+    [Test]
+    public async Task LiveStream_AfterConnectionDrops_InvalidateReopensIt()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream);
+        using var active = Activate(query);
+        await stream.WaitForOpen(1);
+        stream.Write("a");
+        stream.Fail(new IOException("connection lost"));
+        await WaitFor(query, s => s.IsFailure);
+
+        // What <QueryRefreshMonitor> does on window focus or reconnect.
+        _client.Invalidate(_ => true);
+
+        await stream.WaitForOpen(2);
+        await Assert.That(stream.OpenCount).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task LiveStream_ReconnectingInsideTheFetcher_KeepsTheFoldAcrossADrop()
+    {
+        var stream = new ControlledStream();
+        using var query = _client.CreateStreamedQuery(
+            new StreamedQueryOptions<string, string, string>
+            {
+                KeyFactory = prompt => QueryKey.From("live", prompt),
+                Fetcher = (_, ct) => Reconnecting(stream, ct),
+                InitialValue = "",
+                Reducer = (text, token) => text + token,
+            }
+        );
+        using var recorder = new StateRecorder(query.State);
+        using var active = Activate(query);
+
+        await stream.WaitForOpen(1);
+        stream.Write("a");
+        await recorder.WaitFor(s => s.CurrentData == "a");
+        stream.Fail(new IOException("connection lost"));
+        await stream.WaitForOpen(2);
+        stream.Write("b");
+        var resumed = await recorder.WaitFor(s => s.CurrentData == "ab");
+
+        using var _ = Assert.Multiple();
+        await Assert.That(resumed.IsStreaming).IsTrue();
+        // Never back to Fetching or Failure: the drop is invisible to observers.
+        await Assert.That(recorder.States.SkipWhile(s => !s.IsStreaming).All(s => s.IsStreaming)).IsTrue();
+    }
+
+    [Test]
+    public async Task ClientSetData_IsRejectedWhileStreaming_AndAcceptedOnceTheStreamCompleted()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream);
+        using var active = Activate(query);
+        await stream.WaitForOpen(1);
+        stream.Write("a");
+        await WaitFor(query, s => s.IsStreaming);
+
+        var whileStreaming = _client.SetData(QueryKey.From("answer", "q"), "pushed");
+        stream.Complete();
+        await WaitFor(query, s => s.IsSuccess && !s.IsStreaming);
+        var afterCompletion = _client.SetData(QueryKey.From("answer", "q"), "pushed");
+
+        using var _ = Assert.Multiple();
+        await Assert.That(whileStreaming).IsFalse();
+        await Assert.That(afterCompletion).IsTrue();
+        await Assert.That(query.CurrentState.CurrentData).IsEqualTo("pushed");
+    }
+
+    /// <summary>The live-data guide's recipe: reconnect inside the iterator, so a drop doesn't reset the fold.</summary>
+    private static async IAsyncEnumerable<string> Reconnecting(
+        ControlledStream stream,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct
+    )
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            await using var chunks = stream.Open(ct).GetAsyncEnumerator(ct);
+
+            while (true)
+            {
+                bool moved;
+
+                try
+                {
+                    moved = await chunks.MoveNextAsync();
+                }
+                catch (IOException)
+                {
+                    break; // dropped: reconnect
+                }
+
+                if (!moved)
+                {
+                    yield break;
+                }
+
+                yield return chunks.Current;
+            }
+        }
+    }
+
+    private async Task<IQueryCacheEntry> SingleEntry()
+    {
+        _client.TryGetInspector(out var inspector);
+        var entries = await inspector!.Entries.FirstAsync();
+
+        return entries.Single();
+    }
+
     // A query with no subscriber defers its fetch, so every test keeps one alive for the query it drives.
     private static IDisposable Activate(IQuery<string, string> query)
     {

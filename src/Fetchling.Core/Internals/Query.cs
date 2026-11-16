@@ -2,7 +2,7 @@ namespace Fetchling.Core.Internals;
 
 using System.Reactive.Threading.Tasks;
 
-internal sealed class Query<TArgs, TData> : ICacheEntry
+internal sealed class Query<TArgs, TData> : ICacheEntry, IWritableEntry<TData>
     where TData : class
 {
     private static readonly IObservable<bool> AlwaysEnabled = Observable.Return(true);
@@ -225,16 +225,62 @@ internal sealed class Query<TArgs, TData> : ICacheEntry
 
     public void SetData(TData data)
     {
+        // Published under the lock, like every fetch state, so a write from another thread (a push
+        // handler) can neither interleave with a fetch's OnNext nor hit a subject disposed by eviction.
         lock (_syncRoot)
         {
+            if (_disposed)
+            {
+                return;
+            }
+
             _lastSuccessAt = _scheduler.Now;
             _isStale = false;
-        }
-
-        if (!_disposed)
-        {
             _state.OnNext(QueryState<TData>.CreateSuccess(data, _state.Value.CurrentData));
         }
+    }
+
+    public bool TryWrite(Func<TData?, TData?> write)
+    {
+        CancellationTokenSource? superseded = null;
+
+        lock (_syncRoot)
+        {
+            // A running stream would overwrite the write with its next chunk, so it is not written at all.
+            if (_disposed || (_options.Stream is not null && _activeFetch is not null))
+            {
+                return false;
+            }
+
+            var current = _state.Value;
+            var previous = current.CurrentData ?? current.LastData;
+
+            if (write(previous) is not { } data)
+            {
+                return false;
+            }
+
+            // The written data is newer than whatever a fetch in flight will return, so the write takes
+            // ownership: the fetch can no longer publish or stamp freshness, and its token is cancelled.
+            if (_activeFetch is not null)
+            {
+                _activeFetch = null;
+                superseded = _cancellationTokenSource;
+                _cancellationTokenSource = new CancellationTokenSource();
+            }
+
+            _lastSuccessAt = _scheduler.Now;
+            _isStale = false;
+            _state.OnNext(QueryState<TData>.CreateSuccess(data, previous));
+        }
+
+        if (superseded is not null)
+        {
+            superseded.Cancel();
+            superseded.Dispose();
+        }
+
+        return true;
     }
 
     internal Task PrefetchAsync(CancellationToken ct = default)
