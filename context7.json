@@ -10,6 +10,8 @@
     "Dispose queries and view models when their owner is torn down: a live subscription pins the cache entry indefinitely.",
     "In MVVM, use ObserveOnUi() for the Success/Failure/Settled event streams; the bindable view model properties coalesce latest-wins and would drop events.",
     "Call MutationViewModel.ToCommand once per command, typically in a constructor, never per list row.",
+    "IQueryClient.Invalidate(QueryKey) matches the key exactly, not as a prefix; pass a predicate such as key => key.Parts is [\"todos\", ..] to invalidate a group.",
+    "A streamed query over a never-ending stream (SignalR, SSE) never settles: render from State, not Success; don't PrefetchAsync it; give it a short CacheTime, since the stream stays open until eviction.",
     "In tests, register a TestScheduler as the IScheduler to drive stale time, cache eviction, and refetch intervals in virtual time."
   ],
   "previousVersions": [

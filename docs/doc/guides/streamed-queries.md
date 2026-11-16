@@ -125,6 +125,10 @@ The `Content` context is the data only. For a typing indicator, subscribe to `St
 
 `QueryViewModel<TArgs, TData>` exposes a bindable `IsStreaming`. `Data` grows with every chunk. `CancelCommand` stays enabled, and `RefetchCommand` disabled, until the stream completes.
 
+## Live Streams
+
+A stream that never ends — a price ticker, a log tail, a SignalR or SSE subscription — works as a streamed query too, with a few things to watch: it never settles or becomes fresh, its connection outlives its last observer until the entry is evicted, and a retry resets its data. [Live Data](live-data.md#the-stream-is-the-data) covers them, with a reconnect recipe.
+
 ## Not Covered: Raw Byte Streams
 
 A download handed to the caller as a `Stream` is deliberately not a streamed query. A `Stream` can be read once by one reader, so two subscribers of one key could not share it. Caching it would mean buffering the whole payload, and a cache entry has no owner to dispose it. Model such a download as a [mutation](mutations.md) that writes to its destination instead.

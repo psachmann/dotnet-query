@@ -80,14 +80,18 @@ If you have to stay on .NET 9, stay on 2.0.0. It is the last release that suppor
 ```
 error CS0535: 'LoggingQueryClient' does not implement interface member 'IQueryClient.CreateMutation<TArgs, TData, TProgress>(MutationOptions<TArgs, TData, TProgress>)'
 error CS0535: 'LoggingQueryClient' does not implement interface member 'IQueryClient.CreateStreamedQuery<TArgs, TData, TChunk>(StreamedQueryOptions<TArgs, TData, TChunk>)'
+error CS0535: 'LoggingQueryClient' does not implement interface member 'IQueryClient.SetData<TData>(QueryKey, TData)'
 ```
 
 | Interface | New member |
 |---|---|
 | `IQueryClient` | `IMutation<TArgs, TData, TProgress> CreateMutation<TArgs, TData, TProgress>(MutationOptions<TArgs, TData, TProgress> options)` |
 | `IQueryClient` | `IQuery<TArgs, TData> CreateStreamedQuery<TArgs, TData, TChunk>(StreamedQueryOptions<TArgs, TData, TChunk> options) where TData : class` |
+| `IQueryClient` | `bool SetData<TData>(QueryKey key, TData data) where TData : class` |
+| `IQueryClient` | `bool SetData<TData>(QueryKey key, Func<TData, TData> updater) where TData : class` |
+| `IQueryClient` | `int SetData<TData>(Func<QueryKey, bool> predicate, Func<TData, TData> updater) where TData : class` |
 
-**Why:** mutations can now report progress (see [Reporting Progress](guides/mutations.md#reporting-progress)). A progress-reporting mutation has its own options, state, and interface types, so the client needs a factory method for it, beside the existing one. The client can also now create [streamed queries](guides/streamed-queries.md), whose fetcher yields chunks that are folded into the data as they arrive. They have their own options type, so the client needs a factory method for them too.
+**Why:** mutations can now report progress (see [Reporting Progress](guides/mutations.md#reporting-progress)). A progress-reporting mutation has its own options, state, and interface types, so the client needs a factory method for it, beside the existing one. The client can also now create [streamed queries](guides/streamed-queries.md), whose fetcher yields chunks that are folded into the data as they arrive. They have their own options type, so the client needs a factory method for them too. Finally, the client can write data straight into the cache by key, for data a server [pushes over SignalR or server-sent events](guides/live-data.md#an-event-carries-the-data). Until now that needed a query observer with matching args.
 
 **How to migrate:** a decorator forwards the new methods like the existing ones:
 
@@ -102,6 +106,15 @@ public sealed class LoggingQueryClient(IQueryClient inner) : IQueryClient
         StreamedQueryOptions<TArgs, TData, TChunk> options
     )
         where TData : class => inner.CreateStreamedQuery(options);
+
+    public bool SetData<TData>(QueryKey key, TData data)
+        where TData : class => inner.SetData(key, data);
+
+    public bool SetData<TData>(QueryKey key, Func<TData, TData> updater)
+        where TData : class => inner.SetData(key, updater);
+
+    public int SetData<TData>(Func<QueryKey, bool> predicate, Func<TData, TData> updater)
+        where TData : class => inner.SetData(predicate, updater);
 
     // CreateQuery, CreateInfiniteQuery, the existing CreateMutation, Invalidate, and Dispose are unchanged.
 }

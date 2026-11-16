@@ -10,6 +10,8 @@
       href: guides/infinite-queries.md
     - name: Streamed Queries
       href: guides/streamed-queries.md
+    - name: Live Data (SSE & SignalR)
+      href: guides/live-data.md
     - name: Mutations
       href: guides/mutations.md
     - name: Prefetching

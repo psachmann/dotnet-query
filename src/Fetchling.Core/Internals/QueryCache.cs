@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Fetchling.Core.Internals;
 
 internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation instrumentation) : IDisposable
@@ -165,6 +167,21 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
         }
     }
 
+    public bool TryGet(QueryKey key, [NotNullWhen(true)] out ICacheEntry? entry) =>
+        _entries.TryGetValue(key, out entry);
+
+    /// <summary>The entries whose key matches <paramref name="predicate"/>, taken from a snapshot of the keys.</summary>
+    public IEnumerable<ICacheEntry> Match(Func<QueryKey, bool> predicate)
+    {
+        foreach (var key in _entries.Keys.ToList())
+        {
+            if (predicate(key) && _entries.TryGetValue(key, out var entry))
+            {
+                yield return entry;
+            }
+        }
+    }
+
     public void Invalidate(QueryKey key)
     {
         if (_entries.TryGetValue(key, out var query))
@@ -175,12 +192,9 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
 
     public void Invalidate(Func<QueryKey, bool> predicate)
     {
-        foreach (var key in _entries.Keys.ToList())
+        foreach (var entry in Match(predicate))
         {
-            if (predicate(key) && _entries.TryGetValue(key, out var query))
-            {
-                query.Invalidate();
-            }
+            entry.Invalidate();
         }
     }
 
