@@ -70,6 +70,8 @@ Fetchling.Core.QueryState<TData>.IsStreaming.get -> bool
 Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>
 Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.CacheTime.get -> System.TimeSpan?
 Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.CacheTime.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.CancelWhenUnobservedAfter.get -> System.TimeSpan?
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.CancelWhenUnobservedAfter.init -> void
 Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.DataComparer.get -> System.Collections.Generic.IEqualityComparer<TData!>?
 Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.DataComparer.init -> void
 Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Fetcher.get -> System.Func<TArgs, System.Threading.CancellationToken, System.Collections.Generic.IAsyncEnumerable<TChunk>!>!

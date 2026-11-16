@@ -48,6 +48,11 @@ internal sealed class Query<TArgs, TData> : ICacheEntry, IWritableEntry<TData>
     private bool _isStale;
     private bool _disposed;
 
+    // The countdown that stops a running stream nobody observes (StreamedQueryOptions.CancelWhenUnobservedAfter),
+    // and the fetch it stopped, which reopens for a subscriber once it has wound down. Guarded by _syncRoot.
+    private IDisposable? _unobservedTimer;
+    private object? _cancelledUnobserved;
+
     public Query(
         QueryKey key,
         TArgs args,
@@ -149,6 +154,11 @@ internal sealed class Query<TArgs, TData> : ICacheEntry, IWritableEntry<TData>
             {
                 _subscriberCount++;
                 becameActive = _subscriberCount == 1;
+
+                if (becameActive)
+                {
+                    StopUnobservedCountdown();
+                }
             }
 
             if (becameActive)
@@ -192,6 +202,7 @@ internal sealed class Query<TArgs, TData> : ICacheEntry, IWritableEntry<TData>
                 subscription.Dispose();
 
                 var becameIdle = false;
+                var cancelNow = false;
 
                 lock (_syncRoot)
                 {
@@ -203,6 +214,16 @@ internal sealed class Query<TArgs, TData> : ICacheEntry, IWritableEntry<TData>
 
                     _subscriberCount--;
                     becameIdle = _subscriberCount == 0 && !_disposed;
+
+                    if (becameIdle)
+                    {
+                        cancelNow = StartUnobservedCountdown();
+                    }
+                }
+
+                if (cancelNow)
+                {
+                    CancelUnobserved();
                 }
 
                 if (becameIdle)
@@ -211,6 +232,70 @@ internal sealed class Query<TArgs, TData> : ICacheEntry, IWritableEntry<TData>
                 }
             };
         });
+
+    /// <summary>
+    /// Starts the countdown that stops a running stream nobody observes, if the query asks for one. Returns
+    /// <c>true</c> when the stream should be stopped right away instead. Called under <see cref="_syncRoot"/>.
+    /// </summary>
+    private bool StartUnobservedCountdown()
+    {
+        if (_options.Stream?.CancelWhenUnobservedAfter is not { } after || _activeFetch is null)
+        {
+            return false;
+        }
+
+        if (after == TimeSpan.Zero)
+        {
+            return true;
+        }
+
+        StopUnobservedCountdown();
+
+        try
+        {
+            _unobservedTimer = _scheduler.Schedule(after, CancelUnobserved);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            // Longer than the scheduler's timer can represent: eviction stops the stream first anyway.
+        }
+
+        return false;
+    }
+
+    /// <summary>Called under <see cref="_syncRoot"/>.</summary>
+    private void StopUnobservedCountdown()
+    {
+        _unobservedTimer?.Dispose();
+        _unobservedTimer = null;
+    }
+
+    /// <summary>
+    /// Stops the running stream because nobody observes it, like <see cref="Cancel"/>, but marks the entry
+    /// stale so the next subscriber reopens it. A no-op if a subscriber has joined in the meantime.
+    /// </summary>
+    private void CancelUnobserved()
+    {
+        CancellationTokenSource previous;
+
+        lock (_syncRoot)
+        {
+            _unobservedTimer = null;
+
+            if (_disposed || _subscriberCount > 0 || _activeFetch is null)
+            {
+                return;
+            }
+
+            _isStale = true;
+            _cancelledUnobserved = _activeFetch;
+            previous = _cancellationTokenSource;
+            _cancellationTokenSource = new CancellationTokenSource();
+        }
+
+        previous.Cancel();
+        previous.Dispose();
+    }
 
     public void Refetch()
     {
@@ -414,6 +499,7 @@ internal sealed class Query<TArgs, TData> : ICacheEntry, IWritableEntry<TData>
 
             _disposed = true;
             cts = _cancellationTokenSource;
+            StopUnobservedCountdown();
         }
 
         _subscriptions.Dispose();
@@ -635,14 +721,25 @@ internal sealed class Query<TArgs, TData> : ICacheEntry, IWritableEntry<TData>
             // instead, this fetch was superseded by Switch() for a newer one, which is already driving
             // _state — Settle publishes nothing then.
             var prefetchCancelled = prefetchToken.IsCancellationRequested && !currentSource.IsCancellationRequested;
+            bool stoppedUnobserved;
 
             lock (_syncRoot)
             {
                 // A cancelled prefetch leaves subscribers that joined it without data; fetch for them.
                 _isStale |= prefetchCancelled && ReferenceEquals(_activeFetch, fetch);
+
+                // A stream stopped for having no observers reopens for one that subscribed while it wound down.
+                stoppedUnobserved = ReferenceEquals(_cancelledUnobserved, fetch);
+                if (stoppedUnobserved)
+                {
+                    _cancelledUnobserved = null;
+                }
             }
 
-            Settle(QueryState<TData>.CreateIdle(shownChunk ?? lastData), refetchIfStale: prefetchCancelled);
+            Settle(
+                QueryState<TData>.CreateIdle(shownChunk ?? lastData),
+                refetchIfStale: prefetchCancelled || stoppedUnobserved
+            );
 
             stopwatch.Stop();
             SetStreamTags();

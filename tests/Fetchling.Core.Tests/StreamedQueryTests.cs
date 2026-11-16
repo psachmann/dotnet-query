@@ -28,7 +28,8 @@ public class StreamedQueryTests
         StreamRefetchMode refetchMode = StreamRefetchMode.Reset,
         IRetryHandler? retryHandler = null,
         TimeSpan? refetchInterval = null,
-        string name = "answer"
+        string name = "answer",
+        TimeSpan? cancelWhenUnobservedAfter = null
     ) =>
         _client.CreateStreamedQuery(
             new StreamedQueryOptions<string, string, string>
@@ -41,6 +42,7 @@ public class StreamedQueryTests
                 RetryHandler = retryHandler,
                 RefetchInterval = refetchInterval,
                 Name = name,
+                CancelWhenUnobservedAfter = cancelWhenUnobservedAfter,
             }
         );
 
@@ -593,6 +595,211 @@ public class StreamedQueryTests
         await Assert.That(whileStreaming).IsFalse();
         await Assert.That(afterCompletion).IsTrue();
         await Assert.That(query.CurrentState.CurrentData).IsEqualTo("pushed");
+    }
+
+    [Test]
+    public async Task CancelWhenUnobservedAfter_Zero_StopsTheStreamWhenTheLastObserverLeaves()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream, cancelWhenUnobservedAfter: TimeSpan.Zero);
+        var (recorder, active) = await Streaming(query, stream, "par");
+
+        recorder.Dispose();
+        active.Dispose();
+
+        using var _ = Assert.Multiple();
+        await Assert.That(stream.Token(1).IsCancellationRequested).IsTrue();
+        var idle = await WaitFor(query, s => s.IsIdle);
+        await Assert.That(idle.LastData).IsEqualTo("par");
+    }
+
+    [Test]
+    public async Task CancelWhenUnobservedAfter_StopsTheStreamOnlyOnceTheGracePeriodHasPassed()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream, cancelWhenUnobservedAfter: TimeSpan.FromSeconds(5));
+        var (recorder, active) = await Streaming(query, stream, "a");
+
+        recorder.Dispose();
+        active.Dispose();
+        _scheduler.AdvanceBy(TimeSpan.FromSeconds(5).Ticks - 1);
+        var openDuringGrace = !stream.Token(1).IsCancellationRequested;
+        _scheduler.AdvanceBy(1);
+
+        using var _ = Assert.Multiple();
+        await Assert.That(openDuringGrace).IsTrue();
+        await Assert.That(stream.Token(1).IsCancellationRequested).IsTrue();
+    }
+
+    [Test]
+    public async Task CancelWhenUnobservedAfter_ASubscriberWithinTheGracePeriod_KeepsTheStream()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream, cancelWhenUnobservedAfter: TimeSpan.FromSeconds(5));
+        var (recorder, active) = await Streaming(query, stream, "a");
+
+        recorder.Dispose();
+        active.Dispose();
+        _scheduler.AdvanceBy(TimeSpan.FromSeconds(2).Ticks);
+        using var next = new StateRecorder(query.State);
+        _scheduler.AdvanceBy(TimeSpan.FromSeconds(10).Ticks);
+        stream.Write("b");
+        var folded = await next.WaitFor(s => s.CurrentData == "ab");
+
+        using var _ = Assert.Multiple();
+        await Assert.That(stream.Token(1).IsCancellationRequested).IsFalse();
+        await Assert.That(stream.OpenCount).IsEqualTo(1);
+        await Assert.That(folded.IsStreaming).IsTrue();
+    }
+
+    [Test]
+    public async Task CancelWhenUnobservedAfter_TheNextSubscriberReopensTheStream()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream, cancelWhenUnobservedAfter: TimeSpan.Zero);
+        var (recorder, active) = await Streaming(query, stream, "a");
+        recorder.Dispose();
+        active.Dispose();
+
+        // No WaitFor here: its own subscription would reopen the stream, then stop it again on leaving.
+        using var next = new StateRecorder(query.State);
+        await stream.WaitForOpen(2);
+        stream.Write("fresh");
+        var reopened = await next.WaitFor(s => s.CurrentData == "fresh");
+
+        using var _ = Assert.Multiple();
+        await Assert.That(stream.OpenCount).IsEqualTo(2);
+        await Assert.That(reopened.IsStreaming).IsTrue();
+    }
+
+    [Test]
+    public async Task CancelWhenUnobservedAfter_ASubscriberJoiningWhileTheStreamWindsDown_StillGetsItReopened()
+    {
+        // The fetcher only notices cancellation when the test lets it, so a subscriber can join after the
+        // stream was stopped but before its fetch has settled.
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var opened = 0;
+        using var query = _client.CreateStreamedQuery(
+            new StreamedQueryOptions<string, string, string>
+            {
+                KeyFactory = prompt => QueryKey.From("slow", prompt),
+                Fetcher = (_, ct) => SlowToStop(ct, Interlocked.Increment(ref opened) == 1 ? release.Task : null),
+                InitialValue = "",
+                Reducer = (text, token) => text + token,
+                CancelWhenUnobservedAfter = TimeSpan.Zero,
+            }
+        );
+        var recorder = new StateRecorder(query.State);
+        var active = Activate(query);
+        await recorder.WaitFor(s => s.IsStreaming);
+
+        recorder.Dispose();
+        active.Dispose(); // stops the stream, which doesn't wind down until released
+        using var next = new StateRecorder(query.State);
+        release.SetResult();
+        var reopened = await next.WaitFor(s => s.IsStreaming && Volatile.Read(ref opened) == 2);
+
+        await Assert.That(reopened.CurrentData).IsEqualTo("x");
+    }
+
+    [Test]
+    public async Task CancelWhenUnobservedAfter_ADisabledObserverStillKeepsTheStream()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream, cancelWhenUnobservedAfter: TimeSpan.Zero);
+        using var disabled = CreateQuery(stream, cancelWhenUnobservedAfter: TimeSpan.Zero);
+        disabled.SetEnabled(false);
+        var (recorder, active) = await Streaming(query, stream, "a");
+        using var disabledActive = Activate(disabled);
+
+        recorder.Dispose();
+        active.Dispose();
+
+        await Assert.That(stream.Token(1).IsCancellationRequested).IsFalse();
+    }
+
+    [Test]
+    public async Task CancelWhenUnobservedAfter_LeavesACompletedStreamAlone()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream, cancelWhenUnobservedAfter: TimeSpan.Zero);
+        var active = await CompleteFirstStream(query, stream, "done");
+
+        active.Dispose();
+        _scheduler.AdvanceBy(TimeSpan.FromMinutes(1).Ticks);
+
+        using var _ = Assert.Multiple();
+        await Assert.That(query.CurrentState.IsSuccess).IsTrue();
+        await Assert.That(query.CurrentState.CurrentData).IsEqualTo("done");
+        await Assert.That(stream.OpenCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Cancel_StillDoesNotReopenTheStreamForTheNextSubscriber()
+    {
+        var stream = new ControlledStream();
+        using var query = CreateQuery(stream, cancelWhenUnobservedAfter: TimeSpan.Zero);
+        var (recorder, active) = await Streaming(query, stream, "a");
+
+        query.Cancel();
+        await recorder.WaitFor(s => s.IsIdle && s.LastData == "a"); // not the Idle before the first fetch
+        recorder.Dispose();
+        active.Dispose();
+        using var next = new StateRecorder(query.State);
+        _scheduler.AdvanceBy(TimeSpan.FromSeconds(1).Ticks);
+
+        await Assert.That(stream.OpenCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task CancelWhenUnobservedAfter_Negative_ThrowsWhenTheQueryIsCreated()
+    {
+        await Assert
+            .That(() => CreateQuery(new ControlledStream(), cancelWhenUnobservedAfter: TimeSpan.FromSeconds(-1)))
+            .Throws<ArgumentOutOfRangeException>();
+    }
+
+    /// <summary>
+    /// Opens the query's stream and waits until <paramref name="text"/> is shown. Returns the recorder and the
+    /// activating subscription, the query's only observers, for the test to dispose. A recorder, not WaitFor:
+    /// WaitFor's own subscription may leave late and keep the entry observed.
+    /// </summary>
+    private static async Task<(StateRecorder Recorder, IDisposable Active)> Streaming(
+        IQuery<string, string> query,
+        ControlledStream stream,
+        string text
+    )
+    {
+        var open = stream.OpenCount + 1;
+        var recorder = new StateRecorder(query.State);
+        var active = Activate(query);
+        await stream.WaitForOpen(open);
+        stream.Write(text);
+        await recorder.WaitFor(s => s.CurrentData == text);
+
+        return (recorder, active);
+    }
+
+    /// <summary>
+    /// Yields <c>x</c>, then waits for cancellation. With <paramref name="holdUntil"/>, it notices the
+    /// cancellation only once that task completes.
+    /// </summary>
+    private static async IAsyncEnumerable<string> SlowToStop(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct,
+        Task? holdUntil
+    )
+    {
+        yield return "x";
+
+        try
+        {
+            await Task.Delay(Timeout.Infinite, ct);
+        }
+        catch (OperationCanceledException) when (holdUntil is not null)
+        {
+            await holdUntil;
+            throw;
+        }
     }
 
     /// <summary>The live-data guide's recipe: reconnect inside the iterator, so a drop doesn't reset the fold.</summary>

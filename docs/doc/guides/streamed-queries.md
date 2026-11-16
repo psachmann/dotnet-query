@@ -52,6 +52,7 @@ Reducer = (rows, row) => { rows.Add(row); return rows; }, // List<RowDto>
 | `CacheTime` | global | Same as for regular queries |
 | `RefetchInterval` | `null` | Polls on this interval. **Does not** fall back to the global `RefetchInterval` — see below |
 | `RetryHandler` | global | Each attempt restarts the stream from `InitialValue` |
+| `CancelWhenUnobservedAfter` | `null` | Stops a running stream nobody has observed for this long, and reopens it for the next observer — see [Unobserved streams](#unobserved-streams) |
 | `Name` | first key part | Low-cardinality name for metrics |
 | `IsEnabled` | `true` | Same as for regular queries |
 | `DataComparer` | `EqualityComparer<TData>.Default` | Compares the *completed* data against the previous completed data |
@@ -106,6 +107,23 @@ Once the stream has completed, invalidation behaves exactly as for a regular que
 
 `Cancel()` and disposing the last owner cancel the token the fetcher received and stop enumeration. After `Cancel()`, the query is `Idle` and `LastData` holds what had arrived so far.
 
+## Unobserved Streams
+
+By default, a stream keeps running after its last observer leaves, until the cache entry is evicted `CacheTime` later. That is what you want for a stream that completes: an answer the user navigated away from is still there when they come back.
+
+A stream that never ends (a SignalR or SSE subscription) would instead hold its connection open with nobody watching. Set `CancelWhenUnobservedAfter` to stop it:
+
+```csharp
+CancelWhenUnobservedAfter = TimeSpan.FromSeconds(2),
+```
+
+- Once nobody has observed the query for that long, the stream is stopped, as by `Cancel()`. Its token fires, and the query goes `Idle` with the data received so far in `LastData`.
+- The next observer to subscribe reopens it from `InitialValue`, which `Cancel()` doesn't do.
+- An observer subscribing within the grace period cancels the countdown, and the stream carries on. A couple of seconds covers a navigation or a re-render that swaps one observer for the next.
+- `TimeSpan.Zero` stops the stream the moment the last observer leaves.
+- A disabled observer still counts as an observer.
+- A stream that has completed isn't affected.
+
 ## Blazor Components
 
 `<Suspense>` and `<Transition>` work unchanged. Both render `Content` as soon as the first chunk arrives and re-render on every chunk:
@@ -127,7 +145,7 @@ The `Content` context is the data only. For a typing indicator, subscribe to `St
 
 ## Live Streams
 
-A stream that never ends — a price ticker, a log tail, a SignalR or SSE subscription — works as a streamed query too, with a few things to watch: it never settles or becomes fresh, its connection outlives its last observer until the entry is evicted, and a retry resets its data. [Live Data](live-data.md#the-stream-is-the-data) covers them, with a reconnect recipe.
+A stream that never ends — a price ticker, a log tail, a SignalR or SSE subscription — works as a streamed query too, with a few things to watch: it never settles or becomes fresh, it needs [`CancelWhenUnobservedAfter`](#unobserved-streams) to close when nobody watches, and a retry resets its data. [Live Data](live-data.md#the-stream-is-the-data) covers them, with a reconnect recipe.
 
 ## Not Covered: Raw Byte Streams
 

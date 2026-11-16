@@ -17,8 +17,20 @@ internal sealed record StreamedFetch<TArgs, TData>
 
     public required StreamRefetchMode RefetchMode { get; init; }
 
+    /// <summary>See <see cref="StreamedQueryOptions{TArgs,TData,TChunk}.CancelWhenUnobservedAfter"/>.</summary>
+    public TimeSpan? CancelWhenUnobservedAfter { get; init; }
+
     public static StreamedFetch<TArgs, TData> Create<TChunk>(StreamedQueryOptions<TArgs, TData, TChunk> options)
     {
+        if (options.CancelWhenUnobservedAfter is { } after && after < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(options.CancelWhenUnobservedAfter),
+                after,
+                $"{nameof(options.CancelWhenUnobservedAfter)} must not be negative."
+            );
+        }
+
         var fetcher = options.Fetcher;
         var reducer = options.Reducer;
         var seed = options.InitialValue;
@@ -38,6 +50,7 @@ internal sealed record StreamedFetch<TArgs, TData>
                 return data;
             },
             RefetchMode = options.RefetchMode,
+            CancelWhenUnobservedAfter = options.CancelWhenUnobservedAfter,
         };
     }
 }

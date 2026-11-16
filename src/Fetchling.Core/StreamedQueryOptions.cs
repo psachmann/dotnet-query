@@ -75,6 +75,32 @@ public sealed record StreamedQueryOptions<TArgs, TData, TChunk>
     public TimeSpan? RefetchInterval { get; init; }
 
     /// <summary>
+    /// Stops a running stream once nobody has observed the query for this long, and reopens it for the next
+    /// observer. Use it for live streams — a SignalR or server-sent-events subscription — that should not stay
+    /// open with nobody watching. Defaults to <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>null</c> keeps the stream running until the cache entry is evicted, <see cref="CacheTime"/> after its
+    /// last observer left — right for a stream that completes, such as an LLM answer, which would otherwise be
+    /// thrown away when the user navigates off mid-answer. <see cref="TimeSpan.Zero"/> stops the stream as soon
+    /// as the last observer leaves. A positive value waits that long first, so a page that disposes one observer
+    /// and subscribes the next a moment later (a navigation, a re-render) keeps its stream; a few seconds is
+    /// usually enough. A value at or above <see cref="CacheTime"/> has no effect, as eviction stops the stream
+    /// first.
+    /// </para>
+    /// <para>
+    /// A stopped stream behaves as after <see cref="IQuery.Cancel"/>: its token is cancelled, and the query goes
+    /// <see cref="QueryStatus.Idle"/> with the data received so far as <see cref="QueryState{TData}.LastData"/>.
+    /// Unlike <see cref="IQuery.Cancel"/>, it is marked stale, so the next observer to subscribe reopens it
+    /// (from <see cref="InitialValue"/>). An observer counts while it is subscribed to the query's state,
+    /// whether or not it is enabled. A stream that has completed is not affected.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the query is created, if the value is negative.</exception>
+    public TimeSpan? CancelWhenUnobservedAfter { get; init; }
+
+    /// <summary>
     /// Overrides the global <see cref="QueryClientOptions.RetryHandler"/>. <c>null</c> uses the global default.
     /// Each attempt restarts the stream from <see cref="InitialValue"/>.
     /// </summary>
