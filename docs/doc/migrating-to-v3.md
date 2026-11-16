@@ -1,8 +1,8 @@
 # Migrating from v2 to v3
 
-> **3.0 is not released yet.** This guide tracks the breaking changes merged so far and grows until the release. The current stable version is 2.0.0.
-
 This guide covers what changes when you upgrade from DotNetQuery 2.x (last stable release: 2.0.0) to Fetchling 3.0. The library was renamed for 3.0, so start with [the rename](#dotnetquery-is-now-fetchling).
+
+Most applications only need the rename, plus moving to .NET 10 if they still target .NET 9. You can skip [New members on `IQueryClient`](#new-members-on-iqueryclient) unless you implement `IQueryClient` yourself (a decorator or a hand-written fake). [`Invalidate` ignores `StaleTime`](#invalidate-ignores-staletime) only matters if your queries set a `StaleTime`. [Fixes you may notice](#fixes-you-may-notice) lists bug fixes. Skim it if you prefetch, or if your tests count fetches or assert exact state sequences.
 
 ## At a Glance
 

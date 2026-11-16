@@ -103,5 +103,5 @@ Drag the handle at the top edge of the panel to adjust its height.
 ## Notes
 
 - `<QueryDevTools>` requires an interactive render mode (Blazor WASM or interactive Blazor Server). It has no effect under static SSR because `OnAfterRenderAsync` never runs in that mode.
-- The panel reads the cache through `IQueryClient.TryGetInspector`. If `IQueryClient` is registered with a custom implementation that does not implement `IQueryCacheInspector`, the component silently renders nothing. (In 2.0.0 this interface was internal; it is public from the upcoming 3.0.)
-- Not on Blazor? The same inspection API is public in `Fetchling.Core` from the upcoming 3.0. See [Building a Cache Inspector](cache-inspector.md).
+- The panel reads the cache through `IQueryClient.TryGetInspector`. If `IQueryClient` is registered with a custom implementation that does not implement `IQueryCacheInspector`, the component silently renders nothing.
+- Not on Blazor? The same inspection API is public in `Fetchling.Core`. See [Building a Cache Inspector](cache-inspector.md).

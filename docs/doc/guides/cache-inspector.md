@@ -1,7 +1,5 @@
 # Building a Cache Inspector
 
-> **Not released yet.** The public inspection API ships in the upcoming 3.0. In the current stable release, 2.0.0, it is internal and only `<QueryDevTools>` can use it.
-
 `<QueryDevTools>` covers Blazor. For any other UI stack (Avalonia, MAUI, WPF, WinUI, UNO, or a console dump in a test harness), `Fetchling.Core` exposes the same live view of the cache that DevTools is built on, so you can build your own inspector.
 
 ## Getting the inspector

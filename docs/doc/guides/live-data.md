@@ -1,7 +1,5 @@
 # Live Data: Server-Sent Events and SignalR
 
-> **Not released yet.** Streamed queries and `IQueryClient.SetData` ship in the upcoming 3.0. The current stable release, 2.0.0, does not have them.
-
 There are three ways data a server pushes — over [server-sent events](https://developer.mozilla.org/docs/Web/API/Server-sent_events) (SSE) or [SignalR](https://learn.microsoft.com/aspnet/core/signalr/introduction) — can reach the query cache:
 
 | The push… | Example | Use |
