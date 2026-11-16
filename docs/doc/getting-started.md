@@ -207,7 +207,7 @@ Render query state declaratively with `<Suspense>`:
 }
 ```
 
-Subscribe to mutation state directly for form handling. The component only disposes its own subscription — the mutation itself is owned by the injected service:
+Subscribe to mutation state directly for form handling. The component only disposes its own subscription — the mutation itself is owned by the injected service (see [Organizing Mutations](guides/mutations.md#organizing-mutations)):
 
 ```html
 @inject UserMutations Mutations

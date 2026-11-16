@@ -297,6 +297,58 @@ mutation.SetEnabled(false); // Execute() calls are silently ignored
 mutation.SetEnabled(true);  // re-enables
 ```
 
+## Organizing Mutations
+
+Group the mutations of one feature in a single class that creates them through `IQueryClient.CreateMutation`, owns them, and disposes them. Register the class with DI and inject it wherever you need to execute a mutation:
+
+```csharp
+public sealed class TodosMutations : IDisposable
+{
+    public IMutation<string, TodoList> CreateTodoList { get; }
+    public IMutation<TodoItemArgs, Unit> DeleteTodoItem { get; }
+
+    public TodosMutations(IQueryClient queryClient, ITodosClient todosClient)
+    {
+        // Static key: use InvalidateKeys.
+        CreateTodoList = queryClient.CreateMutation(
+            new MutationOptions<string, TodoList>
+            {
+                Mutator = (title, ct) => todosClient.CreateTodoListAsync(title, ct),
+                InvalidateKeys = [["todo-lists"]],
+            }
+        );
+
+        // Key depends on the arguments: use OnSuccess.
+        DeleteTodoItem = queryClient.CreateMutation(
+            new MutationOptions<TodoItemArgs, Unit>
+            {
+                Mutator = async (args, ct) =>
+                {
+                    await todosClient.DeleteTodoItemAsync(args.ItemId, ct);
+                    return Unit.Default;
+                },
+                OnSuccess = (args, _) => queryClient.Invalidate(["todo-items", args.ListId]),
+            }
+        );
+    }
+
+    public void Dispose()
+    {
+        CreateTodoList.Dispose();
+        DeleteTodoItem.Dispose();
+    }
+}
+
+services.AddScoped<TodosMutations>();
+```
+
+The full version is in [`TodosMutations.cs`](https://github.com/psachmann/fetchling/blob/main/samples/Fetchling.Samples.Shared/TodosMutations.cs).
+
+- **One owner per mutation.** The class that creates a mutation disposes it. Components and view models call `Execute` and observe state, but never dispose a mutation they were handed. `ToViewModel()` wraps a mutation without taking ownership.
+- **Dispose is required.** `IQueryClient` does not track the mutations it creates, and disposing the client does not dispose them. A mutation you forget to dispose keeps its invalidation subscription alive.
+- **Pick the right invalidation hook.** Use `InvalidateKeys` when the keys are fixed. Use `OnSuccess` when they depend on the arguments.
+- **Match the class lifetime to the client.** Register the class with the same lifetime as `IQueryClient`: Scoped for SSR, Singleton for CSR.
+
 ## Cleaning Up
 
 Mutations implement `IDisposable`. Dispose when you no longer need the mutation:
@@ -304,3 +356,5 @@ Mutations implement `IDisposable`. Dispose when you no longer need the mutation:
 ```csharp
 mutation.Dispose();
 ```
+
+If a class owns the mutations (see [Organizing Mutations](#organizing-mutations)), dispose them in that class's `Dispose()` and nowhere else.
