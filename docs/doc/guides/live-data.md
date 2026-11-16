@@ -27,7 +27,8 @@ var ticker = queryClient.CreateStreamedQuery(
         InitialValue = [],
         // Keep only the latest 100: a live stream has no end, so neither would the list.
         Reducer = (prices, price) => prices.Count < 100 ? prices.Add(price) : prices.RemoveAt(0).Add(price),
-        CacheTime = TimeSpan.FromSeconds(30),
+        // Close the hub stream when nobody has watched it for 2 s; the next observer reopens it.
+        CancelWhenUnobservedAfter = TimeSpan.FromSeconds(2),
     });
 ```
 
@@ -62,8 +63,8 @@ A streamed query was designed for streams that complete, such as an LLM answer. 
 - **It never becomes fresh.** Data counts as fresh only after a completed fetch, so `StaleTime` has no effect, and the entry always reports `IsStale` in DevTools.
 - **Don't prefetch it.** `PrefetchAsync` waits for the fetch to settle, which never happens, so it only returns when its token is cancelled. In particular, don't prefetch a live stream during server prerendering.
 - **Bound the data.** The reducer runs for every item the stream will ever send. Keep only what you show, as the ticker above does with the latest 100.
-- **Mind the connection's lifetime.** All observers of one key share one stream. The stream stays open after the last observer goes away, until the entry is evicted `CacheTime` later (5 minutes by default). For a hub stream, that means a server-side subscription kept alive with nobody watching. Give live streams a short `CacheTime`, or call `Cancel()` when you leave.
-- **Cancellation reaches the transport.** `Cancel()`, `Refetch()`, eviction and disposing the client cancel the token the fetcher received. `StreamAsync` and `HttpClient` close the connection when it fires.
+- **Close it when nobody watches.** All observers of one key share one stream. By default, it stays open after the last observer goes away, until the entry is evicted `CacheTime` later (5 minutes by default). For a hub stream, that means a server-side subscription kept alive with nobody watching. Set [`CancelWhenUnobservedAfter`](streamed-queries.md#unobserved-streams), as the ticker above does, to stop it once nobody has observed it for a moment. The next observer reopens it.
+- **Cancellation reaches the transport.** `Cancel()`, `Refetch()`, `CancelWhenUnobservedAfter`, eviction and disposing the client cancel the token the fetcher received. `StreamAsync` and `HttpClient` close the connection when it fires.
 - **Invalidation doesn't restart it.** As for any streamed query, `Invalidate` leaves a running stream alone, and `Refetch()` restarts it from `InitialValue`.
 
 ### Reconnecting
