@@ -77,7 +77,7 @@ public class QueryClientSetDataTests
         _scheduler.AdvanceBy(TimeSpan.FromMinutes(2).Ticks);
 
         var written = _client.SetData(Todo(1), "pushed");
-        query.Invalidate(); // within StaleTime of the write, so a no-op
+        _client.InvalidateStale(_ => true); // within StaleTime of the write, so a no-op
 
         using var _ = Assert.Multiple();
         await Assert.That(written).IsTrue();

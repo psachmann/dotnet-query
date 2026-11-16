@@ -86,7 +86,7 @@ public class QueryRefreshMonitorTests
     }
 
     [Test]
-    public void OnFocus_InvalidatesAllQueries()
+    public void OnFocus_InvalidatesStaleQueriesOnly()
     {
         var client = SetupQueryClient();
         SetupJsModule();
@@ -94,11 +94,13 @@ public class QueryRefreshMonitorTests
         var cut = _context.Render<QueryRefreshMonitor>();
         cut.Instance.OnFocus();
 
-        client.Invalidate(Any<Func<QueryKey, bool>>()).WasCalled();
+        // InvalidateStale respects StaleTime; Invalidate would refetch fresh data too.
+        client.InvalidateStale(Any<Func<QueryKey, bool>>()).WasCalled();
+        client.Invalidate(Any<Func<QueryKey, bool>>()).WasCalled(Times.Never);
     }
 
     [Test]
-    public void OnReconnect_InvalidatesAllQueries()
+    public void OnReconnect_InvalidatesStaleQueriesOnly()
     {
         var client = SetupQueryClient();
         SetupJsModule();
@@ -106,11 +108,13 @@ public class QueryRefreshMonitorTests
         var cut = _context.Render<QueryRefreshMonitor>();
         cut.Instance.OnReconnect();
 
-        client.Invalidate(Any<Func<QueryKey, bool>>()).WasCalled();
+        // InvalidateStale respects StaleTime; Invalidate would refetch fresh data too.
+        client.InvalidateStale(Any<Func<QueryKey, bool>>()).WasCalled();
+        client.Invalidate(Any<Func<QueryKey, bool>>()).WasCalled(Times.Never);
     }
 
     [Test]
-    public async Task InvalidatePredicate_ReturnsTrueForAnyKey()
+    public async Task OnFocus_InvalidateStalePredicate_ReturnsTrueForAnyKey()
     {
         var client = SetupQueryClient();
         SetupJsModule();
@@ -119,7 +123,9 @@ public class QueryRefreshMonitorTests
         cut.Instance.OnFocus();
 
         var invocation = Mock.Invocations(client)
-            .Single(c => c.MemberName == nameof(IQueryClient.Invalidate) && c.Arguments[0] is Func<QueryKey, bool>);
+            .Single(c =>
+                c.MemberName == nameof(IQueryClient.InvalidateStale) && c.Arguments[0] is Func<QueryKey, bool>
+            );
         var predicate = (Func<QueryKey, bool>)invocation.Arguments[0]!;
 
         await Assert.That(predicate!(QueryKey.From("any-key"))).IsTrue();
@@ -165,7 +171,7 @@ public class QueryRefreshMonitorTests
     }
 
     [Test]
-    public async Task OnReconnect_InvalidatePredicate_ReturnsTrueForAnyKey()
+    public async Task OnReconnect_InvalidateStalePredicate_ReturnsTrueForAnyKey()
     {
         var client = SetupQueryClient();
         SetupJsModule();
@@ -174,7 +180,9 @@ public class QueryRefreshMonitorTests
         cut.Instance.OnReconnect();
 
         var invocation = Mock.Invocations(client)
-            .Single(c => c.MemberName == nameof(IQueryClient.Invalidate) && c.Arguments[0] is Func<QueryKey, bool>);
+            .Single(c =>
+                c.MemberName == nameof(IQueryClient.InvalidateStale) && c.Arguments[0] is Func<QueryKey, bool>
+            );
         var predicate = (Func<QueryKey, bool>)invocation.Arguments[0]!;
 
         await Assert.That(predicate(QueryKey.From("any-key"))).IsTrue();

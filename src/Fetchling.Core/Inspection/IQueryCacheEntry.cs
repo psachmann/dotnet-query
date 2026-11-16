@@ -64,9 +64,9 @@ public interface IQueryCacheEntry
     public int ObserverCount { get; }
 
     /// <summary>
-    /// <c>true</c> when the entry would be re-fetched by an invalidation or by its next subscriber: it has
-    /// never succeeded, its data is older than its <c>StaleTime</c>, or it was invalidated while it had no
-    /// subscribers.
+    /// <c>true</c> when the entry would be re-fetched by its next subscriber or by
+    /// <see cref="IQueryClient.InvalidateStale"/>: it has never succeeded, its data is older than its
+    /// <c>StaleTime</c>, or it was invalidated and has not been fetched since.
     /// </summary>
     /// <remarks>
     /// Evaluated when read. An entry becoming stale purely through elapsed time does not cause an
@@ -81,9 +81,9 @@ public interface IQueryCacheEntry
     public void Refetch();
 
     /// <summary>
-    /// Marks the entry as stale. Re-fetches immediately when it has subscribers; otherwise the fetch is
-    /// deferred until the next subscriber joins. A no-op while the data is still within its <c>StaleTime</c>
-    /// window — use <see cref="Refetch"/> to force a fetch.
+    /// Marks the entry as stale, regardless of its <c>StaleTime</c>. Re-fetches immediately when it has
+    /// subscribers; otherwise the fetch is deferred until the next subscriber joins. A fetch in flight is not
+    /// restarted — use <see cref="Refetch"/> for that.
     /// </summary>
     public void Invalidate();
 

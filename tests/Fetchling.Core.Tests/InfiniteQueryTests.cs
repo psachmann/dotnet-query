@@ -1,3 +1,5 @@
+using System.Reactive.Threading.Tasks;
+
 namespace Fetchling.Core.Tests;
 
 public class InfiniteQueryTests
@@ -313,7 +315,7 @@ public class InfiniteQueryTests
     }
 
     [Test]
-    public async Task Invalidate_WhenStaleTimeNotExpired_IsNoOp()
+    public async Task InvalidateIfStale_WhenStaleTimeNotExpired_IsNoOp()
     {
         using var sut = CreateQuery(staleTime: TimeSpan.FromMinutes(5));
 
@@ -322,7 +324,7 @@ public class InfiniteQueryTests
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
         var stateBeforeInvalidate = sut.CurrentState;
-        sut.Invalidate(); // stale time not expired
+        sut.InvalidateIfStale(); // stale time not expired
         await Task.Delay(50);
 
         await Assert.That(sut.CurrentState).IsEqualTo(stateBeforeInvalidate);
@@ -599,7 +601,7 @@ public class InfiniteQueryTests
     }
 
     [Test]
-    public async Task Invalidate_WithinStaleTime_IsNoOp()
+    public async Task InvalidateIfStale_WithinStaleTime_IsNoOp()
     {
         var fetchCount = 0;
 
@@ -616,9 +618,35 @@ public class InfiniteQueryTests
         sut.Refetch();
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
-        sut.Invalidate();
+        sut.InvalidateIfStale();
 
         await Assert.That(fetchCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Invalidate_WithinStaleTime_StillRefetches()
+    {
+        var fetchCount = 0;
+
+        using var sut = CreateQuery(
+            fetcher: (_, page, _) =>
+            {
+                Interlocked.Increment(ref fetchCount);
+                return Task.FromResult($"page{page}");
+            },
+            staleTime: TimeSpan.FromMinutes(5)
+        );
+
+        using var sub = sut.State.Subscribe();
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess).FirstAsync();
+
+        // Subscribed first: the replayed success is skipped, so this waits for the refetch's.
+        var refetched = sut.State.Where(s => s.IsSuccess).Skip(1).FirstAsync().ToTask();
+        sut.Invalidate();
+        await refetched;
+
+        await Assert.That(fetchCount).IsEqualTo(2);
     }
 
     [Test]

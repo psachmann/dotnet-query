@@ -399,8 +399,9 @@ public class QueryObserverTests
         sut.SetArgs(0);
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
-        // StaleTime not yet elapsed — Invalidate should be skipped
-        sut.Invalidate();
+        // StaleTime not yet elapsed — re-enabling (which respects StaleTime) should not fetch
+        sut.SetEnabled(false);
+        sut.SetEnabled(true);
         await Task.Delay(50);
 
         await Assert.That(fetchCount).IsEqualTo(1);
@@ -424,8 +425,9 @@ public class QueryObserverTests
         sut.SetArgs(0);
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
-        // Global StaleTime not yet elapsed — Invalidate should be skipped
-        sut.Invalidate();
+        // Global StaleTime not yet elapsed — re-enabling (which respects StaleTime) should not fetch
+        sut.SetEnabled(false);
+        sut.SetEnabled(true);
         await Task.Delay(50);
 
         await Assert.That(fetchCount).IsEqualTo(1);

@@ -97,7 +97,7 @@ The very first fetch always shows chunks as they arrive, whichever mode is set �
 
 ### Invalidation does not restart a running stream
 
-`Invalidate()` — including the client-wide `Invalidate(...)` calls `<QueryRefreshMonitor>` makes on window focus and reconnect, and `RefetchInterval` ticks — **does not interrupt a stream that is still running**. It only marks the data stale, so the next subscriber to arrive refetches it. Restarting would throw away everything received so far, for an invalidation that usually has nothing to do with the stream.
+`Invalidate()` — including client-wide invalidation, the `InvalidateStale` calls `<QueryRefreshMonitor>` makes on window focus and reconnect, and `RefetchInterval` ticks — **does not interrupt a stream that is still running**. It only marks the data stale, so the next subscriber to arrive refetches it. Restarting would throw away everything received so far, for an invalidation that usually has nothing to do with the stream.
 
 Once the stream has completed, invalidation behaves exactly as for a regular query.
 

@@ -16,4 +16,10 @@ internal interface ICacheEntry : IQueryCacheEntry, IDisposable
 
     /// <summary>Fires when the first <c>State</c> subscriber attaches after having none.</summary>
     public IObservable<Unit> Subscribed { get; }
+
+    /// <summary>
+    /// Invalidates the entry only if its data is older than its <c>StaleTime</c> (or it was already
+    /// invalidated) — what <see cref="IQueryClient.InvalidateStale"/> does for each matching entry.
+    /// </summary>
+    public void InvalidateIfStale();
 }

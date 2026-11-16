@@ -202,7 +202,7 @@ var createMutation = queryClient.CreateMutation(new MutationOptions<CreateUserRe
 });
 ```
 
-After a successful execution, the client calls `Invalidate(QueryKey.From("users"))`, which marks all matching cache entries as stale and triggers a refetch if they have active subscribers.
+After a successful execution, the client calls `Invalidate(QueryKey.From("users"))`, which marks that cache entry as stale — however recently it was fetched — and refetches it if it has active subscribers. The key matches exactly; to refresh a group of keys, call `Invalidate` with a predicate from `OnSuccess`.
 
 Invalidation happens before `OnSuccess` is called, so your callback already sees up-to-date data if it reads from the cache.
 

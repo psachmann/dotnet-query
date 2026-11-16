@@ -67,6 +67,13 @@ internal sealed class QueryClient : IQueryClient, IQueryCacheInspector
 
     public void Invalidate(Func<QueryKey, bool> predicate) => _cache.Invalidate(predicate);
 
+    public void InvalidateStale(Func<QueryKey, bool> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+
+        _cache.InvalidateStale(predicate);
+    }
+
     public bool SetData<TData>(QueryKey key, TData data)
         where TData : class
     {

@@ -78,7 +78,7 @@ QueryKey.From("users", 42)          // user with id 42
 QueryKey.From("users", 42, "posts") // posts for user 42
 ```
 
-Keys drive caching and invalidation. Two queries with the same key share a single fetch and cache entry. Calling `Invalidate(QueryKey.From("users"))` marks every matching entry as stale.
+Keys drive caching and invalidation. Two queries with the same key share a single fetch and cache entry. Calling `Invalidate(QueryKey.From("users"))` marks that entry as stale; `Invalidate(key => key.Parts is ["users", ..])` marks every key that starts with `users`.
 
 ### The Cache
 
@@ -93,7 +93,7 @@ Data stays in the cache even after all subscribers unsubscribe, for a configurab
 
 These two settings are easy to confuse, but they control different things:
 
-- **Stale time** — how long fetched data is considered "fresh". Within this window, re-subscribing or calling `Invalidate()` does nothing. Defaults to `TimeSpan.Zero` (immediately stale).
+- **Stale time** — how long fetched data is considered "fresh". Within this window, re-subscribing doesn't refetch (an explicit `Invalidate()` still does). Defaults to `TimeSpan.Zero` (immediately stale).
 - **Cache time** — how long data stays in memory *after the last subscriber unsubscribes*. After this window, the entry is evicted. Defaults to 5 minutes.
 
 ### Reactive State

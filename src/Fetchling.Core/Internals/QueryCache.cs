@@ -198,6 +198,14 @@ internal sealed class QueryCache(IScheduler scheduler, QueryInstrumentation inst
         }
     }
 
+    public void InvalidateStale(Func<QueryKey, bool> predicate)
+    {
+        foreach (var entry in Match(predicate))
+        {
+            entry.InvalidateIfStale();
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)

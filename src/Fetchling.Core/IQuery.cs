@@ -29,11 +29,11 @@ public interface IQuery : IDisposable
     public void Cancel();
 
     /// <summary>
-    /// Marks the cached data as stale. If there are active subscribers, a re-fetch is triggered
-    /// immediately; otherwise the fetch is deferred until the first subscriber joins.
+    /// Marks the cached data as stale, regardless of <c>StaleTime</c>. If there are active subscribers, a
+    /// re-fetch is triggered immediately; otherwise the fetch is deferred until the first subscriber joins.
     /// <para>
-    /// If the last successful fetch occurred within the configured <c>StaleTime</c> window, this call
-    /// is a no-op. Use <see cref="Refetch"/> to bypass stale-time and force an immediate fetch.
+    /// A fetch already in flight is not restarted: it finishes, and is followed by one more fetch.
+    /// Use <see cref="Refetch"/> to restart it.
     /// </para>
     /// </summary>
     public void Invalidate();

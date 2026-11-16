@@ -81,7 +81,13 @@ internal sealed class Query<TArgs, TData> : ICacheEntry, IWritableEntry<TData>
             _subscriptions.Add(
                 Observable
                     .Interval(interval, _scheduler)
-                    .Subscribe(_ => Invalidate(FetchTrigger.Interval, staleIfInFlight: options.Stream is not null))
+                    .Subscribe(_ =>
+                        Invalidate(
+                            FetchTrigger.Interval,
+                            staleIfInFlight: options.Stream is not null,
+                            respectStaleTime: true
+                        )
+                    )
             );
         }
     }
@@ -416,17 +422,23 @@ internal sealed class Query<TArgs, TData> : ICacheEntry, IWritableEntry<TData>
         }
     }
 
-    public void Invalidate() => Invalidate(FetchTrigger.Invalidate, staleIfInFlight: true);
+    /// <summary>Marks the data out of date, regardless of <c>StaleTime</c>.</summary>
+    public void Invalidate() => Invalidate(FetchTrigger.Invalidate, staleIfInFlight: true, respectStaleTime: false);
+
+    /// <summary>Like <see cref="Invalidate()"/>, but a no-op while the data is within its <c>StaleTime</c>.</summary>
+    public void InvalidateIfStale() =>
+        Invalidate(FetchTrigger.Invalidate, staleIfInFlight: true, respectStaleTime: true);
 
     /// <summary>
     /// The invalidation an observer issues when it attaches to this entry. Unlike <see cref="Invalidate()"/>
-    /// it simply joins a fetch that is already in flight.
+    /// it respects <c>StaleTime</c> and simply joins a fetch that is already in flight.
     /// </summary>
-    internal void InvalidateOnAttach() => Invalidate(FetchTrigger.Invalidate, staleIfInFlight: false);
+    internal void InvalidateOnAttach() =>
+        Invalidate(FetchTrigger.Invalidate, staleIfInFlight: false, respectStaleTime: true);
 
-    private void Invalidate(FetchTrigger trigger, bool staleIfInFlight)
+    private void Invalidate(FetchTrigger trigger, bool staleIfInFlight, bool respectStaleTime)
     {
-        if (IsFresh())
+        if (respectStaleTime && IsFresh())
         {
             return;
         }
@@ -459,11 +471,12 @@ internal sealed class Query<TArgs, TData> : ICacheEntry, IWritableEntry<TData>
         }
     }
 
+    // Within StaleTime and not invalidated since: an invalidation marks data stale however recent it is.
     private bool IsFresh()
     {
         lock (_syncRoot)
         {
-            return _lastSuccessAt is { } last && _scheduler.Now - last < _options.StaleTime;
+            return !_isStale && _lastSuccessAt is { } last && _scheduler.Now - last < _options.StaleTime;
         }
     }
 
