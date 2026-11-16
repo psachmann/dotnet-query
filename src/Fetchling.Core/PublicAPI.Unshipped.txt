@@ -26,6 +26,7 @@ Fetchling.Core.Inspection.IQueryCacheInspector
 Fetchling.Core.Inspection.IQueryCacheInspector.Entries.get -> System.IObservable<System.Collections.Generic.IReadOnlyList<Fetchling.Core.Inspection.IQueryCacheEntry!>!>!
 Fetchling.Core.IQueryClient.CreateMutation<TArgs, TData, TProgress>(Fetchling.Core.MutationOptions<TArgs, TData, TProgress>! options) -> Fetchling.Core.IMutation<TArgs, TData, TProgress>!
 Fetchling.Core.IQueryClient.CreateStreamedQuery<TArgs, TData, TChunk>(Fetchling.Core.StreamedQueryOptions<TArgs, TData!, TChunk>! options) -> Fetchling.Core.IQuery<TArgs, TData!>!
+Fetchling.Core.IQueryClient.InvalidateStale(System.Func<Fetchling.Core.QueryKey!, bool>! predicate) -> void
 Fetchling.Core.IQueryClient.SetData<TData>(Fetchling.Core.QueryKey! key, System.Func<TData!, TData!>! updater) -> bool
 Fetchling.Core.IQueryClient.SetData<TData>(Fetchling.Core.QueryKey! key, TData! data) -> bool
 Fetchling.Core.IQueryClient.SetData<TData>(System.Func<Fetchling.Core.QueryKey!, bool>! predicate, System.Func<TData!, TData!>! updater) -> int

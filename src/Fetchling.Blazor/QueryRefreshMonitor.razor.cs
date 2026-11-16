@@ -9,7 +9,8 @@ using Microsoft.JSInterop;
 /// Place it once near the root of your app (e.g. <c>App.razor</c>).
 /// </summary>
 /// <remarks>
-/// Invalidation respects each query's <c>StaleTime</c> — fresh data is never re-fetched.
+/// It calls <see cref="Fetchling.Core.IQueryClient.InvalidateStale"/>, which respects each query's
+/// <c>StaleTime</c> — fresh data is never re-fetched.
 /// Requires an interactive render mode (Blazor WASM or interactive Blazor Server); has no effect under static SSR.
 /// </remarks>
 public sealed partial class QueryRefreshMonitor : IAsyncDisposable
@@ -58,11 +59,11 @@ public sealed partial class QueryRefreshMonitor : IAsyncDisposable
 
     /// <summary>Called by the browser when the tab regains focus. Not intended for direct use.</summary>
     [JSInvokable]
-    public void OnFocus() => QueryClient.Invalidate(_ => true);
+    public void OnFocus() => QueryClient.InvalidateStale(_ => true);
 
     /// <summary>Called by the browser when network connectivity is restored. Not intended for direct use.</summary>
     [JSInvokable]
-    public void OnReconnect() => QueryClient.Invalidate(_ => true);
+    public void OnReconnect() => QueryClient.InvalidateStale(_ => true);
 
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()

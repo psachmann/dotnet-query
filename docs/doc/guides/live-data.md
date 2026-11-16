@@ -128,7 +128,7 @@ hub.On("TodosChanged", () => queryClient.Invalidate(key => key.Parts is ["todos"
 
 - **`Invalidate(QueryKey)` matches the key exactly.** `QueryKey.From("todos")` does not invalidate `QueryKey.From("todos", 1)`. To reach a group of keys, pass a predicate, as in the second line.
 - **Only watched queries refetch.** A query with an active subscriber refetches right away. One without is only marked stale and refetches when it is next used.
-- **Fresh queries ignore it.** A query still within its `StaleTime` treats the invalidation as a no-op. The global default `StaleTime` is zero, so this only matters for queries you gave a longer one. Keep it short for keys that live updates invalidate.
+- **Fresh data is refetched too.** `Invalidate` ignores `StaleTime`, so a query is refetched however recently it was fetched. (`InvalidateStale` is the variant that leaves fresh data alone.)
 - **Events missed during a disconnect are lost.** When the connection comes back, invalidate everything the events would have touched:
 
   ```csharp

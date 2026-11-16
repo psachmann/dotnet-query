@@ -11,6 +11,7 @@ This guide covers what changes when you upgrade from DotNetQuery 2.x (last stabl
 | [DotNetQuery is now Fetchling](#dotnetquery-is-now-fetchling) | you use the library at all | Swap the packages, then rename namespaces, `AddDotNetQuery`, and telemetry names |
 | [.NET 9 is no longer supported](#net-9-is-no-longer-supported) | your application targets `net9.0` | Move to .NET 10, or stay on 2.0.0 |
 | [New members on `IQueryClient`](#new-members-on-iqueryclient) | you implement `IQueryClient` yourself | Implement the new members |
+| [`Invalidate` ignores `StaleTime`](#invalidate-ignores-staletime) | you give queries a `StaleTime` and invalidate them, or use `InvalidateKeys` | Usually nothing; use `InvalidateStale` where fresh data should be left alone |
 
 ## Breaking Changes
 
@@ -81,6 +82,7 @@ If you have to stay on .NET 9, stay on 2.0.0. It is the last release that suppor
 error CS0535: 'LoggingQueryClient' does not implement interface member 'IQueryClient.CreateMutation<TArgs, TData, TProgress>(MutationOptions<TArgs, TData, TProgress>)'
 error CS0535: 'LoggingQueryClient' does not implement interface member 'IQueryClient.CreateStreamedQuery<TArgs, TData, TChunk>(StreamedQueryOptions<TArgs, TData, TChunk>)'
 error CS0535: 'LoggingQueryClient' does not implement interface member 'IQueryClient.SetData<TData>(QueryKey, TData)'
+error CS0535: 'LoggingQueryClient' does not implement interface member 'IQueryClient.InvalidateStale(Func<QueryKey, bool>)'
 ```
 
 | Interface | New member |
@@ -90,8 +92,9 @@ error CS0535: 'LoggingQueryClient' does not implement interface member 'IQueryCl
 | `IQueryClient` | `bool SetData<TData>(QueryKey key, TData data) where TData : class` |
 | `IQueryClient` | `bool SetData<TData>(QueryKey key, Func<TData, TData> updater) where TData : class` |
 | `IQueryClient` | `int SetData<TData>(Func<QueryKey, bool> predicate, Func<TData, TData> updater) where TData : class` |
+| `IQueryClient` | `void InvalidateStale(Func<QueryKey, bool> predicate)` |
 
-**Why:** mutations can now report progress (see [Reporting Progress](guides/mutations.md#reporting-progress)). A progress-reporting mutation has its own options, state, and interface types, so the client needs a factory method for it, beside the existing one. The client can also now create [streamed queries](guides/streamed-queries.md), whose fetcher yields chunks that are folded into the data as they arrive. They have their own options type, so the client needs a factory method for them too. Finally, the client can write data straight into the cache by key, for data a server [pushes over SignalR or server-sent events](guides/live-data.md#an-event-carries-the-data). Until now that needed a query observer with matching args.
+**Why:** mutations can now report progress (see [Reporting Progress](guides/mutations.md#reporting-progress)). A progress-reporting mutation has its own options, state, and interface types, so the client needs a factory method for it, beside the existing one. The client can also now create [streamed queries](guides/streamed-queries.md), whose fetcher yields chunks that are folded into the data as they arrive. They have their own options type, so the client needs a factory method for them too. Finally, the client can write data straight into the cache by key, for data a server [pushes over SignalR or server-sent events](guides/live-data.md#an-event-carries-the-data). Until now that needed a query observer with matching args. And because [`Invalidate` now ignores `StaleTime`](#invalidate-ignores-staletime), the client has `InvalidateStale` for the old, stale-time-respecting behaviour.
 
 **How to migrate:** a decorator forwards the new methods like the existing ones:
 
@@ -116,6 +119,8 @@ public sealed class LoggingQueryClient(IQueryClient inner) : IQueryClient
     public int SetData<TData>(Func<QueryKey, bool> predicate, Func<TData, TData> updater)
         where TData : class => inner.SetData(predicate, updater);
 
+    public void InvalidateStale(Func<QueryKey, bool> predicate) => inner.InvalidateStale(predicate);
+
     // CreateQuery, CreateInfiniteQuery, the existing CreateMutation, Invalidate, and Dispose are unchanged.
 }
 ```
@@ -123,6 +128,37 @@ public sealed class LoggingQueryClient(IQueryClient inner) : IQueryClient
 ## Behaviour Changes
 
 These compile without errors but can change what your application does at runtime.
+
+### `Invalidate` ignores `StaleTime`
+
+In 2.x, an invalidation was a no-op while the data was within its `StaleTime`. That applied to `IQueryClient.Invalidate`, `IQuery.Invalidate`, `IQueryCacheEntry.Invalidate`, and a mutation's `InvalidateKeys`. So with `StaleTime = TimeSpan.FromMinutes(5)`, a list that had just been fetched kept showing its old data after a mutation that changed it, even though the [Mutations guide](guides/mutations.md#automatic-cache-invalidation) said the keys were refetched.
+
+In 3.0, an invalidation marks the data stale **however fresh it is**, as `invalidateQueries` does in TanStack Query:
+
+- A query with an active subscriber refetches.
+- One without is marked stale and fetches when the next subscriber arrives, or on `PrefetchAsync`.
+- A fetch in flight is still not restarted: it finishes and is followed by one more fetch.
+- A running stream is still left alone.
+
+`StaleTime` still governs everything that refreshes opportunistically:
+
+- a new subscriber;
+- a `RefetchInterval` tick;
+- `<QueryRefreshMonitor>` on window focus or reconnect, which now calls the new `IQueryClient.InvalidateStale`.
+
+The global default `StaleTime` is zero, so queries that don't set one see no difference.
+
+**What to do:** usually nothing. Mutations now refresh the queries they name, which is what `InvalidateKeys` is for. If you call `Invalidate` for a broad, "refresh if needed" sweep and relied on fresh data being skipped, call `InvalidateStale` instead:
+
+```csharp
+// Before: skipped entries within their StaleTime
+queryClient.Invalidate(_ => true);
+
+// After
+queryClient.InvalidateStale(_ => true);
+```
+
+`InvalidateStale` takes a predicate only. For a single key, pass `key => key == QueryKey.From("users", 42)`.
 
 ### Fixes you may notice
 

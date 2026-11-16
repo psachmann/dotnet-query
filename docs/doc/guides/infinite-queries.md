@@ -62,7 +62,7 @@ GetNextPageParam = info =>
 |---|---|---|
 | `GetPreviousPageParam` | `null` | Enables `FetchPreviousPage`. Return `None` when at the start. |
 | `MaxPages` | `null` (unbounded) | Trims oldest pages when exceeded on `FetchNextPage`; trims newest on `FetchPreviousPage`. |
-| `StaleTime` | global | Stale time for `Invalidate()` no-op check. |
+| `StaleTime` | global | How long loaded pages count as fresh: a new subscriber, an interval tick or `InvalidateStale` doesn't refetch them before then. |
 | `CacheTime` | global | Time to keep the entry after the last subscriber leaves. |
 | `RefetchInterval` | `null` | Automatic polling (triggers `RefetchAll`). |
 | `RetryHandler` | global | Custom retry logic. |
@@ -133,7 +133,7 @@ query.FetchPreviousPage();
 Both re-fetch **all currently loaded pages** sequentially (rebuilding `Pages` and `PageParams` from scratch), matching TanStack Query behavior. Existing pages are carried in the `Fetching` state for stale-while-revalidate display.
 
 ```csharp
-query.Invalidate(); // respects StaleTime
+query.Invalidate(); // marks stale regardless of StaleTime; refetches if observed
 query.Refetch();    // always re-fetches all pages
 ```
 

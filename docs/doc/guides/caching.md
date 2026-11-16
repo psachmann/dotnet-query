@@ -15,7 +15,7 @@ All queries that produce the same key share the same cache entry — they will n
 
 ## Stale Time
 
-Stale time controls how long fetched data is considered "fresh". Within the stale-time window, `Invalidate()` is a no-op — the cached data is served as-is.
+Stale time controls how long fetched data is considered "fresh". Within the stale-time window, a new subscriber, a `RefetchInterval` tick, and `<QueryRefreshMonitor>` (on focus or reconnect) don't refetch — the cached data is served as-is. An explicit invalidation does: see [Invalidation and stale time](#invalidation-and-stale-time).
 
 ```
                 StaleTime window
@@ -98,6 +98,17 @@ Both `queryA` and `queryB` receive the same `QueryState<TData>` transitions. Thi
 
 Invalidation marks one or more cache entries as stale. If they have active subscribers, a refetch is triggered immediately. If not, the fetch is deferred until the next subscriber joins.
 
+### Invalidation and stale time
+
+`Invalidate` says "this data has changed", so it marks data stale **however fresh it is** — as `invalidateQueries` does in TanStack Query. A mutation's `InvalidateKeys` goes through it too, so a successful mutation always refreshes the queries it names.
+
+For a broad refresh that doesn't know whether anything changed, use `InvalidateStale`. It invalidates only the matching entries whose data is older than their `StaleTime`, and is what `<QueryRefreshMonitor>` calls when the window regains focus or the network comes back:
+
+```csharp
+queryClient.Invalidate(key => key.Parts is ["users", ..]); // the users changed: refetch them all
+queryClient.InvalidateStale(_ => true);                     // refresh whatever has gone stale
+```
+
 ### Invalidate by Key
 
 ```csharp
@@ -110,7 +121,7 @@ This only matches the exact key `users:42`.
 
 ```csharp
 // Invalidate all user-related entries
-queryClient.Invalidate(key => key.ToString().StartsWith("users"));
+queryClient.Invalidate(key => key.Parts is ["users", ..]);
 
 // Invalidate everything
 queryClient.Invalidate(_ => true);
@@ -123,8 +134,8 @@ Predicate invalidation is useful after mutations that affect multiple queries.
 You can also invalidate a specific query directly:
 
 ```csharp
-query.Invalidate(); // respects stale time
-query.Refetch();    // ignores stale time — always fetches
+query.Invalidate(); // marks stale; refetches now if observed, else on the next subscriber
+query.Refetch();    // fetches now, restarting a fetch in flight
 ```
 
 ## Automatic Refetch Interval

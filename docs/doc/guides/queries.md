@@ -193,7 +193,7 @@ Use this for user-initiated refresh (e.g. a "Refresh" button).
 query.Invalidate();
 ```
 
-The difference from `Refetch()` is that `Invalidate()` respects stale time — if the data was fetched within the stale-time window, it is a no-op. `Refetch()` always fetches.
+`Invalidate()` ignores stale time: it marks even fresh data stale. It differs from `Refetch()` in two ways. It doesn't fetch a query nobody is observing; it waits for the next subscriber. And it doesn't restart a fetch already in flight; that fetch finishes and is followed by one more. `Refetch()` always fetches, restarting a fetch in flight. To leave fresh data alone, use `IQueryClient.InvalidateStale` (see [Caching](caching.md#invalidation-and-stale-time)).
 
 ### Cancel
 

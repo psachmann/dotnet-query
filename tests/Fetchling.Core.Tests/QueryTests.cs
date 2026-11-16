@@ -311,7 +311,7 @@ public class QueryTests
     }
 
     [Test]
-    public async Task Invalidate_WithinStaleTime_DoesNotRefetch()
+    public async Task InvalidateIfStale_WithinStaleTime_DoesNotRefetch()
     {
         var fetchCount = 0;
         using var sut = CreateQuery(
@@ -329,10 +329,30 @@ public class QueryTests
         await sut.State.Where(s => s.IsSuccess).FirstAsync();
 
         // No virtual time has advanced — still within StaleTime
-        sut.Invalidate();
+        sut.InvalidateIfStale();
         await Task.Delay(50);
 
         await Assert.That(fetchCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Invalidate_WithinStaleTime_StillRefetches()
+    {
+        var fetchCount = 0;
+        using var sut = CreateQuery(
+            fetcher: (_, _) => Task.FromResult($"data{Interlocked.Increment(ref fetchCount)}"),
+            staleTime: TimeSpan.FromMinutes(5)
+        );
+        using var sub = sut.State.Subscribe();
+
+        sut.Refetch();
+        await sut.State.Where(s => s.IsSuccess && s.CurrentData == "data1").FirstAsync();
+
+        // An invalidation says the data has changed, however fresh it is.
+        sut.Invalidate();
+        await sut.State.Where(s => s.IsSuccess && s.CurrentData == "data2").FirstAsync();
+
+        await Assert.That(fetchCount).IsEqualTo(2);
     }
 
     [Test]

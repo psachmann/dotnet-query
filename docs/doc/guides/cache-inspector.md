@@ -42,10 +42,10 @@ Each emitted list is a snapshot of *which* entries are in the cache. The entries
 | `Error` | The exception from the last failed fetch. |
 | `LastUpdatedAt` | When data was last written (fetch or `SetData`), on the client's scheduler clock. |
 | `ObserverCount` | Active subscribers to the entry's state. |
-| `IsStale` | Never succeeded, older than `StaleTime`, or invalidated while unobserved. Evaluated on read: going stale by elapsed time alone does not trigger an emission. |
+| `IsStale` | Never succeeded, older than `StaleTime`, or invalidated and not fetched since. Evaluated on read: going stale by elapsed time alone does not trigger an emission. |
 | `CacheTime` | How long the entry stays cached after its last subscriber leaves. |
 | `Refetch()` | Forces a fetch, ignoring `StaleTime`. |
-| `Invalidate()` | Marks the entry stale. Re-fetches now if it has subscribers, otherwise when the next one joins. |
+| `Invalidate()` | Marks the entry stale, regardless of `StaleTime`. Re-fetches now if it has subscribers, otherwise when the next one joins. |
 | `Cancel()` | Cancels the in-flight fetch. |
 
 There is deliberately no `Dispose()`: the cache owns its entries' lifetimes.

@@ -105,7 +105,7 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : ICacheEntry
             _subscriptions.Add(
                 Observable
                     .Interval(interval, _scheduler)
-                    .Subscribe(_ => Invalidate(FetchTrigger.Interval, staleIfInFlight: false))
+                    .Subscribe(_ => Invalidate(FetchTrigger.Interval, staleIfInFlight: false, respectStaleTime: true))
             );
         }
     }
@@ -304,17 +304,23 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : ICacheEntry
         }
     }
 
-    public void Invalidate() => Invalidate(FetchTrigger.Invalidate, staleIfInFlight: true);
+    /// <summary>Marks the pages out of date, regardless of <c>StaleTime</c>.</summary>
+    public void Invalidate() => Invalidate(FetchTrigger.Invalidate, staleIfInFlight: true, respectStaleTime: false);
+
+    /// <summary>Like <see cref="Invalidate()"/>, but a no-op while the pages are within their <c>StaleTime</c>.</summary>
+    public void InvalidateIfStale() =>
+        Invalidate(FetchTrigger.Invalidate, staleIfInFlight: true, respectStaleTime: true);
 
     /// <summary>
     /// The invalidation an observer issues when it attaches to this entry. Unlike <see cref="Invalidate()"/>
-    /// it simply joins a run that is already in flight.
+    /// it respects <c>StaleTime</c> and simply joins a run that is already in flight.
     /// </summary>
-    internal void InvalidateOnAttach() => Invalidate(FetchTrigger.Invalidate, staleIfInFlight: false);
+    internal void InvalidateOnAttach() =>
+        Invalidate(FetchTrigger.Invalidate, staleIfInFlight: false, respectStaleTime: true);
 
-    private void Invalidate(FetchTrigger trigger, bool staleIfInFlight)
+    private void Invalidate(FetchTrigger trigger, bool staleIfInFlight, bool respectStaleTime)
     {
-        if (IsFresh())
+        if (respectStaleTime && IsFresh())
         {
             return;
         }
@@ -350,7 +356,8 @@ internal sealed class InfiniteQuery<TArgs, TData, TPageParam> : ICacheEntry
     {
         lock (_syncRoot)
         {
-            return _lastSuccessAt is { } last && _scheduler.Now - last < _options.StaleTime;
+            // Within StaleTime and not invalidated since: an invalidation marks pages stale however recent.
+            return !_isStale && _lastSuccessAt is { } last && _scheduler.Now - last < _options.StaleTime;
         }
     }
 

@@ -50,21 +50,31 @@ public interface IQueryClient : IDisposable
     );
 
     /// <summary>
-    /// Marks the query with exactly the given key as stale and, if it has an active
-    /// subscriber, triggers a re-fetch. The key must match in full; it is not a prefix — use
-    /// <see cref="Invalidate(Func{QueryKey, bool})"/> to invalidate a group of keys. Entries still within their <c>StaleTime</c> window are
-    /// left untouched, and entries with no active subscriber are only marked stale — the re-fetch
-    /// is deferred until the next subscriber arrives.
+    /// Marks the query with exactly the given key as stale — regardless of its <c>StaleTime</c>, since an
+    /// invalidation says the data has changed — and, if it has an active subscriber, triggers a re-fetch. The
+    /// key must match in full; it is not a prefix — use <see cref="Invalidate(Func{QueryKey, bool})"/> to
+    /// invalidate a group of keys. An entry with no active subscriber is only marked stale; the re-fetch is
+    /// deferred until the next subscriber arrives. A fetch in flight is not restarted: it finishes, and is
+    /// followed by one more fetch.
     /// </summary>
     void Invalidate(QueryKey key);
 
     /// <summary>
-    /// Marks all queries whose key matches the predicate as stale and, for entries with an active
-    /// subscriber, triggers a re-fetch. Entries still within their <c>StaleTime</c> window are
-    /// left untouched, and entries with no active subscriber are only marked stale — the re-fetch
-    /// is deferred until the next subscriber arrives.
+    /// Marks all queries whose key matches the predicate as stale — regardless of their <c>StaleTime</c> —
+    /// and, for entries with an active subscriber, triggers a re-fetch. Entries with no active subscriber are
+    /// only marked stale; the re-fetch is deferred until the next subscriber arrives. To leave data within its
+    /// <c>StaleTime</c> alone, use <see cref="InvalidateStale"/>.
     /// </summary>
     void Invalidate(Func<QueryKey, bool> predicate);
+
+    /// <summary>
+    /// Like <see cref="Invalidate(Func{QueryKey, bool})"/>, but leaves entries whose data is still within
+    /// their <c>StaleTime</c> untouched. Use it for broad, opportunistic refreshes that don't know whether
+    /// anything changed — the window regaining focus, the network coming back (what
+    /// <c>&lt;QueryRefreshMonitor&gt;</c> does) — and <see cref="Invalidate(Func{QueryKey, bool})"/> when the
+    /// data is known to have changed.
+    /// </summary>
+    void InvalidateStale(Func<QueryKey, bool> predicate);
 
     /// <summary>
     /// Writes <paramref name="data"/> into the cached query with exactly the given key, as a success state —
