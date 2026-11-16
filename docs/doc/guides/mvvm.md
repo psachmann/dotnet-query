@@ -284,7 +284,8 @@ new MutationViewModel<TArgs, TData>(queryClient, options);
 
 // 2. The view model WRAPS an existing query/mutation and does not own it:
 //    Dispose() releases only the view model's subscription; you dispose the original.
-//    Use when a shared service owns long-lived queries and mutations.
+//    Use when a shared service owns long-lived queries and mutations
+//    (see "Organizing Mutations" in the mutations guide).
 new QueryViewModel<TArgs, TData>(existingQuery);
 new InfiniteQueryViewModel<TArgs, TData, TPageParam>(existingQuery);
 new MutationViewModel<TArgs, TData>(existingMutation);

@@ -235,7 +235,7 @@ See the [DevTools guide](devtools.md) for the full feature reference.
 
 ## Tips
 
-- **Use service classes for queries and mutations.** Define queries and mutations in a dedicated service that implements `IDisposable`, register it with the DI container, and inject it into components. The service owns and disposes the instances — components stay focused on rendering.
+- **Use service classes for queries and mutations.** Define queries and mutations in a dedicated service that implements `IDisposable`, register it with the DI container, and inject it into components. The service owns and disposes the instances — components stay focused on rendering. See [Organizing Mutations](mutations.md#organizing-mutations).
 - **Components only dispose their own subscriptions.** `<Suspense>` and `<Transition>` dispose their internal subscriptions automatically. If a component subscribes to a query or mutation state stream directly, dispose that subscription in `Dispose()` — but do not dispose the query or mutation itself if it belongs to an injected service.
 - **Push args in `OnParametersSet`.** When your component receives route parameters, push them inside `OnParametersSet` so the query updates when the URL changes.
 - **Nest components freely.** A `<Suspense>` inside a `<Transition>`'s `Content` works perfectly — each component manages its own subscription independently.

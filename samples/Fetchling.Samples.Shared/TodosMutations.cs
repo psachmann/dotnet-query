@@ -12,14 +12,16 @@ public sealed record TodoItemArgs(Guid ItemId, Guid ListId);
 
 public sealed class TodosMutations : IDisposable
 {
-    public readonly IMutation<string, TodoList> CreateTodoList;
-    public readonly IMutation<UpdateTodoListArgs, Unit> UpdateTodoList;
-    public readonly IMutation<Guid, Unit> DeleteTodoList;
-    public readonly IMutation<AddTodoItemArgs, TodoItem> AddTodoItem;
-    public readonly IMutation<TodoItemArgs, Unit> ToggleTodoItem;
-    public readonly IMutation<UpdateTodoItemArgs, Unit> UpdateTodoItem;
-    public readonly IMutation<TodoItemArgs, Unit> DeleteTodoItem;
+    public IMutation<string, TodoList> CreateTodoList { get; }
+    public IMutation<UpdateTodoListArgs, Unit> UpdateTodoList { get; }
+    public IMutation<Guid, Unit> DeleteTodoList { get; }
+    public IMutation<AddTodoItemArgs, TodoItem> AddTodoItem { get; }
+    public IMutation<TodoItemArgs, Unit> ToggleTodoItem { get; }
+    public IMutation<UpdateTodoItemArgs, Unit> UpdateTodoItem { get; }
+    public IMutation<TodoItemArgs, Unit> DeleteTodoItem { get; }
 
+    // This class owns every mutation it creates and disposes them in Dispose().
+    // Invalidation: InvalidateKeys for fixed keys (todo-lists), OnSuccess when the key depends on the args (todo-items per list).
     public TodosMutations(IQueryClient queryClient, ITodosClient todosClient)
     {
         CreateTodoList = queryClient.CreateMutation(
