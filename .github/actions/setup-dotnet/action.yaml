@@ -21,3 +21,7 @@ runs:
     - name: Restore Tools
       shell: bash
       run: dotnet tool restore
+
+    - name: Restore Packages
+      shell: bash
+      run: dotnet restore
