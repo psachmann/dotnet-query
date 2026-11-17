@@ -14,19 +14,21 @@ If you have ever found yourself writing the same `isLoading / hasError / data` b
 
 ## Features
 
-- **Queries** — fetch async data with automatic caching, background refetching, and stale-while-revalidate semantics.
-- **Infinite queries** — paginated and "load more" data fetching with `<InfiniteSuspense>` / `<InfiniteTransition>`.
-- **Mutations** — execute data-modifying operations with lifecycle callbacks and automatic cache invalidation on success.
-- **Reactive state** — every query and mutation exposes `IObservable` streams for composable async pipelines.
-- **Smart caching** — configurable stale time and cache time control when data is refetched and when it is evicted.
-- **Query deduplication** — identical keys share a single cached query instance; no redundant requests.
-- **Retry logic** — one attempt by default, fail-fast; plug in exponential backoff or any other policy via `IRetryHandler`.
-- **Observability** — OTel-compatible distributed tracing, metrics, and structured logging using only BCL APIs.
-- **Blazor components** — `<Suspense>` and `<Transition>` components for declarative query rendering.
-- **DevTools** — `<QueryDevTools>` live cache inspector component for development.
-- **MVVM view models** — bindable `INotifyPropertyChanged` view models for MAUI, WPF, WinUI, UNO Platform, and Avalonia.
-- **CSR / SSR support** — `QueryExecutionMode` controls Singleton (WebAssembly) vs Scoped (Server-Side Rendering) DI lifetime.
-- **DI integration** — first-class support for `Microsoft.Extensions.DependencyInjection`.
+- **Queries** — fetch async data with automatic caching, background refetching, and stale-while-revalidate semantics
+- **Infinite queries** — paginated and "load more" data fetching with `<InfiniteSuspense>` / `<InfiniteTransition>`
+- **Streamed queries** — fold an `IAsyncEnumerable` (gRPC streams, LLM tokens, SignalR or server-sent events) into data that renders as it grows
+- **Mutations** — execute data-modifying operations with lifecycle callbacks, progress reporting, and automatic cache invalidation on success
+- **Live data** — keep the cache current from server pushes: invalidate on an event, or write the pushed data straight in with `IQueryClient.SetData`
+- **Reactive state** — built on [Rx.NET](https://github.com/dotnet/reactive), every query and mutation exposes `IObservable` streams for composable async pipelines
+- **Smart caching** — configurable stale time and cache time control when data is re-fetched and when it is evicted
+- **Query deduplication** — identical keys share a single cached query instance; no redundant requests
+- **Retry logic** — one attempt by default, fail-fast; plug in exponential backoff or any other policy via `IRetryHandler`
+- **Observability** — OTel-compatible distributed tracing (`ActivitySource`), metrics (`Meter`), and structured logging (`ILogger`) using only BCL APIs; no OpenTelemetry package required in the library
+- **Blazor components** — `<Suspense>` and `<Transition>` components for declarative query rendering
+- **DevTools** — `<QueryDevTools>` live cache inspector component for development, and a public inspection API for building your own
+- **MVVM view models** — `QueryViewModel<TArgs, TData>` with bindable `INotifyPropertyChanged` properties and UI-thread marshaling for MAUI, WPF, WinUI, UNO Platform, and Avalonia
+- **CSR / SSR support** — `QueryExecutionMode` controls Singleton (WebAssembly) vs Scoped (Server-Side Rendering) DI lifetime
+- **DI integration** — first-class support for `Microsoft.Extensions.DependencyInjection`
 
 ---
 
