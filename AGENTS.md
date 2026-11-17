@@ -59,4 +59,4 @@ TUnit (not xUnit/NUnit), bUnit for Blazor components, `TUnit.Mocks` / `TUnit.Moc
 ## Other
 
 - DI registration: `services.AddFetchling(o => { o.ExecutionMode = QueryExecutionMode.Ssr; })` (Scoped for SSR, Singleton for CSR).
-- `AGENTS.md` and `contributing.md` are excluded from Context7 indexing (`context7.json`); keep its `rules` to consumer-facing gotchas.
+- `AGENTS.md`, `contributing.md` and `llms.txt` are excluded from Context7 indexing (`context7.json`); keep its `rules` to consumer-facing gotchas.

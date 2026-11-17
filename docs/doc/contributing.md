@@ -194,8 +194,8 @@ Pull requests must pass all CI checks before merging.
 
 - **Public API files:** move the accumulated `PublicAPI.Unshipped.txt` additions into `PublicAPI.Shipped.txt`, delete each `*REMOVED*` line together with its `Shipped` counterpart, and leave `Unshipped` with only its `#nullable enable` header. Prereleases leave both files alone. Members whose only change since the last release is nullability annotation (`!`, `?`, `~`) already appear in `Shipped` in their current form: the analyzer matches symbols ignoring annotations and would reject a `*REMOVED*`/re-add pair (`RS0025`, `RS0050`, `RS0036`).
 - **Package validation:** set `PackageValidationBaselineVersion` to the new stable version. The baseline is deliberately the last stable release, not the latest prerelease. For an intentional break, generate a suppression file instead of weakening the gate: `mise run suppressions`.
-- **Docs:** remove the "not released yet" note from `migrating-to-v3.md`, drop the "the upcoming N.0" wording from other docs, and link the guide from `README.md`, `docs/index.md` and the upgrade paragraph of `docs/llms.txt`.
-- **Context7:** add the new tag to `previousVersions` in `context7.json` (keep the previous one) and update the versioned ID in `README.md` and `docs/llms.txt`. A push to `main` touching indexed paths re-indexes via `.github/workflows/context7.yaml` (needs `CONTEXT7_API_KEY`).
+- **Docs:** remove the "not released yet" note from `migrating-to-v3.md`, drop the "the upcoming N.0" wording from other docs, and link the guide from `README.md`, `docs/index.md` and the "Upgrading" section of `docs/llms.txt`.
+- **Context7:** add the new tag to `previousVersions` in `context7.json` (keep the previous one) and update the versioned ID in `README.md` and `docs/llms.txt`. When you add a guide, add it to `docs/doc/toc.yml` and to `docs/llms.txt`. A push to `main` touching indexed paths re-indexes via `.github/workflows/context7.yaml` (needs `CONTEXT7_API_KEY`).
 
 ### Migration guide
 
