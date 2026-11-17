@@ -15,10 +15,23 @@ You need:
 
 | Tool | Version |
 |------|---------|
-| .NET SDK | 11.0 (see [global.json](https://github.com/psachmann/fetchling/blob/main/global.json)) |
-| CSharpier | 1.3.0 (installed as a local dotnet tool) |
+| [mise](https://mise.jdx.dev/) (recommended) | any recent version; installs the SDK and runs the project tasks (see [mise.toml](https://github.com/psachmann/fetchling/blob/main/mise.toml)) |
+| .NET SDK | pinned in [global.json](https://github.com/psachmann/fetchling/blob/main/global.json) |
+| CSharpier, Husky.Net, DocFX | pinned in [dotnet-tools.json](https://github.com/psachmann/fetchling/blob/main/dotnet-tools.json), installed as local dotnet tools |
+
+The packages target `net10.0` and `net11.0`, but a single SDK 11 builds both. `global.json` pins the exact
+SDK, so a bare `dotnet` command fails if that SDK is not installed system-wide. mise is the easiest way to
+get it: `mise install` provisions the SDK, and `mise run <task>` uses it automatically. Without mise, install
+the SDK from [dot.net](https://dot.net) and use plain `dotnet` commands.
 
 After cloning, restore the local tools and packages:
+
+```bash
+mise run restore-tools
+mise run restore-packages
+```
+
+or, without mise:
 
 ```bash
 dotnet tool restore
@@ -31,12 +44,16 @@ The repo ships [husky](https://alirezanet.github.io/Husky.Net/) hook definitions
 project wires them up automatically — install them once per clone:
 
 ```bash
+mise run restore-tools   # once, if you have not already
 dotnet husky install
 ```
 
 This adds a pre-commit hook that runs `dotnet csharpier format` on staged files, and a pre-push hook
 that runs the full test suite (`dotnet test -c Release`). Both mirror checks CI also runs, so the
 hooks just let you catch a formatting or test failure before pushing instead of after.
+
+The hooks call plain `dotnet`, so if mise is not activated in your shell, run `git commit` and `git push`
+as `mise exec -- git ...`.
 
 ## Common Commands
 
@@ -62,7 +79,7 @@ dotnet docfx docs/docfx.json
 
 ## Code Style
 
-The project uses [CSharpier](https://csharpier.com/) for formatting, enforced as a CI gate and as a husky pre-commit hook (see [Git Hooks](#git-hooks) below). Run `dotnet csharpier format .` locally before pushing to avoid the CI failing on formatting.
+The project uses [CSharpier](https://csharpier.com/) for formatting, enforced as a CI gate and as a husky pre-commit hook (see [Git Hooks](#git-hooks)). Run `dotnet csharpier format .` locally before pushing to avoid the CI failing on formatting.
 
 There is no extensive style guide beyond what CSharpier enforces — just try to follow the patterns already present in the codebase.
 
