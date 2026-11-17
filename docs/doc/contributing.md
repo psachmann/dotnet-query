@@ -126,7 +126,7 @@ If you are thinking about a larger feature or a change to the public API, please
 
 Breaking changes only ship in a major release, so please open an issue first. Once one is agreed, document it in the migration guide **in the same pull request** — you know the why and the fix better than anyone will at release time.
 
-The guide is `docs/doc/migrating-to-v<N>.md`, where `<N>` is the upcoming major (currently [`migrating-to-v3.md`](migrating-to-v3.md)). Your PR owes it an entry if it:
+The guide is `docs/doc/migrating-to-v<N>.md`, where `<N>` is the upcoming major. There is none until the first break after 3.0 lands; create it in that PR, modelled on [`migrating-to-v3.md`](migrating-to-v3.md). Your PR owes it an entry if it:
 
 - adds a suppression to a `CompatibilitySuppressions.xml` or a `*REMOVED*` line to a `PublicAPI.Unshipped.txt` (see [Build Gates](#build-gates)), or
 - changes behaviour or telemetry (names, units, tags) in a way existing code still compiles against. No gate catches these, which is exactly why they need writing down.
@@ -175,8 +175,8 @@ Pull requests must pass all CI checks before merging.
 
 ### Cutting a stable release
 
-- **Public API files:** move the accumulated `PublicAPI.Unshipped.txt` additions into `PublicAPI.Shipped.txt`, delete each `*REMOVED*` line together with its `Shipped` counterpart, and leave `Unshipped` with only its `#nullable enable` header. Prereleases leave both files alone. Members whose only change since 2.0.0 is nullability annotation (`!`, `?`, `~`) already appear in `Shipped` in their current form: the analyzer matches symbols ignoring annotations and would reject a `*REMOVED*`/re-add pair (`RS0025`, `RS0050`, `RS0036`).
-- **Package validation:** set `PackageValidationBaselineVersion` to the new stable version (currently unset, because no stable `Fetchling.*` package exists; the 2.x `DotNetQuery.*` assemblies share no names). The baseline is deliberately the last stable release, not the latest prerelease. For an intentional break, generate a suppression file instead of weakening the gate: `mise run suppressions`.
+- **Public API files:** move the accumulated `PublicAPI.Unshipped.txt` additions into `PublicAPI.Shipped.txt`, delete each `*REMOVED*` line together with its `Shipped` counterpart, and leave `Unshipped` with only its `#nullable enable` header. Prereleases leave both files alone. Members whose only change since the last release is nullability annotation (`!`, `?`, `~`) already appear in `Shipped` in their current form: the analyzer matches symbols ignoring annotations and would reject a `*REMOVED*`/re-add pair (`RS0025`, `RS0050`, `RS0036`).
+- **Package validation:** set `PackageValidationBaselineVersion` to the new stable version. The baseline is deliberately the last stable release, not the latest prerelease. For an intentional break, generate a suppression file instead of weakening the gate: `mise run suppressions`.
 - **Docs:** remove the "not released yet" note from `migrating-to-v3.md`, drop the "the upcoming N.0" wording from other docs, and link the guide from `README.md`, `docs/index.md` and the upgrade paragraph of `docs/llms.txt`.
 - **Context7:** add the new tag to `previousVersions` in `context7.json` (keep the previous one) and update the versioned ID in `README.md` and `docs/llms.txt`. A push to `main` touching indexed paths re-indexes via `.github/workflows/context7.yaml` (needs `CONTEXT7_API_KEY`).
 

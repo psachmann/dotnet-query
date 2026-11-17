@@ -10,6 +10,15 @@ Fetchling.Core.IInfiniteQuery<TArgs, TData, TPageParam>.SetEnabled(bool enabled)
 Fetchling.Core.IInfiniteQuery<TArgs, TData, TPageParam>.Settled.get -> System.IObservable<Fetchling.Core.InfiniteQueryState<TData!, TPageParam>!>!
 Fetchling.Core.IInfiniteQuery<TArgs, TData, TPageParam>.State.get -> System.IObservable<Fetchling.Core.InfiniteQueryState<TData!, TPageParam>!>!
 Fetchling.Core.IInfiniteQuery<TArgs, TData, TPageParam>.Success.get -> System.IObservable<System.Collections.Generic.IReadOnlyList<TData!>!>!
+Fetchling.Core.IMutation<TArgs, TData, TProgress>
+Fetchling.Core.IMutation<TArgs, TData, TProgress>.Cancel() -> void
+Fetchling.Core.IMutation<TArgs, TData, TProgress>.CurrentState.get -> Fetchling.Core.MutationState<TData, TProgress>!
+Fetchling.Core.IMutation<TArgs, TData, TProgress>.Execute(TArgs args) -> void
+Fetchling.Core.IMutation<TArgs, TData, TProgress>.Failure.get -> System.IObservable<System.Exception!>!
+Fetchling.Core.IMutation<TArgs, TData, TProgress>.SetEnabled(bool enabled) -> void
+Fetchling.Core.IMutation<TArgs, TData, TProgress>.Settled.get -> System.IObservable<Fetchling.Core.MutationState<TData, TProgress>!>!
+Fetchling.Core.IMutation<TArgs, TData, TProgress>.State.get -> System.IObservable<Fetchling.Core.MutationState<TData, TProgress>!>!
+Fetchling.Core.IMutation<TArgs, TData, TProgress>.Success.get -> System.IObservable<TData>!
 Fetchling.Core.IMutation<TArgs, TData>
 Fetchling.Core.IMutation<TArgs, TData>.Cancel() -> void
 Fetchling.Core.IMutation<TArgs, TData>.CurrentState.get -> Fetchling.Core.MutationState<TData>!
@@ -39,10 +48,16 @@ Fetchling.Core.IQuery<TArgs, TData>.State.get -> System.IObservable<Fetchling.Co
 Fetchling.Core.IQuery<TArgs, TData>.Success.get -> System.IObservable<TData!>!
 Fetchling.Core.IQueryClient
 Fetchling.Core.IQueryClient.CreateInfiniteQuery<TArgs, TData, TPageParam>(Fetchling.Core.InfiniteQueryOptions<TArgs, TData!, TPageParam>! options) -> Fetchling.Core.IInfiniteQuery<TArgs, TData!, TPageParam>!
+Fetchling.Core.IQueryClient.CreateMutation<TArgs, TData, TProgress>(Fetchling.Core.MutationOptions<TArgs, TData, TProgress>! options) -> Fetchling.Core.IMutation<TArgs, TData, TProgress>!
 Fetchling.Core.IQueryClient.CreateMutation<TArgs, TData>(Fetchling.Core.MutationOptions<TArgs, TData>! options) -> Fetchling.Core.IMutation<TArgs, TData>!
 Fetchling.Core.IQueryClient.CreateQuery<TArgs, TData>(Fetchling.Core.QueryOptions<TArgs, TData!>! options) -> Fetchling.Core.IQuery<TArgs, TData!>!
+Fetchling.Core.IQueryClient.CreateStreamedQuery<TArgs, TData, TChunk>(Fetchling.Core.StreamedQueryOptions<TArgs, TData!, TChunk>! options) -> Fetchling.Core.IQuery<TArgs, TData!>!
 Fetchling.Core.IQueryClient.Invalidate(Fetchling.Core.QueryKey! key) -> void
 Fetchling.Core.IQueryClient.Invalidate(System.Func<Fetchling.Core.QueryKey!, bool>! predicate) -> void
+Fetchling.Core.IQueryClient.InvalidateStale(System.Func<Fetchling.Core.QueryKey!, bool>! predicate) -> void
+Fetchling.Core.IQueryClient.SetData<TData>(Fetchling.Core.QueryKey! key, System.Func<TData!, TData!>! updater) -> bool
+Fetchling.Core.IQueryClient.SetData<TData>(Fetchling.Core.QueryKey! key, TData! data) -> bool
+Fetchling.Core.IQueryClient.SetData<TData>(System.Func<Fetchling.Core.QueryKey!, bool>! predicate, System.Func<TData!, TData!>! updater) -> int
 Fetchling.Core.IRetryHandler
 Fetchling.Core.IRetryHandler.ExecuteAsync<TData>(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<TData>!>! action, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TData>!
 Fetchling.Core.InfinitePageInfo<TData, TPageParam>
@@ -106,6 +121,44 @@ Fetchling.Core.InfiniteQueryState<TData, TPageParam>.IsSuccess.get -> bool
 Fetchling.Core.InfiniteQueryState<TData, TPageParam>.PageParams.get -> System.Collections.Generic.IReadOnlyList<TPageParam>!
 Fetchling.Core.InfiniteQueryState<TData, TPageParam>.Pages.get -> System.Collections.Generic.IReadOnlyList<TData>!
 Fetchling.Core.InfiniteQueryState<TData, TPageParam>.Status.get -> Fetchling.Core.QueryStatus
+Fetchling.Core.Inspection.IQueryCacheEntry
+Fetchling.Core.Inspection.IQueryCacheEntry.CacheTime.get -> System.TimeSpan
+Fetchling.Core.Inspection.IQueryCacheEntry.Cancel() -> void
+Fetchling.Core.Inspection.IQueryCacheEntry.CurrentData.get -> object?
+Fetchling.Core.Inspection.IQueryCacheEntry.Error.get -> System.Exception?
+Fetchling.Core.Inspection.IQueryCacheEntry.Invalidate() -> void
+Fetchling.Core.Inspection.IQueryCacheEntry.IsStale.get -> bool
+Fetchling.Core.Inspection.IQueryCacheEntry.Key.get -> Fetchling.Core.QueryKey!
+Fetchling.Core.Inspection.IQueryCacheEntry.LastData.get -> object?
+Fetchling.Core.Inspection.IQueryCacheEntry.LastUpdatedAt.get -> System.DateTimeOffset?
+Fetchling.Core.Inspection.IQueryCacheEntry.Name.get -> string!
+Fetchling.Core.Inspection.IQueryCacheEntry.ObserverCount.get -> int
+Fetchling.Core.Inspection.IQueryCacheEntry.Refetch() -> void
+Fetchling.Core.Inspection.IQueryCacheEntry.Status.get -> Fetchling.Core.QueryStatus
+Fetchling.Core.Inspection.IQueryCacheInspector
+Fetchling.Core.Inspection.IQueryCacheInspector.Entries.get -> System.IObservable<System.Collections.Generic.IReadOnlyList<Fetchling.Core.Inspection.IQueryCacheEntry!>!>!
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.<Clone>$() -> Fetchling.Core.MutationOptions<TArgs, TData, TProgress>!
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.Equals(Fetchling.Core.MutationOptions<TArgs, TData, TProgress>? other) -> bool
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.InvalidateKeys.get -> System.Collections.Generic.IReadOnlyList<Fetchling.Core.QueryKey!>?
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.InvalidateKeys.init -> void
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.IsEnabled.get -> bool
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.IsEnabled.init -> void
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.MutationOptions() -> void
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.Mutator.get -> System.Func<TArgs, System.IProgress<TProgress>!, System.Threading.CancellationToken, System.Threading.Tasks.Task<TData>!>!
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.Mutator.init -> void
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.Name.get -> string?
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.Name.init -> void
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.OnFailure.get -> System.Action<System.Exception!>?
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.OnFailure.init -> void
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.OnMutate.get -> System.Action<TArgs>?
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.OnMutate.init -> void
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.OnSettled.get -> System.Action?
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.OnSettled.init -> void
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.OnSuccess.get -> System.Action<TArgs, TData>?
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.OnSuccess.init -> void
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.RetryHandler.get -> Fetchling.Core.IRetryHandler?
+Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.RetryHandler.init -> void
 Fetchling.Core.MutationOptions<TArgs, TData>
 Fetchling.Core.MutationOptions<TArgs, TData>.<Clone>$() -> Fetchling.Core.MutationOptions<TArgs, TData>!
 Fetchling.Core.MutationOptions<TArgs, TData>.Equals(Fetchling.Core.MutationOptions<TArgs, TData>? other) -> bool
@@ -128,6 +181,20 @@ Fetchling.Core.MutationOptions<TArgs, TData>.OnSuccess.get -> System.Action<TArg
 Fetchling.Core.MutationOptions<TArgs, TData>.OnSuccess.init -> void
 Fetchling.Core.MutationOptions<TArgs, TData>.RetryHandler.get -> Fetchling.Core.IRetryHandler?
 Fetchling.Core.MutationOptions<TArgs, TData>.RetryHandler.init -> void
+Fetchling.Core.MutationState<TData, TProgress>
+Fetchling.Core.MutationState<TData, TProgress>.<Clone>$() -> Fetchling.Core.MutationState<TData, TProgress>!
+Fetchling.Core.MutationState<TData, TProgress>.CurrentData.get -> TData?
+Fetchling.Core.MutationState<TData, TProgress>.Equals(Fetchling.Core.MutationState<TData, TProgress>? other) -> bool
+Fetchling.Core.MutationState<TData, TProgress>.Error.get -> System.Exception?
+Fetchling.Core.MutationState<TData, TProgress>.HasData.get -> bool
+Fetchling.Core.MutationState<TData, TProgress>.HasError.get -> bool
+Fetchling.Core.MutationState<TData, TProgress>.IsFailure.get -> bool
+Fetchling.Core.MutationState<TData, TProgress>.IsIdle.get -> bool
+Fetchling.Core.MutationState<TData, TProgress>.IsRunning.get -> bool
+Fetchling.Core.MutationState<TData, TProgress>.IsSuccess.get -> bool
+Fetchling.Core.MutationState<TData, TProgress>.MutationState() -> void
+Fetchling.Core.MutationState<TData, TProgress>.Progress.get -> TProgress?
+Fetchling.Core.MutationState<TData, TProgress>.Status.get -> Fetchling.Core.MutationStatus
 Fetchling.Core.MutationState<TData>
 Fetchling.Core.MutationState<TData>.<Clone>$() -> Fetchling.Core.MutationState<TData>!
 Fetchling.Core.MutationState<TData>.CurrentData.get -> TData?
@@ -152,6 +219,7 @@ Fetchling.Core.PageParam<TValue>.HasValue.get -> bool
 Fetchling.Core.PageParam<TValue>.PageParam() -> void
 Fetchling.Core.PageParam<TValue>.Value.get -> TValue
 Fetchling.Core.QueryClientFactory
+Fetchling.Core.QueryClientInspectionExtensions
 Fetchling.Core.QueryClientOptions
 Fetchling.Core.QueryClientOptions.<Clone>$() -> Fetchling.Core.QueryClientOptions!
 Fetchling.Core.QueryClientOptions.CacheTime.get -> System.TimeSpan
@@ -207,6 +275,7 @@ Fetchling.Core.QueryState<TData>.HasError.get -> bool
 Fetchling.Core.QueryState<TData>.IsFailure.get -> bool
 Fetchling.Core.QueryState<TData>.IsFetching.get -> bool
 Fetchling.Core.QueryState<TData>.IsIdle.get -> bool
+Fetchling.Core.QueryState<TData>.IsStreaming.get -> bool
 Fetchling.Core.QueryState<TData>.IsSuccess.get -> bool
 Fetchling.Core.QueryState<TData>.LastData.get -> TData?
 Fetchling.Core.QueryState<TData>.QueryState() -> void
@@ -216,6 +285,37 @@ Fetchling.Core.QueryStatus.Failure = 3 -> Fetchling.Core.QueryStatus
 Fetchling.Core.QueryStatus.Fetching = 1 -> Fetchling.Core.QueryStatus
 Fetchling.Core.QueryStatus.Idle = 0 -> Fetchling.Core.QueryStatus
 Fetchling.Core.QueryStatus.Success = 2 -> Fetchling.Core.QueryStatus
+Fetchling.Core.StreamRefetchMode
+Fetchling.Core.StreamRefetchMode.Replace = 1 -> Fetchling.Core.StreamRefetchMode
+Fetchling.Core.StreamRefetchMode.Reset = 0 -> Fetchling.Core.StreamRefetchMode
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.CacheTime.get -> System.TimeSpan?
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.CacheTime.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.CancelWhenUnobservedAfter.get -> System.TimeSpan?
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.CancelWhenUnobservedAfter.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.DataComparer.get -> System.Collections.Generic.IEqualityComparer<TData!>?
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.DataComparer.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Fetcher.get -> System.Func<TArgs, System.Threading.CancellationToken, System.Collections.Generic.IAsyncEnumerable<TChunk>!>!
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Fetcher.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.InitialValue.get -> TData!
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.InitialValue.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.IsEnabled.get -> bool
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.IsEnabled.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.KeyFactory.get -> System.Func<TArgs, Fetchling.Core.QueryKey!>!
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.KeyFactory.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Name.get -> string?
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Name.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Reducer.get -> System.Func<TData!, TChunk, TData!>!
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Reducer.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RefetchInterval.get -> System.TimeSpan?
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RefetchInterval.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RefetchMode.get -> Fetchling.Core.StreamRefetchMode
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RefetchMode.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RetryHandler.get -> Fetchling.Core.IRetryHandler?
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.RetryHandler.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.StaleTime.get -> System.TimeSpan?
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.StaleTime.init -> void
+Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.StreamedQueryOptions() -> void
 const Fetchling.Core.Observability.QueryTelemetry.SourceName = "Fetchling" -> string!
 override Fetchling.Core.InfinitePageInfo<TData, TPageParam>.GetHashCode() -> int
 override Fetchling.Core.InfiniteQueryOptions<TArgs, TData, TPageParam>.Equals(object? obj) -> bool
@@ -224,9 +324,15 @@ override Fetchling.Core.InfiniteQueryOptions<TArgs, TData, TPageParam>.ToString(
 override Fetchling.Core.InfiniteQueryState<TData, TPageParam>.Equals(object? obj) -> bool
 override Fetchling.Core.InfiniteQueryState<TData, TPageParam>.GetHashCode() -> int
 override Fetchling.Core.InfiniteQueryState<TData, TPageParam>.ToString() -> string!
+override Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.Equals(object? obj) -> bool
+override Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.GetHashCode() -> int
+override Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.ToString() -> string!
 override Fetchling.Core.MutationOptions<TArgs, TData>.Equals(object? obj) -> bool
 override Fetchling.Core.MutationOptions<TArgs, TData>.GetHashCode() -> int
 override Fetchling.Core.MutationOptions<TArgs, TData>.ToString() -> string!
+override Fetchling.Core.MutationState<TData, TProgress>.Equals(object? obj) -> bool
+override Fetchling.Core.MutationState<TData, TProgress>.GetHashCode() -> int
+override Fetchling.Core.MutationState<TData, TProgress>.ToString() -> string!
 override Fetchling.Core.MutationState<TData>.Equals(object? obj) -> bool
 override Fetchling.Core.MutationState<TData>.GetHashCode() -> int
 override Fetchling.Core.MutationState<TData>.ToString() -> string!
@@ -242,6 +348,9 @@ override Fetchling.Core.QueryOptions<TArgs, TData>.ToString() -> string!
 override Fetchling.Core.QueryState<TData>.Equals(object? obj) -> bool
 override Fetchling.Core.QueryState<TData>.GetHashCode() -> int
 override Fetchling.Core.QueryState<TData>.ToString() -> string!
+override Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Equals(object? obj) -> bool
+override Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.GetHashCode() -> int
+override Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.ToString() -> string!
 static Fetchling.Core.InfinitePageInfo<TData, TPageParam>.operator !=(Fetchling.Core.InfinitePageInfo<TData, TPageParam> left, Fetchling.Core.InfinitePageInfo<TData, TPageParam> right) -> bool
 static Fetchling.Core.InfinitePageInfo<TData, TPageParam>.operator ==(Fetchling.Core.InfinitePageInfo<TData, TPageParam> left, Fetchling.Core.InfinitePageInfo<TData, TPageParam> right) -> bool
 static Fetchling.Core.InfiniteQueryState<TData, TPageParam>.CreateFailure(System.Exception! error, System.Collections.Generic.IReadOnlyList<TData>! pages, System.Collections.Generic.IReadOnlyList<TPageParam>! pageParams, bool hasNextPage, bool hasPreviousPage) -> Fetchling.Core.InfiniteQueryState<TData, TPageParam>!
@@ -252,8 +361,16 @@ static Fetchling.Core.InfiniteQueryState<TData, TPageParam>.CreateIdle() -> Fetc
 static Fetchling.Core.InfiniteQueryState<TData, TPageParam>.CreateSuccess(System.Collections.Generic.IReadOnlyList<TData>! pages, System.Collections.Generic.IReadOnlyList<TPageParam>! pageParams, bool hasNextPage, bool hasPreviousPage) -> Fetchling.Core.InfiniteQueryState<TData, TPageParam>!
 static Fetchling.Core.InfiniteQueryState<TData, TPageParam>.operator !=(Fetchling.Core.InfiniteQueryState<TData, TPageParam>? left, Fetchling.Core.InfiniteQueryState<TData, TPageParam>? right) -> bool
 static Fetchling.Core.InfiniteQueryState<TData, TPageParam>.operator ==(Fetchling.Core.InfiniteQueryState<TData, TPageParam>? left, Fetchling.Core.InfiniteQueryState<TData, TPageParam>? right) -> bool
+static Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.operator !=(Fetchling.Core.MutationOptions<TArgs, TData, TProgress>? left, Fetchling.Core.MutationOptions<TArgs, TData, TProgress>? right) -> bool
+static Fetchling.Core.MutationOptions<TArgs, TData, TProgress>.operator ==(Fetchling.Core.MutationOptions<TArgs, TData, TProgress>? left, Fetchling.Core.MutationOptions<TArgs, TData, TProgress>? right) -> bool
 static Fetchling.Core.MutationOptions<TArgs, TData>.operator !=(Fetchling.Core.MutationOptions<TArgs, TData>? left, Fetchling.Core.MutationOptions<TArgs, TData>? right) -> bool
 static Fetchling.Core.MutationOptions<TArgs, TData>.operator ==(Fetchling.Core.MutationOptions<TArgs, TData>? left, Fetchling.Core.MutationOptions<TArgs, TData>? right) -> bool
+static Fetchling.Core.MutationState<TData, TProgress>.CreateFailure(System.Exception! error, TProgress? progress) -> Fetchling.Core.MutationState<TData, TProgress>!
+static Fetchling.Core.MutationState<TData, TProgress>.CreateIdle() -> Fetchling.Core.MutationState<TData, TProgress>!
+static Fetchling.Core.MutationState<TData, TProgress>.CreateRunning(TProgress? progress) -> Fetchling.Core.MutationState<TData, TProgress>!
+static Fetchling.Core.MutationState<TData, TProgress>.CreateSuccess(TData data, TProgress? progress) -> Fetchling.Core.MutationState<TData, TProgress>!
+static Fetchling.Core.MutationState<TData, TProgress>.operator !=(Fetchling.Core.MutationState<TData, TProgress>? left, Fetchling.Core.MutationState<TData, TProgress>? right) -> bool
+static Fetchling.Core.MutationState<TData, TProgress>.operator ==(Fetchling.Core.MutationState<TData, TProgress>? left, Fetchling.Core.MutationState<TData, TProgress>? right) -> bool
 static Fetchling.Core.MutationState<TData>.CreateFailure(System.Exception! error) -> Fetchling.Core.MutationState<TData>!
 static Fetchling.Core.MutationState<TData>.CreateIdle() -> Fetchling.Core.MutationState<TData>!
 static Fetchling.Core.MutationState<TData>.CreateRunning() -> Fetchling.Core.MutationState<TData>!
@@ -264,6 +381,7 @@ static Fetchling.Core.PageParam<TValue>.None.get -> Fetchling.Core.PageParam<TVa
 static Fetchling.Core.PageParam<TValue>.Some(TValue value) -> Fetchling.Core.PageParam<TValue>
 static Fetchling.Core.PageParam<TValue>.implicit operator Fetchling.Core.PageParam<TValue>(TValue value) -> Fetchling.Core.PageParam<TValue>
 static Fetchling.Core.QueryClientFactory.Create(Fetchling.Core.QueryClientOptions! options, System.Reactive.Concurrency.IScheduler? scheduler = null, Microsoft.Extensions.Logging.ILogger? logger = null) -> Fetchling.Core.IQueryClient!
+static Fetchling.Core.QueryClientInspectionExtensions.TryGetInspector(this Fetchling.Core.IQueryClient! client, out Fetchling.Core.Inspection.IQueryCacheInspector? inspector) -> bool
 static Fetchling.Core.QueryClientOptions.operator !=(Fetchling.Core.QueryClientOptions? left, Fetchling.Core.QueryClientOptions? right) -> bool
 static Fetchling.Core.QueryClientOptions.operator ==(Fetchling.Core.QueryClientOptions? left, Fetchling.Core.QueryClientOptions? right) -> bool
 static Fetchling.Core.QueryKey.Default.get -> Fetchling.Core.QueryKey!
@@ -274,6 +392,7 @@ static Fetchling.Core.QueryKey.operator ==(Fetchling.Core.QueryKey? left, Fetchl
 static Fetchling.Core.QueryState<TData>.CreateFailure(System.Exception! error, TData? lastData = null) -> Fetchling.Core.QueryState<TData!>!
 static Fetchling.Core.QueryState<TData>.CreateFetching(TData? lastData = null) -> Fetchling.Core.QueryState<TData!>!
 static Fetchling.Core.QueryState<TData>.CreateIdle(TData? lastData = null) -> Fetchling.Core.QueryState<TData!>!
+static Fetchling.Core.QueryState<TData>.CreateStreaming(TData! currentData, TData? lastData = null) -> Fetchling.Core.QueryState<TData!>!
 static Fetchling.Core.QueryState<TData>.CreateSuccess(TData! currentData, TData? lastData = null) -> Fetchling.Core.QueryState<TData!>!
 static readonly Fetchling.Core.Observability.QueryTelemetry.ActivitySource -> System.Diagnostics.ActivitySource!
 static readonly Fetchling.Core.Observability.QueryTelemetry.Meter -> System.Diagnostics.Metrics.Meter!
@@ -283,6 +402,8 @@ static readonly Fetchling.Core.Observability.QueryTelemetry.Meter -> System.Diag
 ~Fetchling.Core.QueryOptions<TArgs, TData>.Equals(Fetchling.Core.QueryOptions<TArgs, TData>? other) -> bool
 ~Fetchling.Core.QueryState<TData>.<Clone>$() -> Fetchling.Core.QueryState<TData>!
 ~Fetchling.Core.QueryState<TData>.Equals(Fetchling.Core.QueryState<TData>? other) -> bool
+~Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.<Clone>$() -> Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>!
+~Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.Equals(Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>? other) -> bool
 ~override Fetchling.Core.InfinitePageInfo<TData, TPageParam>.Equals(object obj) -> bool
 ~override Fetchling.Core.InfinitePageInfo<TData, TPageParam>.ToString() -> string
 ~static Fetchling.Core.InfiniteQueryOptions<TArgs, TData, TPageParam>.operator !=(Fetchling.Core.InfiniteQueryOptions<TArgs, TData, TPageParam>? left, Fetchling.Core.InfiniteQueryOptions<TArgs, TData, TPageParam>? right) -> bool
@@ -291,3 +412,5 @@ static readonly Fetchling.Core.Observability.QueryTelemetry.Meter -> System.Diag
 ~static Fetchling.Core.QueryOptions<TArgs, TData>.operator ==(Fetchling.Core.QueryOptions<TArgs, TData>? left, Fetchling.Core.QueryOptions<TArgs, TData>? right) -> bool
 ~static Fetchling.Core.QueryState<TData>.operator !=(Fetchling.Core.QueryState<TData>? left, Fetchling.Core.QueryState<TData>? right) -> bool
 ~static Fetchling.Core.QueryState<TData>.operator ==(Fetchling.Core.QueryState<TData>? left, Fetchling.Core.QueryState<TData>? right) -> bool
+~static Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.operator !=(Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>? left, Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>? right) -> bool
+~static Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>.operator ==(Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>? left, Fetchling.Core.StreamedQueryOptions<TArgs, TData, TChunk>? right) -> bool
