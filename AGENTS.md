@@ -34,6 +34,8 @@ mise run public-api                     # regenerate PublicAPI.Unshipped.txt ent
 mise run suppressions                   # regenerate CompatibilitySuppressions.xml
 ```
 
+Git hooks (Husky: CSharpier on commit, tests on push) call plain `dotnet`, so run `git commit` and `git push` as `mise exec -- git ...` unless mise is activated in your shell. Never bypass the hooks with `--no-verify`.
+
 CSharpier is a CI gate: run `format-fix` before committing. Indentation is 4 spaces for C#/Razor/JS, 2 for XML/config (`.editorconfig`).
 
 ## Build gates (Release build, `src/` only)
