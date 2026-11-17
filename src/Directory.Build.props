@@ -15,17 +15,14 @@
 
     The baseline is the last stable release, not the latest prerelease: it measures what breaks
     for someone upgrading from the version they run in production, and each project's
-    CompatibilitySuppressions.xml then lists every intentional break of the upcoming major.
+    CompatibilitySuppressions.xml then lists every intentional break since that release.
     Bump it after every stable release. A project that did not exist at the baseline overrides
     it in its own project file. An intentional break needs a suppression file (pack with
     -p:ApiCompatGenerateSuppressionFile=true to produce one).
-
-    There is no baseline yet: 3.0.0 is the first release under the Fetchling package IDs, and the
-    2.x packages were published as DotNetQuery.*, whose assemblies and namespaces share nothing
-    with these. Set PackageValidationBaselineVersion to 3.0.0 once it ships.
   -->
   <PropertyGroup>
     <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>3.0.0</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <!--

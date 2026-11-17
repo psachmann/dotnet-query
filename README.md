@@ -77,7 +77,7 @@ Full guides, examples, and API reference are available **[here](https://psachman
 - [API Reference](https://psachmann.github.io/fetchling/api/Fetchling.Core.html) — full generated API docs
 - [Blazor sample](https://github.com/psachmann/fetchling/tree/main/samples/Fetchling.Samples.Blazor) and [Avalonia sample](https://github.com/psachmann/fetchling/tree/main/samples/Fetchling.Samples.Avalonia) — complete, runnable apps built on the library
 
-> **AI agents / LLMs:** a single-file reference covering the full public API, all patterns, and architecture notes is available at [`/llms.txt`](https://psachmann.github.io/fetchling/llms.txt). The docs are also indexed on [Context7](https://context7.com/psachmann/fetchling) under the library ID `/psachmann/fetchling`.
+> **AI agents / LLMs:** an index of the docs is at [`/llms.txt`](https://psachmann.github.io/fetchling/llms.txt). The docs are also indexed on [Context7](https://context7.com/psachmann/fetchling) under the library ID `/psachmann/fetchling`.
 
 ## Quick Start
 

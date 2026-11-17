@@ -36,6 +36,28 @@ Fetchling.Mvvm.InfiniteQueryViewModel<TArgs, TData, TPageParam>.SetArgs(TArgs ar
 Fetchling.Mvvm.InfiniteQueryViewModel<TArgs, TData, TPageParam>.SetEnabled(bool enabled) -> void
 Fetchling.Mvvm.InfiniteQueryViewModel<TArgs, TData, TPageParam>.StateChanged -> System.EventHandler?
 Fetchling.Mvvm.InfiniteQueryViewModel<TArgs, TData, TPageParam>.Status.get -> Fetchling.Core.QueryStatus
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.CancelCommand.get -> System.Windows.Input.ICommand!
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.CurrentState.get -> Fetchling.Core.MutationState<TData, TProgress>!
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Data.get -> TData?
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Dispose() -> void
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Error.get -> System.Exception?
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Execute(TArgs args) -> void
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.ExecuteCommand.get -> System.Windows.Input.ICommand!
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.HasData.get -> bool
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.HasError.get -> bool
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.IsFailure.get -> bool
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.IsIdle.get -> bool
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.IsRunning.get -> bool
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.IsSuccess.get -> bool
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Mutation.get -> Fetchling.Core.IMutation<TArgs, TData, TProgress>!
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.MutationViewModel(Fetchling.Core.IMutation<TArgs, TData, TProgress>! mutation, Fetchling.Mvvm.IUiDispatcher? dispatcher = null) -> void
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.MutationViewModel(Fetchling.Core.IQueryClient! client, Fetchling.Core.MutationOptions<TArgs, TData, TProgress>! options, Fetchling.Mvvm.IUiDispatcher? dispatcher = null) -> void
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Progress.get -> TProgress?
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.StateChanged -> System.EventHandler?
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Status.get -> Fetchling.Core.MutationStatus
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.ToCommand(System.Func<TArgs>! args, System.Func<bool>? canExecute = null) -> Fetchling.Mvvm.IMutationCommand!
+Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.ToCommand<TParam>(System.Func<TParam, TArgs>! map, System.Func<TParam, bool>? canExecute = null) -> Fetchling.Mvvm.IMutationCommand!
 Fetchling.Mvvm.MutationViewModel<TArgs, TData>
 Fetchling.Mvvm.MutationViewModel<TArgs, TData>.CancelCommand.get -> System.Windows.Input.ICommand!
 Fetchling.Mvvm.MutationViewModel<TArgs, TData>.CurrentState.get -> Fetchling.Core.MutationState<TData>!
@@ -71,6 +93,7 @@ Fetchling.Mvvm.QueryViewModel<TArgs, TData>.IsFailure.get -> bool
 Fetchling.Mvvm.QueryViewModel<TArgs, TData>.IsFetching.get -> bool
 Fetchling.Mvvm.QueryViewModel<TArgs, TData>.IsIdle.get -> bool
 Fetchling.Mvvm.QueryViewModel<TArgs, TData>.IsLoading.get -> bool
+Fetchling.Mvvm.QueryViewModel<TArgs, TData>.IsStreaming.get -> bool
 Fetchling.Mvvm.QueryViewModel<TArgs, TData>.IsSuccess.get -> bool
 Fetchling.Mvvm.QueryViewModel<TArgs, TData>.LastData.get -> TData?
 Fetchling.Mvvm.QueryViewModel<TArgs, TData>.Query.get -> Fetchling.Core.IQuery<TArgs, TData!>!
@@ -90,9 +113,11 @@ static Fetchling.Mvvm.ObservableCollectionExtensions.SyncFrom<T, TKey>(this Syst
 static Fetchling.Mvvm.ObservableCollectionExtensions.SyncFrom<TSource, T, TKey>(this System.Collections.ObjectModel.ObservableCollection<T>! target, System.Collections.Generic.IEnumerable<TSource>! source, System.Func<TSource, TKey>! sourceKey, System.Func<T, TKey>! targetKey, System.Func<TSource, T>! create, System.Action<T, TSource>? update = null) -> void
 static Fetchling.Mvvm.QueryViewModelExtensions.ObserveOnUi<T>(this System.IObservable<T>! source, Fetchling.Mvvm.IUiDispatcher? dispatcher = null) -> System.IObservable<T>!
 static Fetchling.Mvvm.QueryViewModelExtensions.ToViewModel<TArgs, TData, TPageParam>(this Fetchling.Core.IInfiniteQuery<TArgs, TData!, TPageParam>! query, System.Reactive.Disposables.CompositeDisposable? disposeWith = null, Fetchling.Mvvm.IUiDispatcher? dispatcher = null) -> Fetchling.Mvvm.InfiniteQueryViewModel<TArgs, TData!, TPageParam>!
+static Fetchling.Mvvm.QueryViewModelExtensions.ToViewModel<TArgs, TData, TProgress>(this Fetchling.Core.IMutation<TArgs, TData, TProgress>! mutation, System.Reactive.Disposables.CompositeDisposable? disposeWith = null, Fetchling.Mvvm.IUiDispatcher? dispatcher = null) -> Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>!
 static Fetchling.Mvvm.QueryViewModelExtensions.ToViewModel<TArgs, TData>(this Fetchling.Core.IMutation<TArgs, TData>! mutation, System.Reactive.Disposables.CompositeDisposable? disposeWith = null, Fetchling.Mvvm.IUiDispatcher? dispatcher = null) -> Fetchling.Mvvm.MutationViewModel<TArgs, TData>!
 static Fetchling.Mvvm.QueryViewModelExtensions.ToViewModel<TArgs, TData>(this Fetchling.Core.IQuery<TArgs, TData!>! query, System.Reactive.Disposables.CompositeDisposable? disposeWith = null, Fetchling.Mvvm.IUiDispatcher? dispatcher = null) -> Fetchling.Mvvm.QueryViewModel<TArgs, TData!>!
 static Fetchling.Mvvm.SynchronizationContextUiDispatcher.CaptureCurrent() -> Fetchling.Mvvm.SynchronizationContextUiDispatcher!
 virtual Fetchling.Mvvm.InfiniteQueryViewModel<TArgs, TData, TPageParam>.Dispose(bool disposing) -> void
+virtual Fetchling.Mvvm.MutationViewModel<TArgs, TData, TProgress>.Dispose(bool disposing) -> void
 virtual Fetchling.Mvvm.MutationViewModel<TArgs, TData>.Dispose(bool disposing) -> void
 virtual Fetchling.Mvvm.QueryViewModel<TArgs, TData>.Dispose(bool disposing) -> void

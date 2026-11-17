@@ -15,10 +15,23 @@ You need:
 
 | Tool | Version |
 |------|---------|
-| .NET SDK | 11.0 (see [global.json](https://github.com/psachmann/fetchling/blob/main/global.json)) |
-| CSharpier | 1.3.0 (installed as a local dotnet tool) |
+| [mise](https://mise.jdx.dev/) (recommended) | any recent version; installs the SDK and runs the project tasks (see [mise.toml](https://github.com/psachmann/fetchling/blob/main/mise.toml)) |
+| .NET SDK | pinned in [global.json](https://github.com/psachmann/fetchling/blob/main/global.json) |
+| CSharpier, Husky.Net, DocFX | pinned in [dotnet-tools.json](https://github.com/psachmann/fetchling/blob/main/dotnet-tools.json), installed as local dotnet tools |
+
+The packages target `net10.0` and `net11.0`, but a single SDK 11 builds both. `global.json` pins the exact
+SDK, so a bare `dotnet` command fails if that SDK is not installed system-wide. mise is the easiest way to
+get it: `mise install` provisions the SDK, and `mise run <task>` uses it automatically. Without mise, install
+the SDK from [dot.net](https://dot.net) and use plain `dotnet` commands.
 
 After cloning, restore the local tools and packages:
+
+```bash
+mise run restore-tools
+mise run restore-packages
+```
+
+or, without mise:
 
 ```bash
 dotnet tool restore
@@ -31,12 +44,16 @@ The repo ships [husky](https://alirezanet.github.io/Husky.Net/) hook definitions
 project wires them up automatically — install them once per clone:
 
 ```bash
+mise run restore-tools   # once, if you have not already
 dotnet husky install
 ```
 
 This adds a pre-commit hook that runs `dotnet csharpier format` on staged files, and a pre-push hook
 that runs the full test suite (`dotnet test -c Release`). Both mirror checks CI also runs, so the
 hooks just let you catch a formatting or test failure before pushing instead of after.
+
+The hooks call plain `dotnet`, so if mise is not activated in your shell, run `git commit` and `git push`
+as `mise exec -- git ...`.
 
 ## Common Commands
 
@@ -62,7 +79,7 @@ dotnet docfx docs/docfx.json
 
 ## Code Style
 
-The project uses [CSharpier](https://csharpier.com/) for formatting, enforced as a CI gate and as a husky pre-commit hook (see [Git Hooks](#git-hooks) below). Run `dotnet csharpier format .` locally before pushing to avoid the CI failing on formatting.
+The project uses [CSharpier](https://csharpier.com/) for formatting, enforced as a CI gate and as a husky pre-commit hook (see [Git Hooks](#git-hooks)). Run `dotnet csharpier format .` locally before pushing to avoid the CI failing on formatting.
 
 There is no extensive style guide beyond what CSharpier enforces — just try to follow the patterns already present in the codebase.
 
@@ -126,7 +143,7 @@ If you are thinking about a larger feature or a change to the public API, please
 
 Breaking changes only ship in a major release, so please open an issue first. Once one is agreed, document it in the migration guide **in the same pull request** — you know the why and the fix better than anyone will at release time.
 
-The guide is `docs/doc/migrating-to-v<N>.md`, where `<N>` is the upcoming major (currently [`migrating-to-v3.md`](migrating-to-v3.md)). Your PR owes it an entry if it:
+The guide is `docs/doc/migrating-to-v<N>.md`, where `<N>` is the upcoming major. There is none until the first break after 3.0 lands; create it in that PR, modelled on [`migrating-to-v3.md`](migrating-to-v3.md). Your PR owes it an entry if it:
 
 - adds a suppression to a `CompatibilitySuppressions.xml` or a `*REMOVED*` line to a `PublicAPI.Unshipped.txt` (see [Build Gates](#build-gates)), or
 - changes behaviour or telemetry (names, units, tags) in a way existing code still compiles against. No gate catches these, which is exactly why they need writing down.
@@ -175,10 +192,10 @@ Pull requests must pass all CI checks before merging.
 
 ### Cutting a stable release
 
-- **Public API files:** move the accumulated `PublicAPI.Unshipped.txt` additions into `PublicAPI.Shipped.txt`, delete each `*REMOVED*` line together with its `Shipped` counterpart, and leave `Unshipped` with only its `#nullable enable` header. Prereleases leave both files alone. Members whose only change since 2.0.0 is nullability annotation (`!`, `?`, `~`) already appear in `Shipped` in their current form: the analyzer matches symbols ignoring annotations and would reject a `*REMOVED*`/re-add pair (`RS0025`, `RS0050`, `RS0036`).
-- **Package validation:** set `PackageValidationBaselineVersion` to the new stable version (currently unset, because no stable `Fetchling.*` package exists; the 2.x `DotNetQuery.*` assemblies share no names). The baseline is deliberately the last stable release, not the latest prerelease. For an intentional break, generate a suppression file instead of weakening the gate: `mise run suppressions`.
-- **Docs:** remove the "not released yet" note from `migrating-to-v3.md`, drop the "the upcoming N.0" wording from other docs, and link the guide from `README.md`, `docs/index.md` and the upgrade paragraph of `docs/llms.txt`.
-- **Context7:** add the new tag to `previousVersions` in `context7.json` (keep the previous one) and update the versioned ID in `README.md` and `docs/llms.txt`. A push to `main` touching indexed paths re-indexes via `.github/workflows/context7.yaml` (needs `CONTEXT7_API_KEY`).
+- **Public API files:** move the accumulated `PublicAPI.Unshipped.txt` additions into `PublicAPI.Shipped.txt`, delete each `*REMOVED*` line together with its `Shipped` counterpart, and leave `Unshipped` with only its `#nullable enable` header. Prereleases leave both files alone. Members whose only change since the last release is nullability annotation (`!`, `?`, `~`) already appear in `Shipped` in their current form: the analyzer matches symbols ignoring annotations and would reject a `*REMOVED*`/re-add pair (`RS0025`, `RS0050`, `RS0036`).
+- **Package validation:** set `PackageValidationBaselineVersion` to the new stable version. The baseline is deliberately the last stable release, not the latest prerelease. For an intentional break, generate a suppression file instead of weakening the gate: `mise run suppressions`.
+- **Docs:** remove the "not released yet" note from `migrating-to-v3.md`, drop the "the upcoming N.0" wording from other docs, and link the guide from `README.md`, `docs/index.md` and the "Upgrading" section of `docs/llms.txt`.
+- **Context7:** add the new tag to `previousVersions` in `context7.json` (keep the previous one) and update the versioned ID in `README.md` and `docs/llms.txt`. When you add a guide, add it to `docs/doc/toc.yml` and to `docs/llms.txt`. A push to `main` touching indexed paths re-indexes via `.github/workflows/context7.yaml` (needs `CONTEXT7_API_KEY`).
 
 ### Migration guide
 

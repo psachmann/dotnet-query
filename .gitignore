@@ -2,6 +2,7 @@
 bin/
 obj/
 TestResults/
+artifacts/
 
 # Test coverage output (see the CI test command in CLAUDE.md)
 coverage/

@@ -30,7 +30,7 @@ jobs:
         run: dotnet csharpier check .
 
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build --configuration Release
 
       - name: Expose GitHub Actions Runtime
         uses: ./.github/actions/expose-actions-runtime
@@ -53,4 +53,3 @@ jobs:
           use_oidc: true
           files: ${{ steps.coverage.outputs.files }}
           fail_ci_if_error: true
-
