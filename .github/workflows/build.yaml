@@ -30,7 +30,7 @@ jobs:
         run: dotnet csharpier check .
 
       - name: Build
-        run: dotnet build --configuration Release
+        run: dotnet build --configuration Release --no-restore
 
       - name: Expose GitHub Actions Runtime
         uses: ./.github/actions/expose-actions-runtime
